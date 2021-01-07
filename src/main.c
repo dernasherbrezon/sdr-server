@@ -7,6 +7,8 @@
 #include <stdbool.h>
 #include <rtl-sdr.h>
 #include <unistd.h>
+#include <sys/time.h>
+#include <string.h>
 
 struct Message {
 	uint8_t command;
@@ -111,11 +113,89 @@ int validateClientConfig(struct ClientConfig *config) {
 	return 0;
 }
 
+static pthread_mutex_t ll_mutex;
+static pthread_cond_t cond;
+
+static struct llist *ll_buffers = 0;
+static int llbuf_num = 500;
+static int global_numq = 0;
+
+struct llist {
+	char *data;
+	size_t len;
+	struct llist *next;
+};
+
 void rtlsdr_callback(unsigned char *buf, uint32_t len, void *ctx) {
-	//FIXME
+	//TODO temporary linked list
+	struct llist *rpt = (struct llist*) malloc(sizeof(struct llist));
+	rpt->data = (char*) malloc(len);
+	memcpy(rpt->data, buf, len);
+	rpt->len = len;
+	rpt->next = NULL;
+
+	pthread_mutex_lock(&ll_mutex);
+	if (ll_buffers == NULL) {
+		ll_buffers = rpt;
+	} else {
+		struct llist *cur = ll_buffers;
+		int num_queued = 0;
+
+		while (cur->next != NULL) {
+			cur = cur->next;
+			num_queued++;
+		}
+
+		if (llbuf_num && llbuf_num == num_queued - 2) {
+			struct llist *curelem;
+
+			free(ll_buffers->data);
+			curelem = ll_buffers->next;
+			free(ll_buffers);
+			ll_buffers = curelem;
+		}
+
+		cur->next = rpt;
+
+		if (num_queued > global_numq)
+			printf("ll+, now %d\n", num_queued);
+		else if (num_queued < global_numq)
+			printf("ll-, now %d\n", num_queued);
+
+		global_numq = num_queued;
+	}
+	pthread_cond_signal(&cond);
+	pthread_mutex_unlock(&ll_mutex);
 }
 
 static void* client_worker(void *arg) {
+	struct timespec ts;
+	struct timeval tp;
+	struct llist *curelem, *prev;
+	while (1) {
+		pthread_mutex_lock(&ll_mutex);
+		//FIXME relative timeout instead of absolute system time?
+		gettimeofday(&tp, NULL);
+		ts.tv_sec = tp.tv_sec + 50000;
+		ts.tv_nsec = tp.tv_usec * 1000;
+		//FIXME spurious wakeups not handled
+		int r = pthread_cond_timedwait(&cond, &ll_mutex, &ts);
+		//FIXME check timeout
+
+		curelem = ll_buffers;
+		ll_buffers = 0;
+		pthread_mutex_unlock(&ll_mutex);
+
+		while (curelem != NULL) {
+
+			printf("processed %zu\n", curelem->len);
+
+			prev = curelem;
+			curelem = curelem->next;
+			free(prev->data);
+			free(prev);
+		}
+	}
 	//FIXME worker thread
 	return (void*) 0;
 }
@@ -219,15 +299,15 @@ int main(int argc, char **argv) {
 				close(clientSocket);
 				continue;
 			}
-			//FIXME from config
-			code = rtlsdr_set_sample_rate(dev, 1400000);
+			//FIXME from config 1400000
+			code = rtlsdr_set_sample_rate(dev, config.sampleRate);
 			if (code < 0) {
 				writeMessage(clientSocket, 0x01, 0x04); // unable to start device
 				close(clientSocket);
 				rtlsdr_close(dev);
 				continue;
 			}
-			printf("sample rate: %u\n", 1400000);
+			printf("sample rate: %u\n", config.sampleRate);
 			code = rtlsdr_set_center_freq(dev, config.bandFrequency);
 			if (code < 0) {
 				writeMessage(clientSocket, 0x01, 0x04); // unable to start device

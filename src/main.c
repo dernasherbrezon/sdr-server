@@ -169,6 +169,9 @@ void rtlsdr_callback(unsigned char *buf, uint32_t len, void *ctx) {
 }
 
 static void* client_worker(void *arg) {
+
+
+
 	struct timespec ts;
 	struct timeval tp;
 	struct llist *curelem, *prev;
@@ -188,6 +191,7 @@ static void* client_worker(void *arg) {
 
 		while (curelem != NULL) {
 
+			//FIXME DSP
 			printf("processed %zu\n", curelem->len);
 
 			prev = curelem;

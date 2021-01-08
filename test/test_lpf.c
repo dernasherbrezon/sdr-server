@@ -34,7 +34,7 @@ Suite* common_suite(void) {
 	Suite *s;
 	TCase *tc_core;
 
-	s = suite_create("common");
+	s = suite_create("lpf");
 
 	/* Core test case */
 	tc_core = tcase_create("Core");

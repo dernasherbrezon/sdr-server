@@ -8,12 +8,16 @@
 struct xlating_t {
 	int decimation;
 	float *taps;
-	int taps_len;
+	size_t taps_len;
 	rotator *rot;
 	float *original_taps;
 };
 
-int create_frequency_xlating_filter(int decimation, float *taps, int taps_len, double center_freq, double sampling_freq, xlating **filter) {
+void process(uint8_t *input, size_t input_len, float complex *output, size_t output_len, xlating *filter) {
+	//FIXME
+}
+
+int create_frequency_xlating_filter(int decimation, float *taps, size_t taps_len, double center_freq, double sampling_freq, xlating **filter) {
 	struct xlating_t *result = malloc(sizeof(struct xlating_t));
 	result->decimation = decimation;
 	result->taps_len = taps_len;

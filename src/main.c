@@ -121,7 +121,7 @@ static int llbuf_num = 500;
 static int global_numq = 0;
 
 struct llist {
-	char *data;
+	uint8_t *data;
 	size_t len;
 	struct llist *next;
 };
@@ -129,7 +129,7 @@ struct llist {
 void rtlsdr_callback(unsigned char *buf, uint32_t len, void *ctx) {
 	//TODO temporary linked list
 	struct llist *rpt = (struct llist*) malloc(sizeof(struct llist));
-	rpt->data = (char*) malloc(len);
+	rpt->data = (uint8_t*) malloc(len);
 	memcpy(rpt->data, buf, len);
 	rpt->len = len;
 	rpt->next = NULL;

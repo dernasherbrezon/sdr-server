@@ -46,7 +46,7 @@ int create_hamming_window(int ntaps, float **output) {
 	return 0;
 }
 
-int create_low_pass_filter(double gain, double sampling_freq, double cutoff_freq, double transition_width, float **output_taps, uint32_t *len) {
+int create_low_pass_filter(double gain, double sampling_freq, double cutoff_freq, double transition_width, float **output_taps, int *len) {
 	int result = sanity_check_1f(sampling_freq, cutoff_freq, transition_width);
 	if (result != 0) {
 		return result;

@@ -19,11 +19,11 @@ target_link_libraries(sdr_server sdr_serverLib)
 find_library(RTLSDR rtlsdr)
 find_path(RTLSDR_INCLUDE_DIR rtl-sdr.h)
 include_directories(${RTLSDR_INCLUDE_DIR})
-target_link_libraries(sdr_server ${RTLSDR})
+target_link_libraries(sdr_serverLib ${RTLSDR})
 
-#find_package(rtlsdr REQUIRED)
-#include_directories(${RTLSDR_INCLUDE_DIRS})
-#target_link_libraries(sdr_server ${RTLSDR_LIBRARIES})
+find_package(Volk REQUIRED)
+include_directories(${VOLK_INCLUDE_DIRS})
+target_link_libraries(sdr_serverLib ${VOLK_LIBRARIES})
 
 enable_testing()
 
@@ -31,7 +31,7 @@ file(GLOB TEST_SOURCES test/test_*.c)
 file(GLOB TEST_RESOURCES test/resources/*)
 file(COPY ${TEST_RESOURCES} DESTINATION "${CMAKE_BINARY_DIR}")
 
-find_package(Check REQUIRED)
+find_package(CHECK REQUIRED)
 include_directories(${CHECK_INCLUDE_DIRS})
 
 find_package(Threads REQUIRED)

@@ -10,6 +10,12 @@
 #include <sys/time.h>
 #include <string.h>
 
+#include <complex.h>
+#include <volk/volk.h>
+
+static const uint32_t NUMBER_OF_BUFFERS = 15;
+static const uint32_t BUFFER_SIZE = 16 * 32 * 512;
+
 struct Message {
 	uint8_t command;
 	uint32_t argument;
@@ -207,7 +213,7 @@ static void* client_worker(void *arg) {
 static void* rtlsdr_worker(void *arg) {
 	rtlsdr_dev_t *dev = (rtlsdr_dev_t*) arg;
 	//FIXME tune buffers here
-	int result = rtlsdr_read_async(dev, rtlsdr_callback, NULL, 0, 0);
+	int result = rtlsdr_read_async(dev, rtlsdr_callback, NULL, NUMBER_OF_BUFFERS, BUFFER_SIZE);
 	if (result != 0) {
 		//FIXME cancel all workers threads
 	}
@@ -216,6 +222,10 @@ static void* rtlsdr_worker(void *arg) {
 }
 
 int main(int argc, char **argv) {
+//	size_t align = volk_get_alignment();
+//	printf("%zu %zu %f\n", align, sizeof(float), (float)align / sizeof(float complex));
+
+
 	int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
 	if (serverSocket == 0) {
 		perror("socket creation failed");

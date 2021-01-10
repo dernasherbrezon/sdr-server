@@ -24,9 +24,8 @@ START_TEST (test_parital_input_less_taps) {
 END_TEST
 
 void teardown() {
-if (filter != NULL) {
 	destroy_xlating(filter);
-}
+	filter = NULL;
 }
 
 void setup() {
@@ -34,36 +33,36 @@ void setup() {
 }
 
 Suite* common_suite(void) {
-Suite *s;
-TCase *tc_core;
+	Suite *s;
+	TCase *tc_core;
 
-s = suite_create("xlating");
+	s = suite_create("xlating");
 
-/* Core test case */
-tc_core = tcase_create("Core");
+	/* Core test case */
+	tc_core = tcase_create("Core");
 
-tcase_add_test(tc_core, test_max_input_buffer_size);
-tcase_add_test(tc_core, test_parital_input_buffer_size);
-tcase_add_test(tc_core, test_parital_input_less_taps);
+	tcase_add_test(tc_core, test_max_input_buffer_size);
+	tcase_add_test(tc_core, test_parital_input_buffer_size);
+	tcase_add_test(tc_core, test_parital_input_less_taps);
 
-tcase_add_checked_fixture(tc_core, setup, teardown);
-suite_add_tcase(s, tc_core);
+	tcase_add_checked_fixture(tc_core, setup, teardown);
+	suite_add_tcase(s, tc_core);
 
-return s;
+	return s;
 }
 
 int main(void) {
-int number_failed;
-Suite *s;
-SRunner *sr;
+	int number_failed;
+	Suite *s;
+	SRunner *sr;
 
-s = common_suite();
-sr = srunner_create(s);
+	s = common_suite();
+	sr = srunner_create(s);
 
-srunner_set_fork_status(sr, CK_NOFORK);
-srunner_run_all(sr, CK_NORMAL);
-number_failed = srunner_ntests_failed(sr);
-srunner_free(sr);
-return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
+	srunner_set_fork_status(sr, CK_NOFORK);
+	srunner_run_all(sr, CK_NORMAL);
+	number_failed = srunner_ntests_failed(sr);
+	srunner_free(sr);
+	return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 

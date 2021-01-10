@@ -32,14 +32,14 @@ void process(int8_t *input, size_t input_len, float complex *output, size_t outp
 
 	// convert to [-1.0;1.0] working buffer
 	size_t input_processed = 0;
-	for (size_t i = filter->history_offset;i < filter->working_len_total && input_processed < input_len; i++, input_processed++) {
+	for (size_t i = filter->history_offset; i < filter->working_len_total && input_processed < input_len; i++, input_processed++) {
 		filter->working_buffer[i] = filter->lookup_table[(uint8_t) input[input_processed]];
 	}
 
 	size_t produced = 0;
 	size_t last_taps_index = filter->history_offset + input_processed - filter->taps_len;
 	for (size_t i = 0; i < last_taps_index; i += filter->decimation, produced++) {
-		volk_32fc_x2_dot_prod_32fc_a(filter->volk_output, (const lv_32fc_t *)(filter->working_buffer + i), filter->taps, filter->taps_len);
+		volk_32fc_x2_dot_prod_32fc_a(filter->volk_output, (const lv_32fc_t*) (filter->working_buffer + i), filter->taps, filter->taps_len);
 		filter->output[produced] = rotator_increment(filter->rot, *filter->volk_output);
 	}
 
@@ -51,6 +51,11 @@ void process(int8_t *input, size_t input_len, float complex *output, size_t outp
 
 int create_frequency_xlating_filter(int decimation, float *taps, size_t taps_len, double center_freq, double sampling_freq, uint32_t max_input_buffer_length, xlating **filter) {
 	struct xlating_t *result = malloc(sizeof(struct xlating_t));
+	if (result == NULL) {
+		return -ENOMEM;
+	}
+	// init all fields with 0
+	*result = (struct xlating_t ) { 0 };
 	result->decimation = decimation;
 	result->taps_len = taps_len;
 	//make code consistent - i.e. destroy all incoming memory in destory_xxx methods
@@ -137,6 +142,9 @@ int destroy_xlating(xlating *filter) {
 	}
 	if (filter->volk_output != NULL) {
 		volk_free(filter->volk_output);
+	}
+	if (filter->lookup_table != NULL) {
+		free(filter->lookup_table);
 	}
 	destroy_rotator(filter->rot);
 	free(filter);

@@ -26,6 +26,7 @@ END_TEST
 
 void teardown() {
 	destroy_rotator(rot);
+	rot = NULL;
 }
 
 void setup() {

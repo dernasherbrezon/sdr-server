@@ -27,7 +27,38 @@ struct xlating_t {
 	size_t output_len;
 };
 
-void process(int8_t *input, size_t input_len, float complex *output, size_t output_len, xlating *filter) {
+static inline void volk_32fc_x2_dot_prod_32fc_generic(lv_32fc_t* result, const lv_32fc_t* input, const lv_32fc_t* taps, unsigned int num_points) {
+
+  float * res = (float*) result;
+  float * in = (float*) input;
+  float * tp = (float*) taps;
+  unsigned int n_2_ccomplex_blocks = num_points/2;
+  unsigned int isodd = num_points & 1;
+
+  float sum0[2] = {0,0};
+  float sum1[2] = {0,0};
+  unsigned int i = 0;
+
+  for(i = 0; i < n_2_ccomplex_blocks; ++i) {
+    sum0[0] += in[0] * tp[0] - in[1] * tp[1];
+    sum0[1] += in[0] * tp[1] + in[1] * tp[0];
+    sum1[0] += in[2] * tp[2] - in[3] * tp[3];
+    sum1[1] += in[2] * tp[3] + in[3] * tp[2];
+
+    in += 4;
+    tp += 4;
+  }
+
+  res[0] = sum0[0] + sum1[0];
+  res[1] = sum0[1] + sum1[1];
+
+  // Cleanup if we had an odd number of points
+  for(i = 0; i < isodd; ++i) {
+    *result += input[num_points - 1] * taps[num_points - 1];
+  }
+}
+
+void process(int8_t *input, size_t input_len, float complex **output, size_t *output_len, xlating *filter) {
 	// input_len cannot be more than (working_len_total - history_offset)
 
 	// convert to [-1.0;1.0] working buffer
@@ -37,16 +68,19 @@ void process(int8_t *input, size_t input_len, float complex *output, size_t outp
 	}
 
 	size_t produced = 0;
-	size_t last_taps_index = filter->history_offset + input_processed - filter->taps_len;
-	for (size_t i = 0; i < last_taps_index; i += filter->decimation, produced++) {
-		volk_32fc_x2_dot_prod_32fc_a(filter->volk_output, (const lv_32fc_t*) (filter->working_buffer + i), filter->taps, filter->taps_len);
+	size_t last_taps_index = filter->history_offset + input_processed - filter->taps_len * 2;
+	for (size_t i = 0; i < last_taps_index; i += 2 * filter->decimation, produced++) {
+		const lv_32fc_t* buf = (const lv_32fc_t*) (filter->working_buffer + i);
+		// FIXME working_buffer with offset should be aligned as well
+		volk_32fc_x2_dot_prod_32fc_generic(filter->volk_output, buf, (const lv_32fc_t*)filter->taps, filter->taps_len);
 		filter->output[produced] = rotator_increment(filter->rot, *filter->volk_output);
 	}
 
-	memmove(filter->working_buffer, filter->working_buffer + last_taps_index - 1, filter->taps_len - 1);
+	// preserve history for the next execution
+	memmove(filter->working_buffer, filter->working_buffer + last_taps_index - 2, filter->history_offset);
 
-	output = filter->output;
-	output_len = produced;
+	*output = filter->output;
+	*output_len = produced;
 }
 
 int create_frequency_xlating_filter(int decimation, float *taps, size_t taps_len, double center_freq, double sampling_freq, uint32_t max_input_buffer_length, xlating **filter) {
@@ -77,13 +111,19 @@ int create_frequency_xlating_filter(int decimation, float *taps, size_t taps_len
 	for (size_t i = 0; i < taps_len; i++) {
 		float complex cur = 0 + i * fwT0 * I;
 		bpfTaps[i] = taps[i] * cexpf(cur);
+//		printf("%f\n", crealf(bpfTaps[i]));
+//		printf("%f\n", cimagf(bpfTaps[i]));
 	}
 	// reverse taps to allow storing history in array
-	for (size_t i = 0; i < taps_len / 2; i++) {
+	for (size_t i = 0; i <= taps_len / 2; i++) {
 		float complex tmp = bpfTaps[taps_len - 1 - i];
 		bpfTaps[taps_len - 1 - i] = bpfTaps[i];
 		bpfTaps[i] = tmp;
 	}
+//	printf("reverted:\n");
+//	for (size_t i = 0; i < taps_len; i++) {
+//		printf("%f %f\n", crealf(bpfTaps[i]), cimagf(bpfTaps[i]));
+//	}
 	result->taps = bpfTaps;
 	float complex phase = 1.0 + 0.0 * I;
 	float complex phase_incr = cexpf(0.0f + -fwT0 * decimation * I);
@@ -95,14 +135,14 @@ int create_frequency_xlating_filter(int decimation, float *taps, size_t taps_len
 	result->rot = rot;
 
 	// max input length + history
-	result->working_len_total = max_input_buffer_length + taps_len - 1;
+	// taps_len is a complex number. i.e. 2 floats
+	result->history_offset = (taps_len - 1) * 2;
+	result->working_len_total = max_input_buffer_length + result->history_offset;
 	result->working_buffer = volk_malloc(sizeof(float) * result->working_len_total, alignment);
 	if (result->working_buffer == NULL) {
 		return -ENOMEM;
 	}
 	memset(result->working_buffer, 0, result->working_len_total);
-	// taps_len - 1 - is a history. initially zeroes
-	result->history_offset = taps_len - 1;
 
 	result->output_len = max_input_buffer_length / 2 / decimation;
 	result->output = malloc(sizeof(float complex) * result->output_len);
@@ -110,8 +150,8 @@ int create_frequency_xlating_filter(int decimation, float *taps, size_t taps_len
 		return -ENOMEM;
 	}
 
-	result->lookup_table = malloc(sizeof(float) * UCHAR_MAX);
-	for (size_t i = 0; i < UCHAR_MAX; i++) {
+	result->lookup_table = malloc(sizeof(float) * 256);
+	for (size_t i = 0; i < 256; i++) {
 		result->lookup_table[i] = (i - 127.5f) / 128.0f;
 	}
 

@@ -39,9 +39,9 @@ void process(const int8_t *input, size_t input_len, float complex **output, size
 	size_t produced = 0;
 	size_t max_index = filter->history_offset + input_processed - (filter->taps_len - 1) * 2;
 	for (size_t i = 0; i < max_index; i += 2 * filter->decimation, produced++) {
-		const lv_32fc_t* buf = (const lv_32fc_t*) (filter->working_buffer + i);
+		const lv_32fc_t *buf = (const lv_32fc_t*) (filter->working_buffer + i);
 		// FIXME working_buffer with offset should be aligned as well
-		volk_32fc_x2_dot_prod_32fc_a(filter->volk_output, buf, (const lv_32fc_t*)filter->taps, filter->taps_len);
+		volk_32fc_x2_dot_prod_32fc_a(filter->volk_output, buf, (const lv_32fc_t*) filter->taps, filter->taps_len);
 		filter->output[produced] = rotator_increment(filter->rot, *filter->volk_output);
 	}
 	// preserve history for the next execution
@@ -104,7 +104,9 @@ int create_frequency_xlating_filter(int decimation, float *taps, size_t taps_len
 	if (result->working_buffer == NULL) {
 		return -ENOMEM;
 	}
-	memset(result->working_buffer, 0, result->working_len_total);
+	for (size_t i = 0; i < result->working_len_total; i++) {
+		result->working_buffer[i] = 0.0;
+	}
 
 	// +1 for case when round-up needed.
 	result->output_len = max_input_buffer_length / 2 / decimation + 1;

@@ -3,8 +3,6 @@
 #include "../src/xlating.h"
 #include "../src/lpf.h"
 
-#include <stdio.h>
-
 xlating *filter = NULL;
 int8_t *input = NULL;
 
@@ -20,7 +18,6 @@ void setup_input_data(size_t input_offset, size_t len) {
 void assert_complex(const float expected[], size_t expected_size, float complex *actual, size_t actual_size) {
 	ck_assert_int_eq(expected_size, actual_size);
 	for (size_t i = 0, j = 0; i < expected_size * 2; i += 2, j++) {
-		printf("index %zu\n",i);
 		ck_assert_float_eq_tol(expected[i], crealf(actual[j]), 0.00001f);
 		ck_assert_float_eq_tol(expected[i + 1], cimagf(actual[j]), 0.00001f);
 	}
@@ -57,7 +54,6 @@ START_TEST (test_max_input_buffer_size) {
 END_TEST
 
 START_TEST (test_parital_input_buffer_size) {
-	printf("test_parital_input_buffer_size\n");
 	size_t input_len = 200; // taps is 57
 	setup_filter(0, input_len, 200);
 	float complex *output;

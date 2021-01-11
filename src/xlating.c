@@ -27,38 +27,7 @@ struct xlating_t {
 	size_t output_len;
 };
 
-static inline void volk_32fc_x2_dot_prod_32fc_generic(lv_32fc_t* result, const lv_32fc_t* input, const lv_32fc_t* taps, unsigned int num_points) {
-
-  float * res = (float*) result;
-  float * in = (float*) input;
-  float * tp = (float*) taps;
-  unsigned int n_2_ccomplex_blocks = num_points/2;
-  unsigned int isodd = num_points & 1;
-
-  float sum0[2] = {0,0};
-  float sum1[2] = {0,0};
-  unsigned int i = 0;
-
-  for(i = 0; i < n_2_ccomplex_blocks; ++i) {
-    sum0[0] += in[0] * tp[0] - in[1] * tp[1];
-    sum0[1] += in[0] * tp[1] + in[1] * tp[0];
-    sum1[0] += in[2] * tp[2] - in[3] * tp[3];
-    sum1[1] += in[2] * tp[3] + in[3] * tp[2];
-
-    in += 4;
-    tp += 4;
-  }
-
-  res[0] = sum0[0] + sum1[0];
-  res[1] = sum0[1] + sum1[1];
-
-  // Cleanup if we had an odd number of points
-  for(i = 0; i < isodd; ++i) {
-    *result += input[num_points - 1] * taps[num_points - 1];
-  }
-}
-
-void process(int8_t *input, size_t input_len, float complex **output, size_t *output_len, xlating *filter) {
+void process(const int8_t *input, size_t input_len, float complex **output, size_t *output_len, const xlating *filter) {
 	// input_len cannot be more than (working_len_total - history_offset)
 
 	// convert to [-1.0;1.0] working buffer
@@ -68,16 +37,15 @@ void process(int8_t *input, size_t input_len, float complex **output, size_t *ou
 	}
 
 	size_t produced = 0;
-	size_t last_taps_index = filter->history_offset + input_processed - filter->taps_len * 2;
-	for (size_t i = 0; i < last_taps_index; i += 2 * filter->decimation, produced++) {
+	size_t max_index = filter->history_offset + input_processed - (filter->taps_len - 1) * 2;
+	for (size_t i = 0; i < max_index; i += 2 * filter->decimation, produced++) {
 		const lv_32fc_t* buf = (const lv_32fc_t*) (filter->working_buffer + i);
 		// FIXME working_buffer with offset should be aligned as well
-		volk_32fc_x2_dot_prod_32fc_generic(filter->volk_output, buf, (const lv_32fc_t*)filter->taps, filter->taps_len);
+		volk_32fc_x2_dot_prod_32fc_a(filter->volk_output, buf, (const lv_32fc_t*)filter->taps, filter->taps_len);
 		filter->output[produced] = rotator_increment(filter->rot, *filter->volk_output);
 	}
-
 	// preserve history for the next execution
-	memmove(filter->working_buffer, filter->working_buffer + last_taps_index - 2, filter->history_offset);
+//	memmove(filter->working_buffer, filter->working_buffer + max_index, filter->history_offset);
 
 	*output = filter->output;
 	*output_len = produced;
@@ -111,8 +79,6 @@ int create_frequency_xlating_filter(int decimation, float *taps, size_t taps_len
 	for (size_t i = 0; i < taps_len; i++) {
 		float complex cur = 0 + i * fwT0 * I;
 		bpfTaps[i] = taps[i] * cexpf(cur);
-//		printf("%f\n", crealf(bpfTaps[i]));
-//		printf("%f\n", cimagf(bpfTaps[i]));
 	}
 	// reverse taps to allow storing history in array
 	for (size_t i = 0; i <= taps_len / 2; i++) {
@@ -120,10 +86,6 @@ int create_frequency_xlating_filter(int decimation, float *taps, size_t taps_len
 		bpfTaps[taps_len - 1 - i] = bpfTaps[i];
 		bpfTaps[i] = tmp;
 	}
-//	printf("reverted:\n");
-//	for (size_t i = 0; i < taps_len; i++) {
-//		printf("%f %f\n", crealf(bpfTaps[i]), cimagf(bpfTaps[i]));
-//	}
 	result->taps = bpfTaps;
 	float complex phase = 1.0 + 0.0 * I;
 	float complex phase_incr = cexpf(0.0f + -fwT0 * decimation * I);
@@ -144,7 +106,8 @@ int create_frequency_xlating_filter(int decimation, float *taps, size_t taps_len
 	}
 	memset(result->working_buffer, 0, result->working_len_total);
 
-	result->output_len = max_input_buffer_length / 2 / decimation;
+	// +1 for case when round-up needed.
+	result->output_len = max_input_buffer_length / 2 / decimation + 1;
 	result->output = malloc(sizeof(float complex) * result->output_len);
 	if (result->output == NULL) {
 		return -ENOMEM;

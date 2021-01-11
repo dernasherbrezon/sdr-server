@@ -8,33 +8,39 @@
 xlating *filter = NULL;
 int8_t *input = NULL;
 
-void setup_input_data(size_t len) {
+void setup_input_data(size_t input_offset, size_t len) {
 	input = malloc(sizeof(int8_t) * len);
 	ck_assert_ptr_nonnull(input);
 	for (size_t i = 0; i < len; i++) {
-		input[i] = i;
+		// don't care about the loss of data
+		input[i] = (int8_t) (input_offset + i);
 	}
 }
 
 void assert_complex(const float expected[], size_t expected_size, float complex *actual, size_t actual_size) {
 	ck_assert_int_eq(expected_size, actual_size);
 	for (size_t i = 0, j = 0; i < expected_size * 2; i += 2, j++) {
+		printf("index %zu\n",i);
 		ck_assert_float_eq_tol(expected[i], crealf(actual[j]), 0.00001f);
 		ck_assert_float_eq_tol(expected[i + 1], cimagf(actual[j]), 0.00001f);
 	}
 }
 
-START_TEST (test_max_input_buffer_size) {
+void setup_filter(size_t input_offset, size_t input_len, size_t max_input) {
 	double sampling_freq = 48000;
 	float *taps = NULL;
 	size_t len;
 	int code = create_low_pass_filter(1.0, sampling_freq, 9600, 2000, &taps, &len);
 	ck_assert_int_eq(code, 0);
-	size_t input_len = 2000;
-	code = create_frequency_xlating_filter(6, taps, len, -12000, sampling_freq, input_len, &filter);
+	code = create_frequency_xlating_filter(6, taps, len, -12000, sampling_freq, max_input, &filter);
 	ck_assert_int_eq(code, 0);
-	setup_input_data(input_len);
-	float complex* output;
+	setup_input_data(input_offset, input_len);
+}
+
+START_TEST (test_max_input_buffer_size) {
+	size_t input_len = 2000;
+	setup_filter(0, input_len, input_len);
+	float complex *output;
 	size_t output_len = 0;
 	process(input, input_len, &output, &output_len, filter);
 	const float expected[] = { 5.32239E-4, 5.2806456E-4, -0.005198962, -0.0038215446, 0.004434482, -0.019613884, 0.04317172, 0.0114030065, 0.048882127, 0.16873941, 0.11678756, 0.09947322, -0.008784744, 0.07265453, -0.021184905, 0.0057728905, -5.2483374E-4, -0.00775056, 5.0187466E-4, -9.116491E-4, 5.035849E-4, 7.555388E-4, -3.8371302E-4, -6.3558214E-4, 2.6386292E-4, 5.155849E-4, -1.4400974E-4, -3.956068E-4, 2.416639E-5, 2.7563027E-4, 9.569182E-5, -1.5565171E-4, -2.155456E-4, 3.5673398E-5, 3.3540037E-4, 8.430634E-5, -4.5526054E-4, -2.0428277E-4, 5.7509384E-4, 3.2428277E-4,
@@ -51,6 +57,14 @@ START_TEST (test_max_input_buffer_size) {
 END_TEST
 
 START_TEST (test_parital_input_buffer_size) {
+	printf("test_parital_input_buffer_size\n");
+	size_t input_len = 200; // taps is 57
+	setup_filter(0, input_len, 200);
+	float complex *output;
+	size_t output_len = 0;
+	process(input, input_len, &output, &output_len, filter);
+	const float expected[] = { 5.32239E-4, 5.2806456E-4, -0.005198962, -0.0038215446, 0.004434482, -0.019613884, 0.04317172, 0.0114030065, 0.048882127, 0.16873941, 0.11678756, 0.09947322, -0.008784744, 0.07265453, -0.021184905, 0.0057728905, -5.2483374E-4, -0.00775056, 5.0187466E-4, -9.116491E-4, 5.035849E-4, 7.555388E-4, -3.8371302E-4, -6.3558214E-4, 2.6386292E-4, 5.155849E-4, -1.4400974E-4, -3.956068E-4, 2.416639E-5, 2.7563027E-4, 9.569182E-5, -1.5565171E-4, -2.155456E-4, 3.5673398E-5 };
+	assert_complex(expected, 17, output, output_len);
 }
 END_TEST
 

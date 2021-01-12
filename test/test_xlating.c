@@ -55,16 +55,34 @@ END_TEST
 
 START_TEST (test_parital_input_buffer_size) {
 	size_t input_len = 200; // taps is 57
-	setup_filter(0, input_len, 200);
+	setup_filter(0, input_len, 2000);
 	float complex *output;
 	size_t output_len = 0;
 	process(input, input_len, &output, &output_len, filter);
 	const float expected[] = { 5.32239E-4, 5.2806456E-4, -0.005198962, -0.0038215446, 0.004434482, -0.019613884, 0.04317172, 0.0114030065, 0.048882127, 0.16873941, 0.11678756, 0.09947322, -0.008784744, 0.07265453, -0.021184905, 0.0057728905, -5.2483374E-4, -0.00775056, 5.0187466E-4, -9.116491E-4, 5.035849E-4, 7.555388E-4, -3.8371302E-4, -6.3558214E-4, 2.6386292E-4, 5.155849E-4, -1.4400974E-4, -3.956068E-4, 2.416639E-5, 2.7563027E-4, 9.569182E-5, -1.5565171E-4, -2.155456E-4, 3.5673398E-5 };
 	assert_complex(expected, 17, output, output_len);
+	free(input);
+	// another 200 inputs
+	setup_input_data(200, 200);
+	process(input, input_len, &output, &output_len, filter);
+	const float expectedNextBatch[] = { 3.3540037E-4, 8.430634E-5, -4.5526054E-4, -2.0428277E-4, 5.7509384E-4, 3.2428277E-4, -6.949515E-4, -4.4422157E-4, 8.1484247E-4, 5.642409E-4, 0.004282254, 0.0068293647, -0.018195812, 0.015338528, -0.050322544, -0.06689663, 0.058113288, -0.19945177, 0.19628277, -0.99594504, 0.10873028, -0.14883728, 0.046853814, 0.030281652, -0.008243934, 0.02528844, -0.0036841996, -0.001135408, -5.4352795E-4, -7.95548E-4, 4.2367497E-4, 6.7555055E-4, -3.0382856E-4, -5.5558345E-4 };
+	assert_complex(expectedNextBatch, 17, output, output_len);
 }
 END_TEST
 
-START_TEST (test_parital_input_less_taps) {
+START_TEST (test_small_input_data) {
+	size_t input_len = 200; // taps is 57
+	setup_filter(0, input_len, 2000);
+	float complex *output;
+	size_t output_len = 0;
+	process(input, input_len, &output, &output_len, filter);
+	free(input);
+	// add only 1 complex sample
+	// shouldn't be enough for 1 output
+	setup_input_data(200, 2);
+	process(input, 2, &output, &output_len, filter);
+	const float expectedNextBatch[] = { 0 };
+	assert_complex(expectedNextBatch, 0, output, output_len);
 }
 END_TEST
 
@@ -92,7 +110,7 @@ Suite* common_suite(void) {
 
 	tcase_add_test(tc_core, test_max_input_buffer_size);
 	tcase_add_test(tc_core, test_parital_input_buffer_size);
-	tcase_add_test(tc_core, test_parital_input_less_taps);
+	tcase_add_test(tc_core, test_small_input_data);
 
 	tcase_add_checked_fixture(tc_core, setup, teardown);
 	suite_add_tcase(s, tc_core);

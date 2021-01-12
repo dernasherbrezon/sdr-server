@@ -27,7 +27,7 @@ struct xlating_t {
 	size_t output_len;
 };
 
-void process(const int8_t *input, size_t input_len, float complex **output, size_t *output_len, const xlating *filter) {
+void process(const int8_t *input, size_t input_len, float complex **output, size_t *output_len, xlating *filter) {
 	// input_len cannot be more than (working_len_total - history_offset)
 
 	// convert to [-1.0;1.0] working buffer
@@ -36,16 +36,24 @@ void process(const int8_t *input, size_t input_len, float complex **output, size
 		filter->working_buffer[i] = filter->lookup_table[(uint8_t) input[input_processed]];
 	}
 
+	size_t working_len = filter->history_offset + input_processed;
 	size_t produced = 0;
-	size_t max_index = filter->history_offset + input_processed - (filter->taps_len - 1) * 2;
-	for (size_t i = 0; i < max_index; i += 2 * filter->decimation, produced++) {
-		const lv_32fc_t *buf = (const lv_32fc_t*) (filter->working_buffer + i);
-		// FIXME working_buffer with offset should be aligned as well
-		volk_32fc_x2_dot_prod_32fc_a(filter->volk_output, buf, (const lv_32fc_t*) filter->taps, filter->taps_len);
-		filter->output[produced] = rotator_increment(filter->rot, *filter->volk_output);
+	size_t current_index = 0;
+	// input might not have enough data to produce output sample
+	if (working_len > (filter->taps_len - 1) * 2) {
+		size_t max_index = working_len - (filter->taps_len - 1) * 2;
+		for (; current_index < max_index; current_index += 2 * filter->decimation, produced++) {
+			const lv_32fc_t *buf = (const lv_32fc_t*) (filter->working_buffer + current_index);
+			// FIXME working_buffer with offset should be aligned as well
+			volk_32fc_x2_dot_prod_32fc_a(filter->volk_output, buf, (const lv_32fc_t*) filter->taps, filter->taps_len);
+			filter->output[produced] = rotator_increment(filter->rot, *filter->volk_output);
+		}
 	}
 	// preserve history for the next execution
-//	memmove(filter->working_buffer, filter->working_buffer + max_index, filter->history_offset);
+	filter->history_offset = working_len - current_index;
+	if (current_index > 0) {
+		memmove(filter->working_buffer, filter->working_buffer + current_index, sizeof(float) * filter->history_offset);
+	}
 
 	*output = filter->output;
 	*output_len = produced;

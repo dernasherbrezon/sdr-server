@@ -9,9 +9,13 @@
 #include <unistd.h>
 #include <sys/time.h>
 #include <string.h>
+#include <signal.h>
 
 #include <complex.h>
 #include <volk/volk.h>
+
+#include "lpf.h"
+#include "xlating.h"
 
 static const uint32_t NUMBER_OF_BUFFERS = 15;
 static const uint32_t BUFFER_SIZE = 16 * 32 * 512;
@@ -23,17 +27,24 @@ struct Message {
 
 struct ClientConfig {
 	uint32_t centerFrequency;
-	uint32_t sampleRate;
+	uint32_t sampling_freq;
+	uint32_t bandFrequency;
+	int client_socket;
+};
+
+struct ServerConfig {
 	int gainMode;
 	int gain;
 	int ppm;
-	int ifStage;
-	int ifGain;
-	int agc;
-	int offsetTuning;
 	int biasT;
-	uint32_t bandFrequency;
+	uint32_t band_sampling_freq;
 };
+
+static volatile sig_atomic_t app_running = true;
+
+void plutosdr_stop_async() {
+	app_running = false;
+}
 
 int readMessage(int socket, struct Message *result) {
 	int left = sizeof(*result);
@@ -65,6 +76,7 @@ int writeMessage(int socket, uint8_t command, uint32_t argument) {
 	return 0;
 }
 
+// FIXME ok. time to change the style. make underscore everywhere
 int readClientConfig(int clientSocket, struct ClientConfig *config) {
 	struct Message cmd;
 	while (true) {
@@ -79,29 +91,7 @@ int readClientConfig(int clientSocket, struct ClientConfig *config) {
 			config->centerFrequency = cmd.argument;
 			break;
 		case 0x02:
-			config->sampleRate = cmd.argument;
-			break;
-		case 0x03:
-			config->gainMode = cmd.argument;
-			break;
-		case 0x04:
-			config->gain = cmd.argument;
-			break;
-		case 0x05:
-			config->ppm = cmd.argument;
-			break;
-		case 0x06:
-			config->ifStage = cmd.argument >> 16;
-			config->ifGain = (short) (cmd.argument & 0xffff);
-			break;
-		case 0x08:
-			config->agc = cmd.argument;
-			break;
-		case 0x0a:
-			config->offsetTuning = cmd.argument;
-			break;
-		case 0x0e:
-			config->biasT = cmd.argument;
+			config->sampling_freq = cmd.argument;
 			break;
 		case 0x11:
 			config->bandFrequency = cmd.argument;
@@ -128,64 +118,51 @@ static int global_numq = 0;
 
 struct llist {
 	int8_t *data;
+//	char *data;
 	size_t len;
 	struct llist *next;
 };
 
-void rtlsdr_callback(unsigned char *buf, uint32_t len, void *ctx) {
-	//TODO temporary linked list
-	struct llist *rpt = (struct llist*) malloc(sizeof(struct llist));
-	rpt->data = (int8_t*) malloc(len);
-	memcpy(rpt->data, buf, len);
-	rpt->len = len;
-	rpt->next = NULL;
-
-	pthread_mutex_lock(&ll_mutex);
-	if (ll_buffers == NULL) {
-		ll_buffers = rpt;
-	} else {
-		struct llist *cur = ll_buffers;
-		int num_queued = 0;
-
-		while (cur->next != NULL) {
-			cur = cur->next;
-			num_queued++;
-		}
-
-		if (llbuf_num && llbuf_num == num_queued - 2) {
-			struct llist *curelem;
-
-			free(ll_buffers->data);
-			curelem = ll_buffers->next;
-			free(ll_buffers);
-			ll_buffers = curelem;
-		}
-
-		cur->next = rpt;
-
-		if (num_queued > global_numq)
-			printf("ll+, now %d\n", num_queued);
-		else if (num_queued < global_numq)
-			printf("ll-, now %d\n", num_queued);
-
-		global_numq = num_queued;
-	}
-	pthread_cond_signal(&cond);
-	pthread_mutex_unlock(&ll_mutex);
-}
-
 static void* client_worker(void *arg) {
+	printf("started client worker\n");
+	struct ClientConfig *config = (struct ClientConfig*) arg;
+	float *taps = NULL;
+	size_t len;
+	// FIXME replace double with floats everywhere
+	double sampling_freq = 288000;
+	size_t code = create_low_pass_filter(1.0, sampling_freq, config->sampling_freq / 2, 2000, &taps, &len);
+	if (code != 0) {
+		fprintf(stderr, "unable to setup taps: %zu\n", code);
+		close(config->client_socket);
+		return ((void*) code);
+	}
+	xlating *filter = NULL;
+	//FIXME should come from the config
+//	code = create_frequency_xlating_filter(12, taps, len, config->bandFrequency - config->centerFrequency, config->sampling_freq, BUFFER_SIZE, &filter);
+	//FIXME maybe some trick with 32 bit numbers?
+	printf("diff: %lld\n", (int64_t) config->centerFrequency - (int64_t) config->bandFrequency);
+	code = create_frequency_xlating_filter(12, taps, len, (int64_t) config->centerFrequency - (int64_t) config->bandFrequency, sampling_freq, BUFFER_SIZE, &filter);
+	if (code != 0) {
+		fprintf(stderr, "unable to setup filter: %zu\n", code);
+		close(config->client_socket);
+		free(taps);
+		return ((void*) code);
+	}
 
-
+	FILE *file;
+	file = fopen("/tmp/file.raw", "wb");
 
 	struct timespec ts;
 	struct timeval tp;
 	struct llist *curelem, *prev;
-	while (1) {
+	float complex *output;
+	size_t output_len = 0;
+	printf("getting new data\n");
+	while (app_running) {
 		pthread_mutex_lock(&ll_mutex);
 		//FIXME relative timeout instead of absolute system time?
 		gettimeofday(&tp, NULL);
-		ts.tv_sec = tp.tv_sec + 50000;
+		ts.tv_sec = tp.tv_sec + 5;
 		ts.tv_nsec = tp.tv_usec * 1000;
 		//FIXME spurious wakeups not handled
 		int r = pthread_cond_timedwait(&cond, &ll_mutex, &ts);
@@ -196,35 +173,152 @@ static void* client_worker(void *arg) {
 		pthread_mutex_unlock(&ll_mutex);
 
 		while (curelem != NULL) {
-
-			//FIXME DSP
+			printf("processing %zu\n", curelem->len);
+			process(curelem->data, curelem->len, &output, &output_len, filter);
 			printf("processed %zu\n", curelem->len);
-
+			int n_read = fwrite(output, sizeof(float complex), output_len, file);
+//			int n_read = fwrite(output, sizeof(float complex) * output_len, 1, file);
+//			int n_read = fwrite(curelem->data, 1, curelem->len, file);
+//			fprintf(stderr, "written %d expected to write: %zu\n", n_read, output_len);
 			prev = curelem;
 			curelem = curelem->next;
 			free(prev->data);
 			free(prev);
 		}
 	}
+	printf("stopping\n");
+	fclose(file);
 	//FIXME worker thread
 	return (void*) 0;
 }
 
 static void* rtlsdr_worker(void *arg) {
 	rtlsdr_dev_t *dev = (rtlsdr_dev_t*) arg;
-	//FIXME tune buffers here
-	int result = rtlsdr_read_async(dev, rtlsdr_callback, NULL, NUMBER_OF_BUFFERS, BUFFER_SIZE);
-	if (result != 0) {
-		//FIXME cancel all workers threads
+	uint8_t *buffer;
+	uint32_t out_block_size = BUFFER_SIZE;
+	int n_read;
+	// FIXME tune the buffer size
+	buffer = malloc(out_block_size * sizeof(uint8_t));
+	while (app_running) {
+		int result = rtlsdr_read_sync(dev, buffer, out_block_size, &n_read);
+		//TODO temporary linked list. allocate memory in advance
+		struct llist *rpt = (struct llist*) malloc(sizeof(struct llist));
+		rpt->data = (int8_t*) malloc(n_read);
+//		rpt->data = (char*) malloc(n_read);
+		memcpy(rpt->data, buffer, n_read);
+		rpt->len = n_read;
+		rpt->next = NULL;
+
+		pthread_mutex_lock(&ll_mutex);
+		if (ll_buffers == NULL) {
+			ll_buffers = rpt;
+		} else {
+			struct llist *cur = ll_buffers;
+			int num_queued = 0;
+
+			while (cur->next != NULL) {
+				cur = cur->next;
+				num_queued++;
+			}
+
+			if (llbuf_num && llbuf_num == num_queued - 2) {
+				struct llist *curelem;
+
+				free(ll_buffers->data);
+				curelem = ll_buffers->next;
+				free(ll_buffers);
+				ll_buffers = curelem;
+			}
+
+			cur->next = rpt;
+
+			if (num_queued > global_numq)
+				printf("ll+, now %d\n", num_queued);
+			else if (num_queued < global_numq)
+				printf("ll-, now %d\n", num_queued);
+
+			global_numq = num_queued;
+		}
+		pthread_cond_signal(&cond);
+		pthread_mutex_unlock(&ll_mutex);
 	}
+	free(buffer);
+	printf("stopping\n");
 	rtlsdr_close(dev);
 	return (void*) 0;
+}
+
+void respond_failure(rtlsdr_dev_t *dev, int client_socket, int response, int status) {
+	if (status != 0) {
+		// FIXME use stderr for all errors
+		printf("unable to perform operation. status: %d\n", status);
+	}
+	writeMessage(client_socket, response, status); // unable to start device
+	close(client_socket);
+	if (dev != NULL) {
+		rtlsdr_close(dev);
+	}
+}
+
+int init_rtl_sdr(rtlsdr_dev_t **dev, struct ClientConfig config) {
+	//FIXME log parameter first and then set it up
+	printf("starting rtl-sdr\n");
+	rtlsdr_open(dev, 0);
+	if (dev == NULL) {
+		return 0x04;
+	}
+
+	//FIXME load from file
+	struct ServerConfig server_config;
+	server_config.biasT = 0;
+	// FIXME validate and align on startup
+	server_config.gain = 420;
+	server_config.gainMode = 1;
+	server_config.ppm = 0;
+//	server_config.band_sampling_freq = 2048000;
+	server_config.band_sampling_freq = 288000;
+	int code = rtlsdr_set_sample_rate(*dev, server_config.band_sampling_freq);
+	if (code < 0) {
+		return 0x04;
+	}
+	printf("sample rate: %u\n", server_config.band_sampling_freq);
+	code = rtlsdr_set_center_freq(*dev, config.bandFrequency);
+	if (code < 0) {
+		return 0x04;
+	}
+	printf("band frequency: %u\n", config.bandFrequency);
+	code = rtlsdr_set_tuner_gain_mode(*dev, server_config.gainMode);
+	if (code < 0) {
+		return 0x04;
+	}
+	printf("gain mode: %d\n", server_config.gainMode);
+	if (server_config.gainMode == 1) {
+		code = rtlsdr_set_tuner_gain(*dev, server_config.gain);
+		if (code < 0) {
+			return 0x04;
+		}
+		printf("gain: %d\n", server_config.gain);
+	}
+	code = rtlsdr_set_bias_tee(*dev, server_config.biasT);
+	if (code < 0) {
+		return 0x04;
+	}
+	printf("biast: %d\n", server_config.biasT);
+	code = rtlsdr_reset_buffer(*dev);
+	if (code < 0) {
+		return 0x04;
+	}
+	return 0x0;
 }
 
 int main(int argc, char **argv) {
 //	size_t align = volk_get_alignment();
 //	printf("%zu %zu %f\n", align, sizeof(float), (float)align / sizeof(float complex));
-
+	//FIXME properly handle shutdown
+//	signal(SIGINT, plutosdr_stop_async);
+//	signal(SIGHUP, plutosdr_stop_async);
+//	signal(SIGSEGV, plutosdr_stop_async);
+//	signal(SIGTERM, plutosdr_stop_async);
 
 	int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
 	if (serverSocket == 0) {
@@ -291,85 +385,32 @@ int main(int argc, char **argv) {
 			close(clientSocket);
 			continue;
 		}
+		config.client_socket = clientSocket;
 		if (validateClientConfig(&config) < 0) {
-			writeMessage(clientSocket, 0x01, 0x01); // invalid response
-			close(clientSocket);
+			// invalid request
+			respond_failure(NULL, clientSocket, 0x01, 0x01);
 			continue;
 		}
 
 		if (currentBandFrequency != 0 && currentBandFrequency != config.bandFrequency) {
 			//FIXME more validations
-			writeMessage(clientSocket, 0x01, 0x02);  // out of band frequency
-			close(clientSocket);
+			// out of band frequency
+			respond_failure(NULL, clientSocket, 0x01, 0x02);
 			continue;
 		}
 
 		if (currentBandFrequency == 0) {
 			rtlsdr_dev_t *dev = NULL;
-			printf("starting rtl-sdr\n");
-			rtlsdr_open(&dev, 0);
-			if (dev == NULL) {
-				writeMessage(clientSocket, 0x01, 0x03); // no suitable device found
-				close(clientSocket);
-				continue;
-			}
-			//FIXME from config 1400000
-			code = rtlsdr_set_sample_rate(dev, config.sampleRate);
-			if (code < 0) {
-				writeMessage(clientSocket, 0x01, 0x04); // unable to start device
-				close(clientSocket);
-				rtlsdr_close(dev);
-				continue;
-			}
-			printf("sample rate: %u\n", config.sampleRate);
-			code = rtlsdr_set_center_freq(dev, config.bandFrequency);
-			if (code < 0) {
-				writeMessage(clientSocket, 0x01, 0x04); // unable to start device
-				close(clientSocket);
-				rtlsdr_close(dev);
-				continue;
-			}
-			printf("band frequency: %u\n", config.bandFrequency);
-			code = rtlsdr_set_tuner_gain_mode(dev, config.gainMode);
-			if (code < 0) {
-				writeMessage(clientSocket, 0x01, 0x04); // unable to start device
-				close(clientSocket);
-				rtlsdr_close(dev);
-				continue;
-			}
-			printf("gain mode: %d\n", config.gainMode);
-			if (config.gainMode == 1) {
-				code = rtlsdr_set_tuner_gain(dev, config.gain);
-				if (code < 0) {
-					writeMessage(clientSocket, 0x01, 0x04); // unable to start device
-					close(clientSocket);
-					rtlsdr_close(dev);
-					continue;
-				}
-				printf("gain: %d\n", config.gain);
-			}
-			code = rtlsdr_set_bias_tee(dev, config.biasT);
-			if (code < 0) {
-				writeMessage(clientSocket, 0x01, 0x04); // unable to start device
-				close(clientSocket);
-				rtlsdr_close(dev);
-				continue;
-			}
-			printf("biast: %d\n", config.biasT);
-			code = rtlsdr_reset_buffer(dev);
-			if (code < 0) {
-				writeMessage(clientSocket, 0x01, 0x04); // unable to start device
-				close(clientSocket);
-				rtlsdr_close(dev);
+			code = init_rtl_sdr(&dev, config);
+			if (code != 0) {
+				respond_failure(dev, clientSocket, 0x01, code);
 				continue;
 			}
 
 			pthread_t rtlsdr_worker_thread;
 			code = pthread_create(&rtlsdr_worker_thread, &attr, &rtlsdr_worker, dev);
 			if (code != 0) {
-				writeMessage(clientSocket, 0x01, 0x04); // unable to start device
-				close(clientSocket);
-				rtlsdr_close(dev);
+				respond_failure(dev, clientSocket, 0x01, 0x04);
 				continue;
 			}
 			currentBandFrequency = config.bandFrequency;
@@ -378,13 +419,14 @@ int main(int argc, char **argv) {
 		pthread_t worker_thread;
 		code = pthread_create(&worker_thread, &attr, &client_worker, &config);
 		if (code != 0) {
-			writeMessage(clientSocket, 0x01, 0x04); // unable to start device
-			close(clientSocket);
+			respond_failure(NULL, clientSocket, 0x01, 0x04);
 			continue;
 		}
 
 		writeMessage(clientSocket, 0x01, 0x00); // success
 	}
+
+	//FIXME cleanup after shutdown
 
 	code = pthread_attr_destroy(&attr);
 	if (code != 0) {

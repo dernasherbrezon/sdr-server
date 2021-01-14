@@ -2,6 +2,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "config.h"
 
@@ -70,12 +71,45 @@ int create_server_config(struct server_config **config, const char *path) {
 		free(result);
 		return -1;
 	}
-	band_sampling_freq = (uint32_t)config_setting_get_int(setting);
+	band_sampling_freq = (uint32_t) config_setting_get_int(setting);
 	fprintf(stdout, "band sampling rate: %d\n", band_sampling_freq);
 	result->band_sampling_freq = band_sampling_freq;
+
+	setting = config_lookup(&libconfig, "bind_address");
+	char *bind_address;
+	if (setting == NULL) {
+		bind_address = "127.0.0.1";
+	} else {
+		const char *value = config_setting_get_string(setting);
+		size_t length = strlen(value);
+		char *str_bind_address = malloc(sizeof(char) * length + 1);
+		strncpy(str_bind_address, value, length);
+		str_bind_address[length] = '\0';
+		bind_address = str_bind_address;
+	}
+	result->bind_address = bind_address;
+	setting = config_lookup(&libconfig, "port");
+	int port;
+	if (setting == NULL) {
+		port = 8081;
+	} else {
+		port = config_setting_get_int(setting);
+	}
+	result->port = port;
+	fprintf(stdout, "start listening on %s:%d\n", result->bind_address, result->port);
 
 	config_destroy(&libconfig);
 
 	*config = result;
 	return 0;
+}
+
+void destroy_server_config(struct server_config *config) {
+	if (config == NULL) {
+		return;
+	}
+	if (config->bind_address != NULL) {
+		free(config->bind_address);
+	}
+	free(config);
 }

@@ -10,6 +10,12 @@ START_TEST (test_missing_file) {
 }
 END_TEST
 
+START_TEST (test_invalid_format) {
+	int code = create_server_config(&config, "invalid.format.config");
+	ck_assert_int_eq(code, -1);
+}
+END_TEST
+
 START_TEST (test_missing_required) {
 	int code = create_server_config(&config, "invalid.config");
 	ck_assert_int_eq(code, -1);
@@ -23,15 +29,15 @@ START_TEST (test_success) {
 	ck_assert_int_eq(1, config->gain_mode);
 	ck_assert_int_eq(42, config->gain);
 	ck_assert_int_eq(0, config->bias_t);
-	ck_assert_int_eq(10, config->ppm);
+	ck_assert_int_eq(config->ppm, 10);
+	ck_assert_str_eq(config->bind_address, "127.0.0.2");
+	ck_assert_int_eq(config->port, 8090);
 }
 END_TEST
 
 void teardown() {
-	if (config != NULL) {
-		free(config);
-		config = NULL;
-	}
+	destroy_server_config(config);
+	config = NULL;
 }
 
 void setup() {
@@ -50,6 +56,7 @@ Suite* common_suite(void) {
 	tcase_add_test(tc_core, test_success);
 	tcase_add_test(tc_core, test_missing_required);
 	tcase_add_test(tc_core, test_missing_file);
+	tcase_add_test(tc_core, test_invalid_format);
 
 	tcase_add_checked_fixture(tc_core, setup, teardown);
 	suite_add_tcase(s, tc_core);

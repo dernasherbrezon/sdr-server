@@ -25,6 +25,11 @@ find_package(Volk REQUIRED)
 include_directories(${VOLK_INCLUDE_DIRS})
 target_link_libraries(sdr_serverLib ${VOLK_LIBRARIES})
 
+find_library(LIBCONFIG config)
+find_path(LIBCONFIG_INCLUDE_DIR libconfig.h)
+include_directories(${LIBCONFIG_INCLUDE_DIR})
+target_link_libraries(sdr_serverLib ${LIBCONFIG})
+
 enable_testing()
 
 file(GLOB TEST_SOURCES test/test_*.c)

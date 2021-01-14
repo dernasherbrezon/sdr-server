@@ -275,8 +275,8 @@ int init_rtl_sdr(rtlsdr_dev_t **dev, struct ClientConfig config) {
 	server_config.gain = 420;
 	server_config.gainMode = 1;
 	server_config.ppm = 0;
-//	server_config.band_sampling_freq = 2048000;
-	server_config.band_sampling_freq = 288000;
+//	server_config.band_sampling_freq = 2016000;
+	server_config.band_sampling_freq = 2016000;
 	int code = rtlsdr_set_sample_rate(*dev, server_config.band_sampling_freq);
 	if (code < 0) {
 		return 0x04;

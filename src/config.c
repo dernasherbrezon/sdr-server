@@ -76,17 +76,18 @@ int create_server_config(struct server_config **config, const char *path) {
 	result->band_sampling_freq = band_sampling_freq;
 
 	setting = config_lookup(&libconfig, "bind_address");
-	char *bind_address;
+	const char *value;
 	if (setting == NULL) {
-		bind_address = "127.0.0.1";
+		value = "127.0.0.1";
 	} else {
-		const char *value = config_setting_get_string(setting);
-		size_t length = strlen(value);
-		char *str_bind_address = malloc(sizeof(char) * length + 1);
-		strncpy(str_bind_address, value, length);
-		str_bind_address[length] = '\0';
-		bind_address = str_bind_address;
+		value = config_setting_get_string(setting);
 	}
+	char *bind_address;
+	size_t length = strlen(value);
+	char *str_bind_address = malloc(sizeof(char) * length + 1);
+	strncpy(str_bind_address, value, length);
+	str_bind_address[length] = '\0';
+	bind_address = str_bind_address;
 	result->bind_address = bind_address;
 	setting = config_lookup(&libconfig, "port");
 	int port;

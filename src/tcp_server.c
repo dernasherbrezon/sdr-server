@@ -78,7 +78,22 @@ int read_client_config(int client_socket, struct server_config *server_config, s
 }
 
 int validate_client_config(struct client_config *config, struct server_config *server_config) {
-	//FIXME
+	if (config->sampling_rate > server_config->band_sampling_rate) {
+		fprintf(stderr, "requested sampling rate is less than on server: %u\n", server_config->band_sampling_rate);
+		return -1;
+	}
+	uint32_t requested_min_freq = config->center_freq - config->sampling_rate / 2;
+	uint32_t server_min_freq = config->band_freq - server_config->band_sampling_rate / 2;
+	if (requested_min_freq < server_min_freq) {
+		fprintf(stderr, "requested center freq is out of the band: %u\n", config->center_freq);
+		return -1;
+	}
+	uint32_t requested_max_freq = config->center_freq + config->sampling_rate / 2;
+	uint32_t server_max_freq = config->band_freq + server_config->band_sampling_rate / 2;
+	if (requested_max_freq > server_max_freq) {
+		fprintf(stderr, "requested center freq is out of the band: %u\n", config->center_freq);
+		return -1;
+	}
 	return 0;
 }
 

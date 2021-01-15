@@ -9,8 +9,10 @@
 #include "core.h"
 
 struct core_t {
-	rtlsdr_dev_t *dev;
 	struct server_config *server_config;
+	pthread_mutex_t mutex;
+
+	rtlsdr_dev_t *dev;
 	volatile sig_atomic_t is_rtlsdr_running;
 	pthread_t rtlsdr_worker_thread;
 };
@@ -41,7 +43,7 @@ int create_core(struct server_config *server_config, core **result) {
 }
 
 static void* rtlsdr_worker(void *arg) {
-	core *core = (struct core_t *) arg;
+	core *core = (struct core_t*) arg;
 	uint8_t *buffer;
 	uint32_t out_block_size = core->server_config->buffer_size;
 	int n_read;
@@ -93,10 +95,15 @@ static void* rtlsdr_worker(void *arg) {
 	printf("stopping\n");
 	free(buffer);
 	rtlsdr_close(core->dev);
+	core->dev = NULL;
+	core->rtlsdr_worker_thread = NULL;
 	return (void*) 0;
 }
 
-int start_rtlsdr(struct client_config *config, core *core) {
+int start_rtlsdr_internal(struct client_config *config, core *core) {
+	if (core->is_rtlsdr_running) {
+		return 0;
+	}
 	fprintf(stdout, "starting rtl-sdr\n");
 	rtlsdr_dev_t *dev = NULL;
 	rtlsdr_open(&dev, 0);
@@ -131,6 +138,7 @@ int start_rtlsdr(struct client_config *config, core *core) {
 		return 0x04;
 	}
 	core->dev = dev;
+	core->is_rtlsdr_running = true;
 
 	pthread_t rtlsdr_worker_thread;
 	code = pthread_create(&rtlsdr_worker_thread, NULL, &rtlsdr_worker, core);
@@ -138,14 +146,24 @@ int start_rtlsdr(struct client_config *config, core *core) {
 		return 0x04;
 	}
 	core->rtlsdr_worker_thread = rtlsdr_worker_thread;
-
 	return 0x0;
+}
+
+int start_rtlsdr(struct client_config *config, core *core) {
+	pthread_mutex_lock(&core->mutex);
+	int result = start_rtlsdr_internal(config, core);
+	pthread_mutex_unlock(&core->mutex);
+	return result;
 }
 
 void stop_rtlsdr(core *core) {
 	fprintf(stdout, "stopping rtl-sdr\n");
 	core->is_rtlsdr_running = false;
+
+	// block access to core until rtlsdr fully stops and cleans the resources
+	pthread_mutex_lock(&core->mutex);
 	pthread_join(core->rtlsdr_worker_thread, NULL);
+	pthread_mutex_unlock(&core->mutex);
 }
 
 int add_client(struct client_config *config, core *core) {

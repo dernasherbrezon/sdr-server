@@ -10,6 +10,7 @@ struct server_config {
 	int gain;
 	int ppm;
 	int bias_t;
+	uint32_t buffer_size;
 	uint32_t band_sampling_rate;
 };
 

@@ -65,16 +65,25 @@ int create_server_config(struct server_config **config, const char *path) {
 	result->ppm = ppm;
 
 	setting = config_lookup(&libconfig, "band_sampling_rate");
-	uint32_t band_sampling_rate;
 	if (setting == NULL) {
 		fprintf(stderr, "missing required configuration: band_sampling_rate\n");
 		config_destroy(&libconfig);
 		free(result);
 		return -1;
 	}
-	band_sampling_rate = (uint32_t) config_setting_get_int(setting);
+	uint32_t band_sampling_rate = (uint32_t) config_setting_get_int(setting);
 	fprintf(stdout, "band sampling rate: %d\n", band_sampling_rate);
 	result->band_sampling_rate = band_sampling_rate;
+
+	setting = config_lookup(&libconfig, "buffer_size");
+	uint32_t buffer_size;
+	if (setting == NULL) {
+		buffer_size = 262144;
+	} else {
+		buffer_size = (uint32_t) config_setting_get_int(setting);
+	}
+	fprintf(stdout, "buffer size: %d\n", buffer_size);
+	result->buffer_size = buffer_size;
 
 	setting = config_lookup(&libconfig, "bind_address");
 	const char *value;

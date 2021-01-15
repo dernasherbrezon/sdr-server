@@ -15,8 +15,6 @@ struct core_t {
 	pthread_t rtlsdr_worker_thread;
 };
 
-static const uint32_t BUFFER_SIZE = 16 * 32 * 512;
-
 static pthread_mutex_t ll_mutex;
 static pthread_cond_t cond;
 
@@ -45,7 +43,7 @@ int create_core(struct server_config *server_config, core **result) {
 static void* rtlsdr_worker(void *arg) {
 	core *core = (struct core_t *) arg;
 	uint8_t *buffer;
-	uint32_t out_block_size = BUFFER_SIZE;
+	uint32_t out_block_size = core->server_config->buffer_size;
 	int n_read;
 	// FIXME tune the buffer size
 	buffer = malloc(out_block_size * sizeof(uint8_t));

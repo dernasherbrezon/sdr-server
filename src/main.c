@@ -21,15 +21,15 @@
 static const uint32_t NUMBER_OF_BUFFERS = 15;
 static const uint32_t BUFFER_SIZE = 16 * 32 * 512;
 
-struct Message {
+struct message {
 	uint8_t command;
 	uint32_t argument;
 } __attribute__((packed));
 
-struct ClientConfig {
-	uint32_t centerFrequency;
-	uint32_t sampling_freq;
-	uint32_t bandFrequency;
+struct client_config {
+	uint32_t center_freq;
+	uint32_t sampling_rate;
+	uint32_t band_freq;
 	int client_socket;
 };
 
@@ -40,7 +40,7 @@ void plutosdr_stop_async() {
 	app_running = false;
 }
 
-int readMessage(int socket, struct Message *result) {
+int read_message(int socket, struct message *result) {
 	int left = sizeof(*result);
 	while (left > 0) {
 		int received = read(socket, (char*) result + (sizeof(*result) - left), left);
@@ -55,7 +55,7 @@ int readMessage(int socket, struct Message *result) {
 }
 
 int writeMessage(int socket, uint8_t command, uint32_t argument) {
-	struct Message result;
+	struct message result;
 	result.command = command;
 	result.argument = ntohl(argument);
 	int left = sizeof(result);
@@ -71,10 +71,13 @@ int writeMessage(int socket, uint8_t command, uint32_t argument) {
 }
 
 // FIXME ok. time to change the style. make underscore everywhere
-int readClientConfig(int clientSocket, struct ClientConfig *config) {
-	struct Message cmd;
+int read_client_config(int client_socket, struct server_config *server_config, struct client_config **config) {
+	struct client_config *result = malloc(sizeof(struct client_config));
+	// init all fields with 0
+	*result = (struct client_config ) { 0 };
+	struct message cmd;
 	while (true) {
-		if (readMessage(clientSocket, &cmd) < 0) {
+		if (read_message(client_socket, &cmd) < 0) {
 			return -1;
 		}
 		if (cmd.command == 0x10) {
@@ -82,23 +85,28 @@ int readClientConfig(int clientSocket, struct ClientConfig *config) {
 		}
 		switch (cmd.command) {
 		case 0x01:
-			config->centerFrequency = cmd.argument;
+			result->center_freq = cmd.argument;
 			break;
 		case 0x02:
-			config->sampling_freq = cmd.argument;
+			result->sampling_rate = cmd.argument;
 			break;
 		case 0x11:
-			config->bandFrequency = cmd.argument;
+			result->band_freq = cmd.argument;
 			break;
 		default:
 			fprintf(stderr, "unknown command: %d\n", cmd.command);
 			break;
 		}
 	}
+	result->client_socket = client_socket;
+	if (server_config->band_sampling_rate % result->sampling_rate != 0) {
+		fprintf(stderr, "sampling frequency is not an integer factor of server sample rate: %u\n", server_config->band_sampling_rate);
+		return -1;
+	}
 	return 0;
 }
 
-int validateClientConfig(struct ClientConfig *config) {
+int validateClientConfig(struct client_config *config) {
 	//FIXME
 	return 0;
 }
@@ -119,12 +127,12 @@ struct llist {
 
 static void* client_worker(void *arg) {
 	printf("started client worker\n");
-	struct ClientConfig *config = (struct ClientConfig*) arg;
+	struct client_config *config = (struct client_config*) arg;
 	float *taps = NULL;
 	size_t len;
 	// FIXME replace double with floats everywhere
 	double sampling_freq = 288000;
-	size_t code = create_low_pass_filter(1.0, sampling_freq, config->sampling_freq / 2, 2000, &taps, &len);
+	size_t code = create_low_pass_filter(1.0, sampling_freq, config->sampling_rate / 2, 2000, &taps, &len);
 	if (code != 0) {
 		fprintf(stderr, "unable to setup taps: %zu\n", code);
 		close(config->client_socket);
@@ -134,8 +142,8 @@ static void* client_worker(void *arg) {
 	//FIXME should come from the config
 //	code = create_frequency_xlating_filter(12, taps, len, config->bandFrequency - config->centerFrequency, config->sampling_freq, BUFFER_SIZE, &filter);
 	//FIXME maybe some trick with 32 bit numbers?
-	printf("diff: %lld\n", (int64_t) config->centerFrequency - (int64_t) config->bandFrequency);
-	code = create_frequency_xlating_filter(12, taps, len, (int64_t) config->centerFrequency - (int64_t) config->bandFrequency, sampling_freq, BUFFER_SIZE, &filter);
+	printf("diff: %lld\n", (int64_t) config->center_freq - (int64_t) config->band_freq);
+	code = create_frequency_xlating_filter(12, taps, len, (int64_t) config->center_freq - (int64_t) config->band_freq, sampling_freq, BUFFER_SIZE, &filter);
 	if (code != 0) {
 		fprintf(stderr, "unable to setup filter: %zu\n", code);
 		close(config->client_socket);
@@ -254,18 +262,18 @@ void respond_failure(rtlsdr_dev_t *dev, int client_socket, int response, int sta
 	}
 }
 
-int init_rtl_sdr(rtlsdr_dev_t **dev, struct ClientConfig config, struct server_config *server_config) {
+int init_rtl_sdr(rtlsdr_dev_t **dev, struct client_config *config, struct server_config *server_config) {
 	printf("starting rtl-sdr\n");
 	rtlsdr_open(dev, 0);
 	if (dev == NULL) {
 		return 0x04;
 	}
 
-	int code = rtlsdr_set_sample_rate(*dev, server_config->band_sampling_freq);
+	int code = rtlsdr_set_sample_rate(*dev, server_config->band_sampling_rate);
 	if (code < 0) {
 		return 0x04;
 	}
-	code = rtlsdr_set_center_freq(*dev, config.bandFrequency);
+	code = rtlsdr_set_center_freq(*dev, config->band_freq);
 	if (code < 0) {
 		return 0x04;
 	}
@@ -334,7 +342,7 @@ int main(int argc, char **argv) {
 		exit(EXIT_FAILURE);
 	}
 	if (listen(serverSocket, 3) < 0) {
-		perror("listen");
+		perror("listen failed");
 		exit(EXIT_FAILURE);
 	}
 
@@ -364,20 +372,19 @@ int main(int argc, char **argv) {
 		const char *ptr = inet_ntop(AF_INET, &address.sin_addr, str, sizeof(str));
 		printf("accepted client from %s:%d\n", ptr, ntohs(address.sin_port));
 
-		struct ClientConfig config;
-		if (readClientConfig(clientSocket, &config) < 0) {
+		struct client_config *config = NULL;
+		if (read_client_config(clientSocket, server_config, &config) < 0) {
 			// close silently
 			close(clientSocket);
 			continue;
 		}
-		config.client_socket = clientSocket;
-		if (validateClientConfig(&config) < 0) {
+		if (validateClientConfig(config) < 0) {
 			// invalid request
 			respond_failure(NULL, clientSocket, 0x01, 0x01);
 			continue;
 		}
 
-		if (currentBandFrequency != 0 && currentBandFrequency != config.bandFrequency) {
+		if (currentBandFrequency != 0 && currentBandFrequency != config->band_freq) {
 			//FIXME more validations
 			// out of band frequency
 			respond_failure(NULL, clientSocket, 0x01, 0x02);
@@ -398,7 +405,7 @@ int main(int argc, char **argv) {
 				respond_failure(dev, clientSocket, 0x01, 0x04);
 				continue;
 			}
-			currentBandFrequency = config.bandFrequency;
+			currentBandFrequency = config->band_freq;
 		}
 
 		pthread_t worker_thread;

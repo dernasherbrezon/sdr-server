@@ -10,7 +10,7 @@ struct server_config {
 	int gain;
 	int ppm;
 	int bias_t;
-	uint32_t band_sampling_freq;
+	uint32_t band_sampling_rate;
 };
 
 int create_server_config(struct server_config **config, const char *path);

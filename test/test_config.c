@@ -25,7 +25,7 @@ END_TEST
 START_TEST (test_success) {
 	int code = create_server_config(&config, "configuration.config");
 	ck_assert_int_eq(code, 0);
-	ck_assert_int_eq(2016000, config->band_sampling_freq);
+	ck_assert_int_eq(2016000, config->band_sampling_rate);
 	ck_assert_int_eq(1, config->gain_mode);
 	ck_assert_int_eq(42, config->gain);
 	ck_assert_int_eq(0, config->bias_t);

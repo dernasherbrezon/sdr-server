@@ -14,6 +14,7 @@
 #include <complex.h>
 #include <volk/volk.h>
 
+#include "config.h"
 #include "lpf.h"
 #include "xlating.h"
 
@@ -32,14 +33,7 @@ struct ClientConfig {
 	int client_socket;
 };
 
-struct ServerConfig {
-	int gainMode;
-	int gain;
-	int ppm;
-	int biasT;
-	uint32_t band_sampling_freq;
-};
-
+struct server_config *server_config = NULL;
 static volatile sig_atomic_t app_running = true;
 
 void plutosdr_stop_async() {
@@ -260,50 +254,35 @@ void respond_failure(rtlsdr_dev_t *dev, int client_socket, int response, int sta
 	}
 }
 
-int init_rtl_sdr(rtlsdr_dev_t **dev, struct ClientConfig config) {
-	//FIXME log parameter first and then set it up
+int init_rtl_sdr(rtlsdr_dev_t **dev, struct ClientConfig config, struct server_config *server_config) {
 	printf("starting rtl-sdr\n");
 	rtlsdr_open(dev, 0);
 	if (dev == NULL) {
 		return 0x04;
 	}
 
-	//FIXME load from file
-	struct ServerConfig server_config;
-	server_config.biasT = 0;
-	// FIXME validate and align on startup
-	server_config.gain = 420;
-	server_config.gainMode = 1;
-	server_config.ppm = 0;
-//	server_config.band_sampling_freq = 2016000;
-	server_config.band_sampling_freq = 2016000;
-	int code = rtlsdr_set_sample_rate(*dev, server_config.band_sampling_freq);
+	int code = rtlsdr_set_sample_rate(*dev, server_config->band_sampling_freq);
 	if (code < 0) {
 		return 0x04;
 	}
-	printf("sample rate: %u\n", server_config.band_sampling_freq);
 	code = rtlsdr_set_center_freq(*dev, config.bandFrequency);
 	if (code < 0) {
 		return 0x04;
 	}
-	printf("band frequency: %u\n", config.bandFrequency);
-	code = rtlsdr_set_tuner_gain_mode(*dev, server_config.gainMode);
+	code = rtlsdr_set_tuner_gain_mode(*dev, server_config->gain_mode);
 	if (code < 0) {
 		return 0x04;
 	}
-	printf("gain mode: %d\n", server_config.gainMode);
-	if (server_config.gainMode == 1) {
-		code = rtlsdr_set_tuner_gain(*dev, server_config.gain);
+	if (server_config->gain_mode == 1) {
+		code = rtlsdr_set_tuner_gain(*dev, server_config->gain);
 		if (code < 0) {
 			return 0x04;
 		}
-		printf("gain: %d\n", server_config.gain);
 	}
-	code = rtlsdr_set_bias_tee(*dev, server_config.biasT);
+	code = rtlsdr_set_bias_tee(*dev, server_config->bias_t);
 	if (code < 0) {
 		return 0x04;
 	}
-	printf("biast: %d\n", server_config.biasT);
 	code = rtlsdr_reset_buffer(*dev);
 	if (code < 0) {
 		return 0x04;
@@ -312,6 +291,14 @@ int init_rtl_sdr(rtlsdr_dev_t **dev, struct ClientConfig config) {
 }
 
 int main(int argc, char **argv) {
+	if (argc < 2) {
+		fprintf(stderr, "parameter missing: configuration file\n");
+		exit(EXIT_FAILURE);
+	}
+	int code = create_server_config(&server_config, argv[1]);
+	if (code != 0) {
+		exit(EXIT_FAILURE);
+	}
 //	size_t align = volk_get_alignment();
 //	printf("%zu %zu %f\n", align, sizeof(float), (float)align / sizeof(float complex));
 	//FIXME properly handle shutdown
@@ -336,13 +323,11 @@ int main(int argc, char **argv) {
 	}
 	struct sockaddr_in address;
 	address.sin_family = AF_INET;
-	//FIXME interface
-	if (inet_pton(AF_INET, "0.0.0.0", &address.sin_addr) <= 0) {
+	if (inet_pton(AF_INET, server_config->bind_address, &address.sin_addr) <= 0) {
 		perror("invalid address");
 		exit(EXIT_FAILURE);
 	}
-	//FIXME port
-	address.sin_port = htons(8081);
+	address.sin_port = htons(server_config->port);
 
 	if (bind(serverSocket, (struct sockaddr*) &address, sizeof(address)) < 0) {
 		perror("bind failed");
@@ -355,7 +340,7 @@ int main(int argc, char **argv) {
 
 	// use detached threads
 	pthread_attr_t attr;
-	int code = pthread_attr_init(&attr);
+	code = pthread_attr_init(&attr);
 	if (code != 0) {
 		perror("unable to init attributes");
 		exit(EXIT_FAILURE);
@@ -401,7 +386,7 @@ int main(int argc, char **argv) {
 
 		if (currentBandFrequency == 0) {
 			rtlsdr_dev_t *dev = NULL;
-			code = init_rtl_sdr(&dev, config);
+			code = init_rtl_sdr(&dev, config, server_config);
 			if (code != 0) {
 				respond_failure(dev, clientSocket, 0x01, code);
 				continue;

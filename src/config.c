@@ -7,6 +7,7 @@
 #include "config.h"
 
 int create_server_config(struct server_config **config, const char *path) {
+	fprintf(stdout, "loading configuration from: %s\n", path);
 	struct server_config *result = malloc(sizeof(struct server_config));
 	if (result == NULL) {
 		return -ENOMEM;

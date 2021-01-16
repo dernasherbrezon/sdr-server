@@ -8,27 +8,20 @@
 
 #include "core.h"
 
+struct linked_list_node {
+	struct linked_list_node *next;
+	struct client_config *config;
+};
+
 struct core_t {
 	struct server_config *server_config;
 	pthread_mutex_t mutex;
 
+	struct linked_list_node *client_configs;
 	rtlsdr_dev_t *dev;
 	volatile sig_atomic_t is_rtlsdr_running;
 	pthread_t rtlsdr_worker_thread;
-};
-
-static pthread_mutex_t ll_mutex;
-static pthread_cond_t cond;
-
-static struct llist *ll_buffers = 0;
-static int llbuf_num = 500;
-static int global_numq = 0;
-
-struct llist {
-	int8_t *data;
-//	char *data;
-	size_t len;
-	struct llist *next;
+	uint8_t *buffer;
 };
 
 int create_core(struct server_config *server_config, core **result) {
@@ -37,12 +30,16 @@ int create_core(struct server_config *server_config, core **result) {
 		return -ENOMEM;
 	}
 	core->server_config = server_config;
-
+	uint8_t *buffer = malloc(server_config->buffer_size * sizeof(uint8_t));
+	if (buffer == NULL) {
+		return -ENOMEM;
+	}
+	core->buffer = buffer;
 	*result = core;
 	return 0;
 }
 
-//static void* client_worker(void *arg) {
+static void* dsp_worker(void *arg) {
 //	printf("started client worker\n");
 //	struct client_config *config = (struct client_config*) arg;
 //	float *taps = NULL;
@@ -74,7 +71,8 @@ int create_core(struct server_config *server_config, core **result) {
 //	struct timespec ts;
 //	struct timeval tp;
 //	struct llist *curelem, *prev;
-//	float complex *output;
+//	float complex
+//	*output;
 //	size_t output_len = 0;
 //	printf("getting new data\n");
 //	while (app_running) {
@@ -105,71 +103,39 @@ int create_core(struct server_config *server_config, core **result) {
 //			free(prev);
 //		}
 //	}
-//	printf("stopping\n");
+	printf("stopping dsp worker\n");
 //	fclose(file);
-//	//FIXME worker thread
-//	return (void*) 0;
-//}
+	//FIXME worker thread
+	return (void*) 0;
+}
 
 static void* rtlsdr_worker(void *arg) {
 	core *core = (struct core_t*) arg;
-	uint8_t *buffer;
-	uint32_t out_block_size = core->server_config->buffer_size;
+	uint32_t buffer_size = core->server_config->buffer_size;
 	int n_read;
-	// FIXME tune the buffer size
-	buffer = malloc(out_block_size * sizeof(uint8_t));
 	while (core->is_rtlsdr_running) {
-		int result = rtlsdr_read_sync(core->dev, buffer, out_block_size, &n_read);
-		//TODO temporary linked list. allocate memory in advance
-		struct llist *rpt = (struct llist*) malloc(sizeof(struct llist));
-		rpt->data = (int8_t*) malloc(n_read);
-//		rpt->data = (char*) malloc(n_read);
-		memcpy(rpt->data, buffer, n_read);
-		rpt->len = n_read;
-		rpt->next = NULL;
-
-		pthread_mutex_lock(&ll_mutex);
-		if (ll_buffers == NULL) {
-			ll_buffers = rpt;
-		} else {
-			struct llist *cur = ll_buffers;
-			int num_queued = 0;
-
-			while (cur->next != NULL) {
-				cur = cur->next;
-				num_queued++;
-			}
-
-			if (llbuf_num && llbuf_num == num_queued - 2) {
-				struct llist *curelem;
-
-				free(ll_buffers->data);
-				curelem = ll_buffers->next;
-				free(ll_buffers);
-				ll_buffers = curelem;
-			}
-
-			cur->next = rpt;
-
-			if (num_queued > global_numq)
-				printf("ll+, now %d\n", num_queued);
-			else if (num_queued < global_numq)
-				printf("ll-, now %d\n", num_queued);
-
-			global_numq = num_queued;
+		int result = rtlsdr_read_sync(core->dev, core->buffer, buffer_size, &n_read);
+		if (result < 0) {
+			fprintf(stderr, "rtl-sdr read failure. shutdown\n");
+			core->is_rtlsdr_running = false;
+			break;
 		}
-		pthread_cond_signal(&cond);
-		pthread_mutex_unlock(&ll_mutex);
+		pthread_mutex_lock(&core->mutex);
+		struct linked_list_node *current_node = core->client_configs;
+		while (current_node != NULL) {
+			//FIXME copy to the queue and notify worker
+			current_node = current_node->next;
+		}
+		pthread_mutex_unlock(&core->mutex);
 	}
-	printf("stopping\n");
-	free(buffer);
+	printf("stopping rtl-sdr\n");
 	rtlsdr_close(core->dev);
 	core->dev = NULL;
 	core->rtlsdr_worker_thread = NULL;
 	return (void*) 0;
 }
 
-int start_rtlsdr_internal(struct client_config *config) {
+int start_rtlsdr(struct client_config *config) {
 	core *core = config->core;
 	if (core->is_rtlsdr_running) {
 		return 0;
@@ -219,13 +185,6 @@ int start_rtlsdr_internal(struct client_config *config) {
 	return 0x0;
 }
 
-int start_rtlsdr(struct client_config *config) {
-	pthread_mutex_lock(&config->core->mutex);
-	int result = start_rtlsdr_internal(config);
-	pthread_mutex_unlock(&config->core->mutex);
-	return result;
-}
-
 void stop_rtlsdr(core *core) {
 	fprintf(stdout, "stopping rtl-sdr\n");
 	core->is_rtlsdr_running = false;
@@ -237,8 +196,36 @@ void stop_rtlsdr(core *core) {
 }
 
 int add_client(struct client_config *config) {
-	//FIXME
-	return 0;
+	struct linked_list_node *config_node = malloc(sizeof(struct linked_list_node));
+	if (config_node == NULL) {
+		return -ENOMEM;
+	}
+	config_node->config = config;
+	//FIXME init client's queue
+
+	pthread_t dsp_thread;
+	int code = pthread_create(&dsp_thread, NULL, &dsp_worker, config_node);
+	if (code != 0) {
+		free(config_node);
+		return -1;
+	}
+
+	int result;
+	pthread_mutex_lock(&config->core->mutex);
+	if (config->core->client_configs == NULL) {
+		config->core->client_configs = config_node;
+		// init rtl-sdr only for the first client
+		result = start_rtlsdr(config);
+	} else {
+		struct linked_list_node *last_config = config->core->client_configs;
+		while (last_config->next != NULL) {
+			last_config = last_config->next;
+		}
+		last_config->next = config_node;
+		result = 0;
+	}
+	pthread_mutex_unlock(&config->core->mutex);
+	return result;
 }
 void remove_client(struct client_config *config) {
 	config->is_running = false;

@@ -133,7 +133,6 @@ void respond_failure(tcp_server *server, int client_socket, int response, int st
 	}
 	write_message(client_socket, response, status); // unable to start device
 	close(client_socket);
-	stop_rtlsdr(server->core);
 }
 
 static void* client_worker(void *arg) {
@@ -193,14 +192,7 @@ static void* acceptor_worker(void *arg) {
 			continue;
 		}
 
-		// init rtl-sdr only for the first client
 		if (current_band_freq == 0) {
-			int code = start_rtlsdr(config);
-			if (code != 0) {
-				respond_failure(server, client_socket, 0x01, code);
-				continue;
-			}
-
 			current_band_freq = config->band_freq;
 		}
 

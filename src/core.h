@@ -18,9 +18,6 @@ struct client_config {
 
 int create_core(struct server_config *server_config, core **result);
 
-int start_rtlsdr(struct client_config *config);
-void stop_rtlsdr(core *core);
-
 // client_config contains core to modify
 int add_client(struct client_config *config);
 void remove_client(struct client_config *config);

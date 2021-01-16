@@ -42,6 +42,75 @@ int create_core(struct server_config *server_config, core **result) {
 	return 0;
 }
 
+//static void* client_worker(void *arg) {
+//	printf("started client worker\n");
+//	struct client_config *config = (struct client_config*) arg;
+//	float *taps = NULL;
+//	size_t len;
+//	// FIXME replace double with floats everywhere
+//	double sampling_freq = 288000;
+//	size_t code = create_low_pass_filter(1.0, sampling_freq, config->sampling_rate / 2, 2000, &taps, &len);
+//	if (code != 0) {
+//		fprintf(stderr, "unable to setup taps: %zu\n", code);
+//		close(config->client_socket);
+//		return ((void*) code);
+//	}
+//	xlating *filter = NULL;
+//	//FIXME should come from the config
+////	code = create_frequency_xlating_filter(12, taps, len, config->bandFrequency - config->centerFrequency, config->sampling_freq, BUFFER_SIZE, &filter);
+//	//FIXME maybe some trick with 32 bit numbers?
+//	printf("diff: %lld\n", (int64_t) config->center_freq - (int64_t) config->band_freq);
+//	code = create_frequency_xlating_filter(12, taps, len, (int64_t) config->center_freq - (int64_t) config->band_freq, sampling_freq, BUFFER_SIZE, &filter);
+//	if (code != 0) {
+//		fprintf(stderr, "unable to setup filter: %zu\n", code);
+//		close(config->client_socket);
+//		free(taps);
+//		return ((void*) code);
+//	}
+//
+//	FILE *file;
+//	file = fopen("/tmp/file.raw", "wb");
+//
+//	struct timespec ts;
+//	struct timeval tp;
+//	struct llist *curelem, *prev;
+//	float complex *output;
+//	size_t output_len = 0;
+//	printf("getting new data\n");
+//	while (app_running) {
+//		pthread_mutex_lock(&ll_mutex);
+//		//FIXME relative timeout instead of absolute system time?
+//		gettimeofday(&tp, NULL);
+//		ts.tv_sec = tp.tv_sec + 5;
+//		ts.tv_nsec = tp.tv_usec * 1000;
+//		//FIXME spurious wakeups not handled
+//		int r = pthread_cond_timedwait(&cond, &ll_mutex, &ts);
+//		//FIXME check timeout
+//
+//		curelem = ll_buffers;
+//		ll_buffers = 0;
+//		pthread_mutex_unlock(&ll_mutex);
+//
+//		while (curelem != NULL) {
+//			printf("processing %zu\n", curelem->len);
+//			process(curelem->data, curelem->len, &output, &output_len, filter);
+//			printf("processed %zu\n", curelem->len);
+//			int n_read = fwrite(output, sizeof(float complex), output_len, file);
+////			int n_read = fwrite(output, sizeof(float complex) * output_len, 1, file);
+////			int n_read = fwrite(curelem->data, 1, curelem->len, file);
+////			fprintf(stderr, "written %d expected to write: %zu\n", n_read, output_len);
+//			prev = curelem;
+//			curelem = curelem->next;
+//			free(prev->data);
+//			free(prev);
+//		}
+//	}
+//	printf("stopping\n");
+//	fclose(file);
+//	//FIXME worker thread
+//	return (void*) 0;
+//}
+
 static void* rtlsdr_worker(void *arg) {
 	core *core = (struct core_t*) arg;
 	uint8_t *buffer;
@@ -100,7 +169,8 @@ static void* rtlsdr_worker(void *arg) {
 	return (void*) 0;
 }
 
-int start_rtlsdr_internal(struct client_config *config, core *core) {
+int start_rtlsdr_internal(struct client_config *config) {
+	core *core = config->core;
 	if (core->is_rtlsdr_running) {
 		return 0;
 	}
@@ -149,10 +219,10 @@ int start_rtlsdr_internal(struct client_config *config, core *core) {
 	return 0x0;
 }
 
-int start_rtlsdr(struct client_config *config, core *core) {
-	pthread_mutex_lock(&core->mutex);
-	int result = start_rtlsdr_internal(config, core);
-	pthread_mutex_unlock(&core->mutex);
+int start_rtlsdr(struct client_config *config) {
+	pthread_mutex_lock(&config->core->mutex);
+	int result = start_rtlsdr_internal(config);
+	pthread_mutex_unlock(&config->core->mutex);
 	return result;
 }
 
@@ -166,11 +236,12 @@ void stop_rtlsdr(core *core) {
 	pthread_mutex_unlock(&core->mutex);
 }
 
-int add_client(struct client_config *config, core *core) {
+int add_client(struct client_config *config) {
 	//FIXME
 	return 0;
 }
-void remove_client(struct client_config *config, core *core) {
+void remove_client(struct client_config *config) {
+	config->is_running = false;
 	//FIXME
 }
 

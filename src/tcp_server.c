@@ -22,10 +22,10 @@ struct message {
 	uint32_t argument;
 } __attribute__((packed));
 
-void log_client(struct sockaddr_in *address) {
+void log_client(struct sockaddr_in *address, uint32_t id) {
 	char str[INET_ADDRSTRLEN];
 	const char *ptr = inet_ntop(AF_INET, &address->sin_addr, str, sizeof(str));
-	printf("accepted client from %s:%d\n", ptr, ntohs(address->sin_port));
+	printf("accepted client from %s:%d (id: %u)\n", ptr, ntohs(address->sin_port), id);
 }
 
 int read_message(int socket, struct message *result) {
@@ -47,6 +47,7 @@ int read_client_config(int client_socket, struct server_config *server_config, s
 	// init all fields with 0
 	*result = (struct client_config ) { 0 };
 	struct message cmd;
+	//FIXME true?
 	while (true) {
 		if (read_message(client_socket, &cmd) < 0) {
 			return -1;
@@ -54,6 +55,7 @@ int read_client_config(int client_socket, struct server_config *server_config, s
 		if (cmd.command == 0x10) {
 			break;
 		}
+		//FIXME add api.h + add protocol version command
 		switch (cmd.command) {
 		case 0x01:
 			result->center_freq = cmd.argument;
@@ -78,6 +80,18 @@ int read_client_config(int client_socket, struct server_config *server_config, s
 }
 
 int validate_client_config(struct client_config *config, struct server_config *server_config) {
+	if (config->center_freq == 0) {
+		fprintf(stderr, "missing center_freq parameter\n");
+		return -1;
+	}
+	if (config->sampling_rate == 0) {
+		fprintf(stderr, "missing sampling_rate parameter\n");
+		return -1;
+	}
+	if (config->band_freq == 0) {
+		fprintf(stderr, "missing band_freq parameter\n");
+		return -1;
+	}
 	if (config->sampling_rate > server_config->band_sampling_rate) {
 		fprintf(stderr, "requested sampling rate is less than on server: %u\n", server_config->band_sampling_rate);
 		return -1;
@@ -122,74 +136,26 @@ void respond_failure(tcp_server *server, int client_socket, int response, int st
 	stop_rtlsdr(server->core);
 }
 
-//static void* client_worker(void *arg) {
-//	printf("started client worker\n");
-//	struct client_config *config = (struct client_config*) arg;
-//	float *taps = NULL;
-//	size_t len;
-//	// FIXME replace double with floats everywhere
-//	double sampling_freq = 288000;
-//	size_t code = create_low_pass_filter(1.0, sampling_freq, config->sampling_rate / 2, 2000, &taps, &len);
-//	if (code != 0) {
-//		fprintf(stderr, "unable to setup taps: %zu\n", code);
-//		close(config->client_socket);
-//		return ((void*) code);
-//	}
-//	xlating *filter = NULL;
-//	//FIXME should come from the config
-////	code = create_frequency_xlating_filter(12, taps, len, config->bandFrequency - config->centerFrequency, config->sampling_freq, BUFFER_SIZE, &filter);
-//	//FIXME maybe some trick with 32 bit numbers?
-//	printf("diff: %lld\n", (int64_t) config->center_freq - (int64_t) config->band_freq);
-//	code = create_frequency_xlating_filter(12, taps, len, (int64_t) config->center_freq - (int64_t) config->band_freq, sampling_freq, BUFFER_SIZE, &filter);
-//	if (code != 0) {
-//		fprintf(stderr, "unable to setup filter: %zu\n", code);
-//		close(config->client_socket);
-//		free(taps);
-//		return ((void*) code);
-//	}
-//
-//	FILE *file;
-//	file = fopen("/tmp/file.raw", "wb");
-//
-//	struct timespec ts;
-//	struct timeval tp;
-//	struct llist *curelem, *prev;
-//	float complex *output;
-//	size_t output_len = 0;
-//	printf("getting new data\n");
-//	while (app_running) {
-//		pthread_mutex_lock(&ll_mutex);
-//		//FIXME relative timeout instead of absolute system time?
-//		gettimeofday(&tp, NULL);
-//		ts.tv_sec = tp.tv_sec + 5;
-//		ts.tv_nsec = tp.tv_usec * 1000;
-//		//FIXME spurious wakeups not handled
-//		int r = pthread_cond_timedwait(&cond, &ll_mutex, &ts);
-//		//FIXME check timeout
-//
-//		curelem = ll_buffers;
-//		ll_buffers = 0;
-//		pthread_mutex_unlock(&ll_mutex);
-//
-//		while (curelem != NULL) {
-//			printf("processing %zu\n", curelem->len);
-//			process(curelem->data, curelem->len, &output, &output_len, filter);
-//			printf("processed %zu\n", curelem->len);
-//			int n_read = fwrite(output, sizeof(float complex), output_len, file);
-////			int n_read = fwrite(output, sizeof(float complex) * output_len, 1, file);
-////			int n_read = fwrite(curelem->data, 1, curelem->len, file);
-////			fprintf(stderr, "written %d expected to write: %zu\n", n_read, output_len);
-//			prev = curelem;
-//			curelem = curelem->next;
-//			free(prev->data);
-//			free(prev);
-//		}
-//	}
-//	printf("stopping\n");
-//	fclose(file);
-//	//FIXME worker thread
-//	return (void*) 0;
-//}
+static void* client_worker(void *arg) {
+	struct client_config *config = (struct client_config*) arg;
+	while (config->is_running) {
+		struct message cmd;
+		if (read_message(config->client_socket, &cmd) < 0) {
+			fprintf(stdout, "client disconnected: %u\n", config->id);
+			break;
+		}
+		if (cmd.command == 0x12) {
+			fprintf(stdout, "client is disconnecting: %u\n", config->id);
+			break;
+		}
+		// just read any data from client
+		// if connection closed from the client side, then shutdown calculation
+		fprintf(stderr, "unexpected command: %d\n", cmd.command);
+	}
+	remove_client(config);
+	close(config->client_socket);
+	return (void*) 0;
+}
 
 static void* acceptor_worker(void *arg) {
 	tcp_server *server = (tcp_server*) arg;
@@ -203,7 +169,7 @@ static void* acceptor_worker(void *arg) {
 			break;
 		}
 
-		log_client(&address);
+		log_client(&address, client_counter);
 
 		struct client_config *config = NULL;
 		if (read_client_config(client_socket, server->server_config, &config) < 0) {
@@ -216,6 +182,8 @@ static void* acceptor_worker(void *arg) {
 			respond_failure(NULL, client_socket, 0x01, 0x01);
 			continue;
 		}
+		config->is_running = true;
+		config->core = server->core;
 		config->id = client_counter;
 		client_counter++;
 
@@ -227,13 +195,7 @@ static void* acceptor_worker(void *arg) {
 
 		// init rtl-sdr only for the first client
 		if (current_band_freq == 0) {
-			int code = start_rtlsdr(config, server->core);
-			if (code != 0) {
-				respond_failure(server, client_socket, 0x01, code);
-				continue;
-			}
-
-			code = add_client(config, server->core);
+			int code = start_rtlsdr(config);
 			if (code != 0) {
 				respond_failure(server, client_socket, 0x01, code);
 				continue;
@@ -242,12 +204,19 @@ static void* acceptor_worker(void *arg) {
 			current_band_freq = config->band_freq;
 		}
 
-//		pthread_t worker_thread;
-//		int code = pthread_create(&worker_thread, &server->attr, &client_worker, &config);
-//		if (code != 0) {
-//			respond_failure(NULL, client_socket, 0x01, 0x04);
-//			continue;
-//		}
+		int code = add_client(config);
+		if (code != 0) {
+			respond_failure(server, client_socket, 0x01, code);
+			continue;
+		}
+
+		pthread_t client_thread;
+		code = pthread_create(&client_thread, &server->attr, &client_worker, config);
+		if (code != 0) {
+			respond_failure(NULL, client_socket, 0x01, 0x04);
+			remove_client(config);
+			continue;
+		}
 
 		write_message(client_socket, 0x01, 0x00); // success
 	}

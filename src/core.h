@@ -12,15 +12,18 @@ struct client_config {
 	uint32_t band_freq;
 	int client_socket;
 	uint32_t id;
+	volatile sig_atomic_t is_running;
+	core *core;
 };
 
 int create_core(struct server_config *server_config, core **result);
 
-int start_rtlsdr(struct client_config *config, core *core);
+int start_rtlsdr(struct client_config *config);
 void stop_rtlsdr(core *core);
 
-int add_client(struct client_config *config, core *core);
-void remove_client(struct client_config *config, core *core);
+// client_config contains core to modify
+int add_client(struct client_config *config);
+void remove_client(struct client_config *config);
 
 void destroy_core(core *core);
 

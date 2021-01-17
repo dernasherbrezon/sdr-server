@@ -3,13 +3,17 @@
 #include <math.h>
 #include "../src/rotator.h"
 
+#ifndef M_PI
+    #define M_PI 3.14159265358979323846264338327950288
+#endif
+
 rotator *rot = NULL;
 
 void assertRotate(float in1, float in2, float out1, float out2) {
 	float complex input = in1 + in2 * I;
 	float complex actual = rotator_increment(rot, input);
-	ck_assert_float_eq_tol(out1, crealf(actual), 0.00001f);
-	ck_assert_float_eq_tol(out2, cimagf(actual), 0.00001f);
+	ck_assert_int_eq((int32_t) (out1 * 10000), (int32_t)(crealf(actual) * 10000));
+	ck_assert_int_eq((int32_t) (out2 * 10000), (int32_t)(cimagf(actual) * 10000));
 }
 
 START_TEST (test_success) {

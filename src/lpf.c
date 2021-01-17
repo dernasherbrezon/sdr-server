@@ -3,6 +3,10 @@
 #include <math.h>
 #include <errno.h>
 
+#ifndef M_PI
+    #define M_PI 3.14159265358979323846264338327950288
+#endif
+
 #include "lpf.h"
 
 int sanity_check_1f(double sampling_freq, double fa, double transition_width) {

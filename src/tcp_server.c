@@ -5,6 +5,8 @@
 #include <pthread.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <signal.h>
+#include <unistd.h>
 
 #include "tcp_server.h"
 

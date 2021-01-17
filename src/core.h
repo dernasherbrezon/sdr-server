@@ -3,6 +3,7 @@
 #define CORE_H_
 
 #include <stdint.h>
+#include <signal.h>
 
 #include "config.h"
 

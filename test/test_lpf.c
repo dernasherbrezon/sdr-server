@@ -14,7 +14,7 @@ START_TEST (test_lowpassTaps) {
 
 	ck_assert_uint_eq(len, 39);
 	for (int i = 0; i < len; i++) {
-		ck_assert_float_eq(expected_taps[i], taps[i]);
+		ck_assert_int_eq((int32_t) (expected_taps[i] * 10000), (int32_t) (taps[i] * 10000));
 	}
 }
 END_TEST

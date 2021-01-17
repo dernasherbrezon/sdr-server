@@ -114,8 +114,8 @@ static void* rtlsdr_worker(void *arg) {
 	uint32_t buffer_size = core->server_config->buffer_size;
 	int n_read;
 	while (core->is_rtlsdr_running) {
-		int result = rtlsdr_read_sync(core->dev, core->buffer, buffer_size, &n_read);
-		if (result < 0) {
+		int code = rtlsdr_read_sync(core->dev, core->buffer, buffer_size, &n_read);
+		if (code < 0) {
 			fprintf(stderr, "rtl-sdr read failure. shutdown\n");
 			core->is_rtlsdr_running = false;
 			break;

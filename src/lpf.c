@@ -47,9 +47,9 @@ int create_hamming_window(int ntaps, float **output) {
 }
 
 int create_low_pass_filter(double gain, double sampling_freq, double cutoff_freq, double transition_width, float **output_taps, size_t *len) {
-	int result = sanity_check_1f(sampling_freq, cutoff_freq, transition_width);
-	if (result != 0) {
-		return result;
+	int code = sanity_check_1f(sampling_freq, cutoff_freq, transition_width);
+	if (code != 0) {
+		return code;
 	}
 
 	size_t ntaps = computeNtaps(sampling_freq, transition_width);
@@ -58,9 +58,9 @@ int create_low_pass_filter(double gain, double sampling_freq, double cutoff_freq
 		return -ENOMEM;
 	}
 	float *w = NULL;
-	result = create_hamming_window(ntaps, &w);
-	if (result != 0) {
-		return result;
+	code = create_hamming_window(ntaps, &w);
+	if (code != 0) {
+		return code;
 	}
 
 	int M = (ntaps - 1) / 2;

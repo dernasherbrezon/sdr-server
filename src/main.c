@@ -8,7 +8,7 @@
 
 static tcp_server *server = NULL;
 
-void sdrserver_stop_async() {
+void sdrserver_stop_async(int signum) {
 	stop_tcp_server(server);
 }
 

@@ -1,0 +1,26 @@
+language: c
+
+dist: trusty
+
+compiler:
+  - clang
+  - gcc
+
+addons:
+  apt:
+    packages:
+    - librtlsdr-dev
+    - libvolk-dev
+    - libconfig-dev
+    - valgrind
+    - check
+    - make
+    - cmake
+    - pkg-config
+
+script:
+  - set -e
+  - if [[ $TRAVIS_COMPILER == 'gcc' ]]; then sh ./build_debug.sh; fi
+  - mkdir release && cd release
+  - cmake ..
+  - make

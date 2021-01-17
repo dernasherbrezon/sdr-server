@@ -144,6 +144,7 @@ void complete_buffer_processing(queue *queue) {
 }
 
 void destroy_queue(queue *queue) {
+	//FIXME destroy queue should produce zero buffer - i.e. poison pill
 	if (queue == NULL) {
 		return;
 	}

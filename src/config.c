@@ -49,7 +49,7 @@ int create_server_config(struct server_config **config, const char *path) {
 	if (setting == NULL) {
 		gain = 0;
 	} else {
-		gain = config_setting_get_float(setting);
+		gain = (float) config_setting_get_float(setting);
 	}
 	fprintf(stdout, "gain: %f\n", gain);
 	//FIXME maybe find nearest gain?

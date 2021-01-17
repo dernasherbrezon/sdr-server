@@ -28,9 +28,9 @@ int sanity_check_1f(double sampling_freq, double fa, double transition_width) {
 	return 0;
 }
 
-size_t computeNtaps(double sampling_freq, double transition_width) {
+int computeNtaps(double sampling_freq, double transition_width) {
 	double a = 53;
-	size_t ntaps = (size_t) (a * sampling_freq / (22.0 * transition_width));
+	int ntaps = (int) (a * sampling_freq / (22.0 * transition_width));
 	if ((ntaps & 1) == 0) { // if even...
 		ntaps++; // ...make odd
 	}
@@ -56,7 +56,7 @@ int create_low_pass_filter(double gain, double sampling_freq, double cutoff_freq
 		return code;
 	}
 
-	size_t ntaps = computeNtaps(sampling_freq, transition_width);
+	int ntaps = computeNtaps(sampling_freq, transition_width);
 	float *taps = malloc(sizeof(float) * ntaps);
 	if (taps == NULL) {
 		return -ENOMEM;
@@ -64,6 +64,7 @@ int create_low_pass_filter(double gain, double sampling_freq, double cutoff_freq
 	float *w = NULL;
 	code = create_hamming_window(ntaps, &w);
 	if (code != 0) {
+		free(taps);
 		return code;
 	}
 

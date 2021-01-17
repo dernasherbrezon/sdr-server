@@ -46,12 +46,16 @@ int read_message(int socket, struct message *result) {
 
 int read_client_config(int client_socket, struct server_config *server_config, struct client_config **config) {
 	struct client_config *result = malloc(sizeof(struct client_config));
+	if (result == NULL) {
+		return -ENOMEM;
+	}
 	// init all fields with 0
 	*result = (struct client_config ) { 0 };
 	struct message cmd;
 	//FIXME true?
 	while (true) {
 		if (read_message(client_socket, &cmd) < 0) {
+			free(result);
 			return -1;
 		}
 		if (cmd.command == 0x10) {
@@ -74,10 +78,13 @@ int read_client_config(int client_socket, struct server_config *server_config, s
 		}
 	}
 	result->client_socket = client_socket;
-	if (server_config->band_sampling_rate % result->sampling_rate != 0) {
+	if (result->sampling_rate > 0 && server_config->band_sampling_rate % result->sampling_rate != 0) {
+		free(result);
 		fprintf(stderr, "sampling frequency is not an integer factor of server sample rate: %u\n", server_config->band_sampling_rate);
 		return -1;
 	}
+
+	*config = result;
 	return 0;
 }
 
@@ -232,6 +239,7 @@ int start_tcp_server(struct server_config *config, core *core, tcp_server **serv
 	}
 	int server_socket = socket(AF_INET, SOCK_STREAM, 0);
 	if (server_socket == 0) {
+		free(result);
 		perror("socket creation failed");
 		return -1;
 	}
@@ -240,26 +248,31 @@ int start_tcp_server(struct server_config *config, core *core, tcp_server **serv
 	result->server_config = config;
 	int opt = 1;
 	if (setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt))) {
+		free(result);
 		perror("setsockopt - SO_REUSEADDR");
 		return -1;
 	}
 	if (setsockopt(server_socket, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt))) {
+		free(result);
 		perror("setsockopt - SO_REUSEPORT");
 		return -1;
 	}
 	struct sockaddr_in address;
 	address.sin_family = AF_INET;
 	if (inet_pton(AF_INET, config->bind_address, &address.sin_addr) <= 0) {
+		free(result);
 		perror("invalid address");
 		return -1;
 	}
 	address.sin_port = htons(config->port);
 
 	if (bind(server_socket, (struct sockaddr*) &address, sizeof(address)) < 0) {
+		free(result);
 		perror("bind failed");
 		return -1;
 	}
 	if (listen(server_socket, 3) < 0) {
+		free(result);
 		perror("listen failed");
 		return -1;
 	}
@@ -267,11 +280,13 @@ int start_tcp_server(struct server_config *config, core *core, tcp_server **serv
 	pthread_attr_t attr;
 	int code = pthread_attr_init(&attr);
 	if (code != 0) {
+		free(result);
 		perror("unable to init attributes");
 		return -1;
 	}
 	code = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 	if (code != 0) {
+		free(result);
 		perror("unable to set attribute");
 		return -1;
 	}
@@ -281,6 +296,7 @@ int start_tcp_server(struct server_config *config, core *core, tcp_server **serv
 	pthread_t acceptor_thread;
 	code = pthread_create(&acceptor_thread, NULL, &acceptor_worker, result);
 	if (code != 0) {
+		free(result);
 		return -1;
 	}
 	result->acceptor_thread = acceptor_thread;

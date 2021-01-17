@@ -1,6 +1,8 @@
 #ifndef QUEUE_H_
 #define QUEUE_H_
 
+#include <stdint.h>
+
 typedef struct queue_t queue;
 
 int create_queue(uint32_t buffer_size, int capacity, queue **queue);

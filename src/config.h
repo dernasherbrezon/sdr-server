@@ -1,7 +1,7 @@
 #ifndef CONFIG_H_
 #define CONFIG_H_
 
-#include <unistd.h>
+#include <stdint.h>
 
 struct server_config {
 	char* bind_address;

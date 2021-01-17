@@ -2,6 +2,8 @@
 #ifndef CORE_H_
 #define CORE_H_
 
+#include <stdint.h>
+
 #include "config.h"
 
 typedef struct core_t core;

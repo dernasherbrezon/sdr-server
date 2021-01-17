@@ -15,7 +15,7 @@ addons:
   apt:
     packages:
     - librtlsdr-dev
-    - libvolk2-dev
+    - libvolk1-dev
     - libconfig-dev
     - valgrind
     - check

@@ -188,16 +188,13 @@ static void* acceptor_worker(void *arg) {
 		if (validate_client_config(config, server->server_config) < 0) {
 			// invalid request
 			respond_failure(NULL, client_socket, 0x01, 0x01);
+			free(config);
 			continue;
 		}
-		config->is_running = true;
-		config->core = server->core;
-		config->id = client_counter;
-		client_counter++;
-
 		if (current_band_freq != 0 && current_band_freq != config->band_freq) {
 			// out of band frequency
 			respond_failure(NULL, client_socket, 0x01, 0x02);
+			free(config);
 			continue;
 		}
 
@@ -205,9 +202,15 @@ static void* acceptor_worker(void *arg) {
 			current_band_freq = config->band_freq;
 		}
 
+		config->is_running = true;
+		config->core = server->core;
+		config->id = client_counter;
+		client_counter++;
+
 		int code = add_client(config);
 		if (code != 0) {
 			respond_failure(server, client_socket, 0x01, code);
+			free(config);
 			continue;
 		}
 
@@ -216,6 +219,7 @@ static void* acceptor_worker(void *arg) {
 		if (code != 0) {
 			respond_failure(NULL, client_socket, 0x01, 0x04);
 			remove_client(config);
+			free(config);
 			continue;
 		}
 

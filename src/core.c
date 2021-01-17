@@ -35,6 +35,7 @@ int create_core(struct server_config *server_config, core **result) {
 		return -ENOMEM;
 	}
 	core->buffer = buffer;
+	core->mutex = (pthread_mutex_t )PTHREAD_MUTEX_INITIALIZER;
 	*result = core;
 	return 0;
 }

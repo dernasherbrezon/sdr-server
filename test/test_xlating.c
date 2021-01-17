@@ -8,7 +8,7 @@ int8_t *input = NULL;
 
 void setup_input_data(size_t input_offset, size_t len) {
 	input = malloc(sizeof(int8_t) * len);
-	ck_assert_ptr_nonnull(input);
+	ck_assert_ptr_ne(input, NULL);
 	for (size_t i = 0; i < len; i++) {
 		// don't care about the loss of data
 		input[i] = (int8_t) (input_offset + i);

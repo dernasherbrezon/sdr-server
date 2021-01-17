@@ -131,7 +131,6 @@ static void* rtlsdr_worker(void *arg) {
 	printf("stopping rtl-sdr\n");
 	rtlsdr_close(core->dev);
 	core->dev = NULL;
-	core->rtlsdr_worker_thread = NULL;
 	return (void*) 0;
 }
 

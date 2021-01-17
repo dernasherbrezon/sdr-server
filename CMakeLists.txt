@@ -36,7 +36,7 @@ file(GLOB TEST_SOURCES test/test_*.c)
 file(GLOB TEST_RESOURCES test/resources/*)
 file(COPY ${TEST_RESOURCES} DESTINATION "${CMAKE_BINARY_DIR}")
 
-find_package(CHECK REQUIRED)
+find_package(Check REQUIRED)
 include_directories(${CHECK_INCLUDE_DIRS})
 
 find_package(Threads REQUIRED)

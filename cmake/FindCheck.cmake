@@ -29,6 +29,6 @@ set(CHECK_INCLUDE_DIRS ${CHECK_INCLUDE_DIR})
 
 include(FindPackageHandleStandardArgs)
 
-find_package_handle_standard_args(CHECK DEFAULT_MSG CHECK_LIBRARY CHECK_INCLUDE_DIR)
+find_package_handle_standard_args(Check DEFAULT_MSG CHECK_LIBRARY CHECK_INCLUDE_DIR)
 
 mark_as_advanced(CHECK_INCLUDE_DIR CHECK_LIBRARY)

@@ -6,11 +6,13 @@
 #include <pthread.h>
 #include <string.h>
 
+#include "queue.h"
 #include "core.h"
 
 struct linked_list_node {
 	struct linked_list_node *next;
 	struct client_config *config;
+	queue *queue;
 };
 
 struct core_t {
@@ -124,7 +126,8 @@ static void* rtlsdr_worker(void *arg) {
 		pthread_mutex_lock(&core->mutex);
 		struct linked_list_node *current_node = core->client_configs;
 		while (current_node != NULL) {
-			//FIXME copy to the queue and notify worker
+			// copy to client's buffers and notify
+			put(core->buffer, n_read, current_node->queue);
 			current_node = current_node->next;
 		}
 		pthread_mutex_unlock(&core->mutex);
@@ -149,29 +152,29 @@ int start_rtlsdr(struct client_config *config) {
 
 	int code = rtlsdr_set_sample_rate(dev, core->server_config->band_sampling_rate);
 	if (code < 0) {
-		return 0x04;
+		fprintf(stderr, "unable to set sampling rate: %d\n", code);
 	}
 	code = rtlsdr_set_center_freq(dev, config->band_freq);
 	if (code < 0) {
-		return 0x04;
+		fprintf(stderr, "unable to set center freq: %d\n", code);
 	}
 	code = rtlsdr_set_tuner_gain_mode(dev, core->server_config->gain_mode);
 	if (code < 0) {
-		return 0x04;
+		fprintf(stderr, "unable to set gain mode: %d\n", code);
 	}
 	if (core->server_config->gain_mode == 1) {
 		code = rtlsdr_set_tuner_gain(dev, core->server_config->gain);
 		if (code < 0) {
-			return 0x04;
+			fprintf(stderr, "unable to set tuner gain: %d\n", code);
 		}
 	}
 	code = rtlsdr_set_bias_tee(dev, core->server_config->bias_t);
 	if (code < 0) {
-		return 0x04;
+		fprintf(stderr, "unable to set bias_t: %d\n", code);
 	}
 	code = rtlsdr_reset_buffer(dev);
 	if (code < 0) {
-		return 0x04;
+		fprintf(stderr, "unable to reset buffer: %d\n", code);
 	}
 	core->dev = dev;
 	core->is_rtlsdr_running = true;
@@ -201,12 +204,19 @@ int add_client(struct client_config *config) {
 		return -ENOMEM;
 	}
 	config_node->config = config;
-	//FIXME init client's queue
-
-	pthread_t dsp_thread;
-	int code = pthread_create(&dsp_thread, NULL, &dsp_worker, config_node);
+	queue *client_queue = NULL;
+	int code = create_queue(config->core->server_config->buffer_size, 16, &client_queue);
 	if (code != 0) {
 		free(config_node);
+		return -1;
+	}
+	config_node->queue = client_queue;
+
+	pthread_t dsp_thread;
+	code = pthread_create(&dsp_thread, NULL, &dsp_worker, config_node);
+	if (code != 0) {
+		free(config_node);
+		destroy_queue(client_queue);
 		return -1;
 	}
 

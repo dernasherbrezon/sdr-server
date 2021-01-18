@@ -52,7 +52,7 @@ int read_client_config(int client_socket, struct server_config *server_config, s
 	// init all fields with 0
 	*result = (struct client_config ) { 0 };
 	struct message cmd;
-	//FIXME true?
+	//FIXME true? what if client do not send 0x10?
 	while (true) {
 		if (read_message(client_socket, &cmd) < 0) {
 			free(result);

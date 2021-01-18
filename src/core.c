@@ -164,9 +164,7 @@ void stop_rtlsdr(core *core) {
 	core->is_rtlsdr_running = false;
 
 	// block access to core until rtlsdr fully stops and cleans the resources
-	pthread_mutex_lock(&core->mutex);
 	pthread_join(core->rtlsdr_worker_thread, NULL);
-	pthread_mutex_unlock(&core->mutex);
 }
 
 void destroy_node(struct linked_list_node *node) {
@@ -296,13 +294,13 @@ void destroy_core(core *core) {
 	if (core == NULL) {
 		return;
 	}
+	pthread_mutex_lock(&core->mutex);
 	if (core->dev != NULL) {
 		stop_rtlsdr(core);
 	}
 	if (core->buffer != NULL) {
 		free(core->buffer);
 	}
-	pthread_mutex_lock(&core->mutex);
 	struct linked_list_node *cur_node = core->client_configs;
 	while (cur_node != NULL) {
 		struct linked_list_node *next = cur_node->next;

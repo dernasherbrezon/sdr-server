@@ -31,7 +31,7 @@ struct xlating_t {
 	size_t output_len;
 };
 
-void process(const int8_t *input, size_t input_len, float complex **output, size_t *output_len, xlating *filter) {
+void process(uint8_t *input, size_t input_len, float complex **output, size_t *output_len, xlating *filter) {
 	// input_len cannot be more than (working_len_total - history_offset)
 
 	// convert to [-1.0;1.0] working buffer

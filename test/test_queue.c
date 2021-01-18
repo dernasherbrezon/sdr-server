@@ -49,6 +49,10 @@ END_TEST
 
 void teardown() {
 	destroy_queue(queue_obj);
+	// the last buffer will take the pill and destory the queue
+	uint8_t *result = NULL;
+	int len = 0;
+	take_buffer_for_processing(&result, &len, queue_obj);
 	queue_obj = NULL;
 }
 

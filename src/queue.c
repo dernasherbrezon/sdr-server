@@ -21,6 +21,8 @@ struct queue_t {
 
 	pthread_mutex_t mutex;
 	pthread_cond_t condition;
+
+	int poison_pill;
 };
 
 void free_nodes(struct queue_node *nodes) {
@@ -73,6 +75,7 @@ int create_queue(uint32_t buffer_size, int capacity, queue **queue) {
 	result->last_filled_node = NULL;
 	result->condition = (pthread_cond_t )PTHREAD_COND_INITIALIZER;
 	result->mutex = (pthread_mutex_t )PTHREAD_MUTEX_INITIALIZER;
+	result->poison_pill = 0;
 
 	*queue = result;
 	return 0;
@@ -110,11 +113,34 @@ void put(const uint8_t *buffer, const int len, queue *queue) {
 	pthread_mutex_unlock(&queue->mutex);
 }
 
+void destroy_queue_internally(queue *queue) {
+	free_nodes(queue->first_free_node);
+	free_nodes(queue->first_filled_node);
+	if (queue->detached_node != NULL) {
+		free(queue->detached_node->buffer);
+		free(queue->detached_node);
+	}
+	pthread_mutex_unlock(&queue->mutex);
+	free(queue);
+}
+
 void take_buffer_for_processing(uint8_t **buffer, int *len, queue *queue) {
 	pthread_mutex_lock(&queue->mutex);
+	if (queue->poison_pill == 1) {
+		destroy_queue_internally(queue);
+		*buffer = NULL;
+		return;
+	}
 	// "while" loop is for spurious wakeups
 	while (queue->first_filled_node == NULL) {
 		pthread_cond_wait(&queue->condition, &queue->mutex);
+		// destroy all queue data
+		// and return NULL buffer
+		if (queue->poison_pill == 1) {
+			destroy_queue_internally(queue);
+			*buffer = NULL;
+			return;
+		}
 	}
 	// the idea is to keep a node that being processed in the detached mode
 	// i.e. input thread cannot read or write into it, while buffer is being sent to client/file (which can be slow)
@@ -145,16 +171,12 @@ void complete_buffer_processing(queue *queue) {
 }
 
 void destroy_queue(queue *queue) {
-	//FIXME destroy queue should produce zero buffer - i.e. poison pill
 	if (queue == NULL) {
 		return;
 	}
-	free_nodes(queue->first_free_node);
-	free_nodes(queue->first_filled_node);
-	if (queue->detached_node != NULL) {
-		free(queue->detached_node->buffer);
-		free(queue->detached_node);
-	}
-	free(queue);
+	pthread_mutex_lock(&queue->mutex);
+	queue->poison_pill = 1;
+	pthread_cond_broadcast(&queue->condition);
+	pthread_mutex_unlock(&queue->mutex);
 }
 

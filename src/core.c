@@ -7,6 +7,8 @@
 #include <string.h>
 #include <complex.h>
 
+#include "lpf.h"
+#include "xlating.h"
 #include "queue.h"
 #include "core.h"
 
@@ -54,7 +56,6 @@ int create_core(struct server_config *server_config, core **result) {
 // FIXME replace double with floats everywhere
 static void* dsp_worker(void *arg) {
 	struct linked_list_node *config_node = (struct linked_list_node*) arg;
-	struct client_config *config = config_node->config;
 
 	FILE *file;
 	//FIXME
@@ -259,8 +260,36 @@ int add_client(struct client_config *config) {
 	return result;
 }
 void remove_client(struct client_config *config) {
-	//FIXME
-//	config->is_running = false;
+	struct linked_list_node *node_to_destroy = NULL;
+	pthread_mutex_lock(&config->core->mutex);
+	struct linked_list_node *cur_node = config->core->client_configs;
+	struct linked_list_node *last_node = NULL;
+	while (cur_node != NULL) {
+		if (cur_node->config->id == config->id) {
+			if (last_node == NULL) {
+				if (cur_node->next == NULL) {
+					// this is the first and the last node
+					// shutdown rtlsdr
+					stop_rtlsdr(config->core);
+				}
+				// update pointer to the first node
+				config->core->client_configs = cur_node->next;
+				node_to_destroy = cur_node;
+			} else {
+				last_node->next = cur_node->next;
+				node_to_destroy = cur_node;
+			}
+			break;
+		}
+		last_node = cur_node;
+		cur_node = cur_node->next;
+	}
+	pthread_mutex_unlock(&config->core->mutex);
+	// stopping the thread can take some time
+	// do it outside of synch block
+	if (node_to_destroy != NULL) {
+		destroy_node(node_to_destroy);
+	}
 }
 
 void destroy_core(core *core) {
@@ -277,6 +306,9 @@ void destroy_core(core *core) {
 	struct linked_list_node *cur_node = core->client_configs;
 	while (cur_node != NULL) {
 		struct linked_list_node *next = cur_node->next;
+		// destroy all nodes in synch block, because
+		// destory_core should be atomic operation for external code,
+		// i.e. destroy all client_configs
 		destroy_node(cur_node);
 		cur_node = next;
 	}

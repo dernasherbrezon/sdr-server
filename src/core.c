@@ -20,6 +20,7 @@ struct linked_list_node {
 	xlating *filter;
 	volatile sig_atomic_t is_running;
 	pthread_t dsp_thread;
+	FILE *file;
 };
 
 struct core_t {
@@ -56,11 +57,6 @@ int create_core(struct server_config *server_config, core **result) {
 // FIXME replace double with floats everywhere
 static void* dsp_worker(void *arg) {
 	struct linked_list_node *config_node = (struct linked_list_node*) arg;
-
-	FILE *file;
-	//FIXME
-	file = fopen("/tmp/file.raw", "wb");
-
 	uint8_t *input = NULL;
 	int input_len = 0;
 	float complex *filter_output;
@@ -73,12 +69,11 @@ static void* dsp_worker(void *arg) {
 		}
 		process(input, input_len, &filter_output, &filter_output_len, config_node->filter);
 
-		int n_read = fwrite(filter_output, sizeof(float complex), filter_output_len, file);
+		int n_read = fwrite(filter_output, sizeof(float complex), filter_output_len, config_node->file);
 		//FIXME check how n_read can be less than buffer's expected
 
 		complete_buffer_processing(config_node->queue);
 	}
-	fclose(file);
 	printf("dsp_worker stopped\n");
 	return (void*) 0;
 }
@@ -171,18 +166,22 @@ void destroy_node(struct linked_list_node *node) {
 	if (node == NULL) {
 		return;
 	}
-	if (node->taps != NULL) {
-		free(node->taps);
-	}
-	if (node->filter != NULL) {
-		destroy_xlating(node->filter);
-	}
 	node->is_running = false;
 	if (node->queue != NULL) {
 		destroy_queue(node->queue);
 	}
 	// wait until thread terminates and only then destroy the node
 	pthread_join(node->dsp_thread, NULL);
+	// cleanup everything only when thread terminates
+	if (node->file != NULL) {
+		fclose(node->file);
+	}
+	if (node->taps != NULL) {
+		free(node->taps);
+	}
+	if (node->filter != NULL) {
+		destroy_xlating(node->filter);
+	}
 	free(node);
 }
 
@@ -214,6 +213,17 @@ int add_client(struct client_config *config) {
 	}
 	config_node->filter = filter;
 	config_node->config = config;
+
+	//TODO add optional zlib
+	//TODO add optional stream back to client via socket
+	char file_path[4096];
+	snprintf(file_path, sizeof(file_path), "%s/%d.raw", config->core->server_config->base_path, config->id);
+	config_node->file = fopen(file_path, "wb");
+	if (config_node->file == NULL) {
+		fprintf(stderr, "unable to open file for output: %s\n", file_path);
+		destroy_node(config_node);
+		return -1;
+	}
 
 	// setup queue
 	queue *client_queue = NULL;

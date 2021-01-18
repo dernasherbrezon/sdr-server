@@ -33,6 +33,7 @@ START_TEST (test_success) {
 	ck_assert_str_eq(config->bind_address, "127.0.0.2");
 	ck_assert_int_eq(config->port, 8090);
 	ck_assert_int_eq(config->buffer_size, 131072);
+	ck_assert_str_eq(config->base_path, "/tmp/");
 }
 END_TEST
 

@@ -6,6 +6,25 @@
 
 #include "config.h"
 
+char* read_and_copy_str(const config_setting_t *setting, const char *default_value) {
+	const char *value;
+	if (setting == NULL) {
+		value = default_value;
+	} else {
+		value = config_setting_get_string(setting);
+	}
+	char *bind_address;
+	size_t length = strlen(value);
+	char *str_bind_address = malloc(sizeof(char) * length + 1);
+	if (str_bind_address == NULL) {
+		return NULL;
+	}
+	strncpy(str_bind_address, value, length);
+	str_bind_address[length] = '\0';
+	bind_address = str_bind_address;
+	return bind_address;
+}
+
 int create_server_config(struct server_config **config, const char *path) {
 	fprintf(stdout, "loading configuration from: %s\n", path);
 	struct server_config *result = malloc(sizeof(struct server_config));
@@ -87,23 +106,12 @@ int create_server_config(struct server_config **config, const char *path) {
 	result->buffer_size = buffer_size;
 
 	setting = config_lookup(&libconfig, "bind_address");
-	const char *value;
-	if (setting == NULL) {
-		value = "127.0.0.1";
-	} else {
-		value = config_setting_get_string(setting);
-	}
-	char *bind_address;
-	size_t length = strlen(value);
-	char *str_bind_address = malloc(sizeof(char) * length + 1);
-	if (str_bind_address == NULL) {
+	char *bind_address = read_and_copy_str(setting, "127.0.0.1");
+	if (bind_address == NULL) {
 		config_destroy(&libconfig);
 		free(result);
 		return -ENOMEM;
 	}
-	strncpy(str_bind_address, value, length);
-	str_bind_address[length] = '\0';
-	bind_address = str_bind_address;
 	result->bind_address = bind_address;
 	setting = config_lookup(&libconfig, "port");
 	int port;
@@ -114,6 +122,16 @@ int create_server_config(struct server_config **config, const char *path) {
 	}
 	result->port = port;
 	fprintf(stdout, "start listening on %s:%d\n", result->bind_address, result->port);
+
+	setting = config_lookup(&libconfig, "base_path");
+	char *base_path = read_and_copy_str(setting, "/tmp/");
+	if (base_path == NULL) {
+		config_destroy(&libconfig);
+		free(result);
+		return -ENOMEM;
+	}
+	result->base_path = base_path;
+	fprintf(stdout, "base path for storing results: %s\n", result->base_path);
 
 	config_destroy(&libconfig);
 

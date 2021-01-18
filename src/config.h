@@ -12,6 +12,7 @@ struct server_config {
 	int bias_t;
 	uint32_t buffer_size;
 	uint32_t band_sampling_rate;
+	char *base_path;
 };
 
 int create_server_config(struct server_config **config, const char *path);

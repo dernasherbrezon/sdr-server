@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <pthread.h>
 #include <string.h>
+#include <complex.h>
 
 #include "queue.h"
 #include "core.h"
@@ -13,6 +14,10 @@ struct linked_list_node {
 	struct linked_list_node *next;
 	struct client_config *config;
 	queue *queue;
+	float *taps;
+	xlating *filter;
+	volatile sig_atomic_t is_running;
+	pthread_t dsp_thread;
 };
 
 struct core_t {
@@ -31,9 +36,13 @@ int create_core(struct server_config *server_config, core **result) {
 	if (core == NULL) {
 		return -ENOMEM;
 	}
+	// init all fields with 0 so that destroy_* method would work
+	*core = (struct core_t ) { 0 };
+
 	core->server_config = server_config;
 	uint8_t *buffer = malloc(server_config->buffer_size * sizeof(uint8_t));
 	if (buffer == NULL) {
+		destroy_core(core);
 		return -ENOMEM;
 	}
 	core->buffer = buffer;
@@ -42,73 +51,34 @@ int create_core(struct server_config *server_config, core **result) {
 	return 0;
 }
 
+// FIXME replace double with floats everywhere
 static void* dsp_worker(void *arg) {
-//	printf("started client worker\n");
-//	struct client_config *config = (struct client_config*) arg;
-//	float *taps = NULL;
-//	size_t len;
-//	// FIXME replace double with floats everywhere
-//	double sampling_freq = 288000;
-//	size_t code = create_low_pass_filter(1.0, sampling_freq, config->sampling_rate / 2, 2000, &taps, &len);
-//	if (code != 0) {
-//		fprintf(stderr, "unable to setup taps: %zu\n", code);
-//		close(config->client_socket);
-//		return ((void*) code);
-//	}
-//	xlating *filter = NULL;
-//	//FIXME should come from the config
-////	code = create_frequency_xlating_filter(12, taps, len, config->bandFrequency - config->centerFrequency, config->sampling_freq, BUFFER_SIZE, &filter);
-//	//FIXME maybe some trick with 32 bit numbers?
-//	printf("diff: %lld\n", (int64_t) config->center_freq - (int64_t) config->band_freq);
-//	code = create_frequency_xlating_filter(12, taps, len, (int64_t) config->center_freq - (int64_t) config->band_freq, sampling_freq, BUFFER_SIZE, &filter);
-//	if (code != 0) {
-//		fprintf(stderr, "unable to setup filter: %zu\n", code);
-//		close(config->client_socket);
-//		free(taps);
-//		return ((void*) code);
-//	}
-//
-//	FILE *file;
-//	file = fopen("/tmp/file.raw", "wb");
-//
-//	struct timespec ts;
-//	struct timeval tp;
-//	struct llist *curelem, *prev;
-//	float complex
-//	*output;
-//	size_t output_len = 0;
-//	printf("getting new data\n");
-//	while (app_running) {
-//		pthread_mutex_lock(&ll_mutex);
-//		//FIXME relative timeout instead of absolute system time?
-//		gettimeofday(&tp, NULL);
-//		ts.tv_sec = tp.tv_sec + 5;
-//		ts.tv_nsec = tp.tv_usec * 1000;
-//		//FIXME spurious wakeups not handled
-//		int r = pthread_cond_timedwait(&cond, &ll_mutex, &ts);
-//		//FIXME check timeout
-//
-//		curelem = ll_buffers;
-//		ll_buffers = 0;
-//		pthread_mutex_unlock(&ll_mutex);
-//
-//		while (curelem != NULL) {
-//			printf("processing %zu\n", curelem->len);
-//			process(curelem->data, curelem->len, &output, &output_len, filter);
-//			printf("processed %zu\n", curelem->len);
-//			int n_read = fwrite(output, sizeof(float complex), output_len, file);
-////			int n_read = fwrite(output, sizeof(float complex) * output_len, 1, file);
-////			int n_read = fwrite(curelem->data, 1, curelem->len, file);
-////			fprintf(stderr, "written %d expected to write: %zu\n", n_read, output_len);
-//			prev = curelem;
-//			curelem = curelem->next;
-//			free(prev->data);
-//			free(prev);
-//		}
-//	}
-	printf("stopping dsp worker\n");
-//	fclose(file);
-	//FIXME worker thread
+	struct linked_list_node *config_node = (struct linked_list_node*) arg;
+	struct client_config *config = config_node->config;
+
+	FILE *file;
+	//FIXME
+	file = fopen("/tmp/file.raw", "wb");
+
+	uint8_t *input = NULL;
+	int input_len = 0;
+	float complex *filter_output;
+	size_t filter_output_len = 0;
+	while (config_node->is_running) {
+		take_buffer_for_processing(&input, &input_len, config_node->queue);
+		// poison pill received
+		if (input == NULL) {
+			break;
+		}
+		process(input, input_len, &filter_output, &filter_output_len, config_node->filter);
+
+		int n_read = fwrite(filter_output, sizeof(float complex), filter_output_len, file);
+		//FIXME check how n_read can be less than buffer's expected
+
+		complete_buffer_processing(config_node->queue);
+	}
+	fclose(file);
+	printf("dsp_worker stopped\n");
 	return (void*) 0;
 }
 
@@ -132,9 +102,9 @@ static void* rtlsdr_worker(void *arg) {
 		}
 		pthread_mutex_unlock(&core->mutex);
 	}
-	printf("stopping rtl-sdr\n");
 	rtlsdr_close(core->dev);
 	core->dev = NULL;
+	printf("rtl-sdr stopped\n");
 	return (void*) 0;
 }
 
@@ -198,34 +168,81 @@ void stop_rtlsdr(core *core) {
 	pthread_mutex_unlock(&core->mutex);
 }
 
+void destroy_node(struct linked_list_node *node) {
+	if (node == NULL) {
+		return;
+	}
+	if (node->taps != NULL) {
+		free(node->taps);
+	}
+	if (node->filter != NULL) {
+		destroy_xlating(node->filter);
+	}
+	node->is_running = false;
+	if (node->queue != NULL) {
+		destroy_queue(node->queue);
+	}
+	// wait until thread terminates and only then destroy the node
+	pthread_join(node->dsp_thread, NULL);
+	free(node);
+}
+
 int add_client(struct client_config *config) {
 	struct linked_list_node *config_node = malloc(sizeof(struct linked_list_node));
 	if (config_node == NULL) {
 		return -ENOMEM;
 	}
-	config_node->config = config;
-	queue *client_queue = NULL;
-	int code = create_queue(config->core->server_config->buffer_size, 16, &client_queue);
+	// init all fields with 0 so that destroy_* method would work
+	*config_node = (struct linked_list_node ) { 0 };
+
+	// setup taps
+	float *taps = NULL;
+	size_t len;
+	int code = create_low_pass_filter(1.0, config->core->server_config->band_sampling_rate, config->sampling_rate / 2, 2000, &taps, &len);
 	if (code != 0) {
-		free(config_node);
+		destroy_node(config_node);
+		return code;
+	}
+	config_node->taps = taps;
+
+	// setup xlating frequency filter
+	xlating *filter = NULL;
+	//FIXME maybe some trick with 32 bit numbers?
+	code = create_frequency_xlating_filter(12, taps, len, (int64_t) config->center_freq - (int64_t) config->band_freq, config->core->server_config->band_sampling_rate, config->core->server_config->buffer_size, &filter);
+	if (code != 0) {
+		destroy_node(config_node);
+		return code;
+	}
+	config_node->filter = filter;
+	config_node->config = config;
+
+	// setup queue
+	queue *client_queue = NULL;
+	code = create_queue(config->core->server_config->buffer_size, 16, &client_queue);
+	if (code != 0) {
+		destroy_node(config_node);
 		return -1;
 	}
 	config_node->queue = client_queue;
+	config_node->is_running = true;
 
+	// start processing
 	pthread_t dsp_thread;
 	code = pthread_create(&dsp_thread, NULL, &dsp_worker, config_node);
 	if (code != 0) {
-		free(config_node);
-		destroy_queue(client_queue);
+		destroy_node(config_node);
 		return -1;
 	}
+	config_node->dsp_thread = dsp_thread;
 
 	int result;
 	pthread_mutex_lock(&config->core->mutex);
 	if (config->core->client_configs == NULL) {
-		config->core->client_configs = config_node;
 		// init rtl-sdr only for the first client
 		result = start_rtlsdr(config);
+		if (result == 0) {
+			config->core->client_configs = config_node;
+		}
 	} else {
 		struct linked_list_node *last_config = config->core->client_configs;
 		while (last_config->next != NULL) {
@@ -235,17 +252,35 @@ int add_client(struct client_config *config) {
 		result = 0;
 	}
 	pthread_mutex_unlock(&config->core->mutex);
+
+	if (result != 0) {
+		destroy_node(config_node);
+	}
 	return result;
 }
 void remove_client(struct client_config *config) {
-	config->is_running = false;
 	//FIXME
+//	config->is_running = false;
 }
 
 void destroy_core(core *core) {
 	if (core == NULL) {
 		return;
 	}
+	if (core->dev != NULL) {
+		stop_rtlsdr(core);
+	}
+	if (core->buffer != NULL) {
+		free(core->buffer);
+	}
+	pthread_mutex_lock(&core->mutex);
+	struct linked_list_node *cur_node = core->client_configs;
+	while (cur_node != NULL) {
+		struct linked_list_node *next = cur_node->next;
+		destroy_node(cur_node);
+		cur_node = next;
+	}
+	pthread_mutex_unlock(&core->mutex);
 	free(core);
 }
 

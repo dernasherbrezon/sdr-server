@@ -85,6 +85,7 @@ int create_frequency_xlating_filter(int decimation, float *taps, size_t taps_len
 	size_t alignment = volk_get_alignment();
 	float complex *bpfTaps = volk_malloc(sizeof(float complex) * taps_len, alignment);
 	if (bpfTaps == NULL) {
+		destroy_xlating(result);
 		return -ENOMEM;
 	}
 	float fwT0 = 2 * M_PI * center_freq / sampling_freq;
@@ -104,6 +105,7 @@ int create_frequency_xlating_filter(int decimation, float *taps, size_t taps_len
 	rotator *rot = NULL;
 	int code = create_rotator(phase, phase_incr, &rot);
 	if (code != 0) {
+		destroy_xlating(result);
 		return code;
 	}
 	result->rot = rot;
@@ -114,6 +116,7 @@ int create_frequency_xlating_filter(int decimation, float *taps, size_t taps_len
 	result->working_len_total = max_input_buffer_length + result->history_offset;
 	result->working_buffer = volk_malloc(sizeof(float) * result->working_len_total, alignment);
 	if (result->working_buffer == NULL) {
+		destroy_xlating(result);
 		return -ENOMEM;
 	}
 	for (size_t i = 0; i < result->working_len_total; i++) {
@@ -124,16 +127,22 @@ int create_frequency_xlating_filter(int decimation, float *taps, size_t taps_len
 	result->output_len = max_input_buffer_length / 2 / decimation + 1;
 	result->output = malloc(sizeof(float complex) * result->output_len);
 	if (result->output == NULL) {
+		destroy_xlating(result);
 		return -ENOMEM;
 	}
 
 	result->lookup_table = malloc(sizeof(float) * 256);
+	if( result->lookup_table == NULL ) {
+		destroy_xlating(result);
+		return -ENOMEM;
+	}
 	for (size_t i = 0; i < 256; i++) {
 		result->lookup_table[i] = (i - 127.5f) / 128.0f;
 	}
 
 	result->volk_output = volk_malloc(1 * sizeof(float complex), alignment);
 	if (result->volk_output == NULL) {
+		destroy_xlating(result);
 		return -ENOMEM;
 	}
 

@@ -96,6 +96,11 @@ int create_server_config(struct server_config **config, const char *path) {
 	char *bind_address;
 	size_t length = strlen(value);
 	char *str_bind_address = malloc(sizeof(char) * length + 1);
+	if (str_bind_address == NULL) {
+		config_destroy(&libconfig);
+		free(result);
+		return -ENOMEM;
+	}
 	strncpy(str_bind_address, value, length);
 	str_bind_address[length] = '\0';
 	bind_address = str_bind_address;

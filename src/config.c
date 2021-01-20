@@ -146,5 +146,8 @@ void destroy_server_config(struct server_config *config) {
 	if (config->bind_address != NULL) {
 		free(config->bind_address);
 	}
+	if (config->base_path != NULL) {
+		free(config->base_path);
+	}
 	free(config);
 }

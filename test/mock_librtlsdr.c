@@ -1,6 +1,7 @@
 #include <rtl-sdr.h>
 #include <pthread.h>
 #include <stdio.h>
+#include <stdbool.h>
 
 #define rtlsdr_read_sync rtlsdr_read_sync_mocked
 #define rtlsdr_close rtlsdr_close_mocked
@@ -37,9 +38,12 @@ int rtlsdr_reset_buffer_mocked(rtlsdr_dev_t *dev);
 struct mock_status {
 	uint8_t *buffer;
 	int len;
+
 	pthread_mutex_t mutex;
 	pthread_cond_t condition;
 	int stopped;
+	pthread_cond_t data_was_read_condition;
+	int data_was_read;
 };
 
 struct rtlsdr_dev {
@@ -51,13 +55,27 @@ struct mock_status mock;
 void init_mock_librtlsdr() {
 	mock.mutex = (pthread_mutex_t )PTHREAD_MUTEX_INITIALIZER;
 	mock.condition = (pthread_cond_t )PTHREAD_COND_INITIALIZER;
-	mock.stopped = 0;
+	mock.data_was_read_condition = (pthread_cond_t )PTHREAD_COND_INITIALIZER;
+	mock.stopped = false;
+	mock.data_was_read = false;
+}
+
+// make sure data was read
+// the core will be terminated gracefully
+// so the data will be processed
+void wait_for_data_read() {
+	pthread_mutex_lock(&mock.mutex);
+	while (!mock.data_was_read) {
+		pthread_cond_wait(&mock.data_was_read_condition, &mock.mutex);
+	}
+	pthread_mutex_unlock(&mock.mutex);
 }
 
 int rtlsdr_read_sync_mocked(rtlsdr_dev_t *dev, void *buf, int len, int *n_read) {
 	int result;
 	pthread_mutex_lock(&mock.mutex);
-	if (mock.stopped == 1) {
+	if (mock.stopped) {
+		pthread_mutex_unlock(&mock.mutex);
 		return -1;
 	}
 	if (mock.buffer != NULL) {
@@ -65,10 +83,14 @@ int rtlsdr_read_sync_mocked(rtlsdr_dev_t *dev, void *buf, int len, int *n_read) 
 		*n_read = mock.len;
 		mock.buffer = NULL;
 		result = 0;
+		mock.data_was_read = true;
+		pthread_cond_broadcast(&mock.data_was_read_condition);
 	} else {
 		*n_read = 0;
 		printf("mock is waiting for data\n");
-		pthread_cond_wait(&mock.condition, &mock.mutex);
+		while (!mock.stopped) {
+			pthread_cond_wait(&mock.condition, &mock.mutex);
+		}
 		result = -1;
 	}
 	pthread_mutex_unlock(&mock.mutex);
@@ -80,7 +102,7 @@ int rtlsdr_close_mocked(rtlsdr_dev_t *dev) {
 		free(dev);
 	}
 	pthread_mutex_lock(&mock.mutex);
-	mock.stopped = 1;
+	mock.stopped = true;
 	pthread_cond_broadcast(&mock.condition);
 	pthread_mutex_unlock(&mock.mutex);
 	return 0;

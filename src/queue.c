@@ -25,7 +25,7 @@ struct queue_t {
 	int poison_pill;
 };
 
-void free_nodes(struct queue_node *nodes) {
+void destroy_nodes(struct queue_node *nodes) {
 	struct queue_node *cur_node = nodes;
 	while (cur_node != NULL) {
 		struct queue_node *next = cur_node->next;
@@ -48,7 +48,7 @@ int create_queue(uint32_t buffer_size, int capacity, queue **queue) {
 	for (int i = 0; i < capacity; i++) {
 		struct queue_node *cur = malloc(sizeof(struct queue_node));
 		if (cur == NULL) {
-			free_nodes(first_node);
+			destroy_nodes(first_node);
 			free(result);
 			return -ENOMEM;
 		}
@@ -56,7 +56,7 @@ int create_queue(uint32_t buffer_size, int capacity, queue **queue) {
 		cur->next = NULL;
 		cur->len = 0;
 		if (cur->buffer == NULL) {
-			free_nodes(first_node);
+			destroy_nodes(first_node);
 			free(cur);
 			free(result);
 			return -ENOMEM;
@@ -113,21 +113,20 @@ void put(const uint8_t *buffer, const int len, queue *queue) {
 	pthread_mutex_unlock(&queue->mutex);
 }
 
-void destroy_queue_internally(queue *queue) {
-	free_nodes(queue->first_free_node);
-	free_nodes(queue->first_filled_node);
+void destroy_queue(queue *queue) {
+	destroy_nodes(queue->first_free_node);
+	destroy_nodes(queue->first_filled_node);
 	if (queue->detached_node != NULL) {
 		free(queue->detached_node->buffer);
 		free(queue->detached_node);
 	}
-	pthread_mutex_unlock(&queue->mutex);
 	free(queue);
 }
 
 void take_buffer_for_processing(uint8_t **buffer, int *len, queue *queue) {
 	pthread_mutex_lock(&queue->mutex);
 	if (queue->poison_pill == 1) {
-		destroy_queue_internally(queue);
+		pthread_mutex_unlock(&queue->mutex);
 		*buffer = NULL;
 		return;
 	}
@@ -137,7 +136,7 @@ void take_buffer_for_processing(uint8_t **buffer, int *len, queue *queue) {
 		// destroy all queue data
 		// and return NULL buffer
 		if (queue->poison_pill == 1) {
-			destroy_queue_internally(queue);
+			pthread_mutex_unlock(&queue->mutex);
 			*buffer = NULL;
 			return;
 		}
@@ -170,7 +169,7 @@ void complete_buffer_processing(queue *queue) {
 	pthread_mutex_unlock(&queue->mutex);
 }
 
-void destroy_queue(queue *queue) {
+void interrupt_waiting_the_data(queue *queue) {
 	if (queue == NULL) {
 		return;
 	}

@@ -74,6 +74,7 @@ static void* dsp_worker(void *arg) {
 
 		complete_buffer_processing(config_node->queue);
 	}
+	destroy_queue(config_node->queue);
 	printf("dsp_worker stopped\n");
 	return (void*) 0;
 }
@@ -168,7 +169,7 @@ void destroy_node(struct linked_list_node *node) {
 	}
 	node->is_running = false;
 	if (node->queue != NULL) {
-		destroy_queue(node->queue);
+		interrupt_waiting_the_data(node->queue);
 	}
 	// wait until thread terminates and only then destroy the node
 	pthread_join(node->dsp_thread, NULL);

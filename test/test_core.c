@@ -41,6 +41,7 @@ START_TEST (test_process_message) {
 	client_config->center_freq = -12000 + client_config->band_freq;
 	code = add_client(client_config);
 	ck_assert_int_eq(code, 0);
+	wait_for_data_read();
 }
 END_TEST
 

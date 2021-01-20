@@ -1,4 +1,6 @@
 #include <rtl-sdr.h>
+#include <pthread.h>
+#include <stdio.h>
 
 #define rtlsdr_read_sync rtlsdr_read_sync_mocked
 #define rtlsdr_close rtlsdr_close_mocked
@@ -35,6 +37,9 @@ int rtlsdr_reset_buffer_mocked(rtlsdr_dev_t *dev);
 struct mock_status {
 	uint8_t *buffer;
 	int len;
+	pthread_mutex_t mutex;
+	pthread_cond_t condition;
+	int stopped;
 };
 
 struct rtlsdr_dev {
@@ -43,20 +48,41 @@ struct rtlsdr_dev {
 
 struct mock_status mock;
 
+void init_mock_librtlsdr() {
+	mock.mutex = (pthread_mutex_t )PTHREAD_MUTEX_INITIALIZER;
+	mock.condition = (pthread_cond_t )PTHREAD_COND_INITIALIZER;
+	mock.stopped = 0;
+}
+
 int rtlsdr_read_sync_mocked(rtlsdr_dev_t *dev, void *buf, int len, int *n_read) {
+	int result;
+	pthread_mutex_lock(&mock.mutex);
+	if (mock.stopped == 1) {
+		return -1;
+	}
 	if (mock.buffer != NULL) {
 		buf = mock.buffer;
 		*n_read = mock.len;
+		mock.buffer = NULL;
+		result = 0;
 	} else {
 		*n_read = 0;
+		printf("mock is waiting for data\n");
+		pthread_cond_wait(&mock.condition, &mock.mutex);
+		result = -1;
 	}
-	return 0;
+	pthread_mutex_unlock(&mock.mutex);
+	return result;
 }
 
 int rtlsdr_close_mocked(rtlsdr_dev_t *dev) {
 	if (dev != NULL) {
 		free(dev);
 	}
+	pthread_mutex_lock(&mock.mutex);
+	mock.stopped = 1;
+	pthread_cond_broadcast(&mock.condition);
+	pthread_mutex_unlock(&mock.mutex);
 	return 0;
 }
 

@@ -16,7 +16,6 @@ struct linked_list_node {
 	struct linked_list_node *next;
 	struct client_config *config;
 	queue *queue;
-	float *taps;
 	xlating *filter;
 	volatile sig_atomic_t is_running;
 	pthread_t dsp_thread;
@@ -56,6 +55,7 @@ int create_core(struct server_config *server_config, core **result) {
 
 // FIXME replace double with floats everywhere
 static void* dsp_worker(void *arg) {
+	fprintf(stdout, "starting dsp_worker\n");
 	struct linked_list_node *config_node = (struct linked_list_node*) arg;
 	uint8_t *input = NULL;
 	int input_len = 0;
@@ -85,7 +85,6 @@ static void* rtlsdr_worker(void *arg) {
 	while (core->is_rtlsdr_running) {
 		int code = rtlsdr_read_sync(core->dev, core->buffer, buffer_size, &n_read);
 		if (code < 0) {
-			fprintf(stderr, "rtl-sdr read failure. shutdown\n");
 			core->is_rtlsdr_running = false;
 			break;
 		}
@@ -98,8 +97,6 @@ static void* rtlsdr_worker(void *arg) {
 		}
 		pthread_mutex_unlock(&core->mutex);
 	}
-	rtlsdr_close(core->dev);
-	core->dev = NULL;
 	printf("rtl-sdr stopped\n");
 	return (void*) 0;
 }
@@ -157,6 +154,9 @@ int start_rtlsdr(struct client_config *config) {
 void stop_rtlsdr(core *core) {
 	fprintf(stdout, "stopping rtl-sdr\n");
 	core->is_rtlsdr_running = false;
+	// this will close reading from the sync
+	rtlsdr_close(core->dev);
+	core->dev = NULL;
 
 	// block access to core until rtlsdr fully stops and cleans the resources
 	pthread_join(core->rtlsdr_worker_thread, NULL);
@@ -175,9 +175,6 @@ void destroy_node(struct linked_list_node *node) {
 	// cleanup everything only when thread terminates
 	if (node->file != NULL) {
 		fclose(node->file);
-	}
-	if (node->taps != NULL) {
-		free(node->taps);
 	}
 	if (node->filter != NULL) {
 		destroy_xlating(node->filter);
@@ -201,8 +198,6 @@ int add_client(struct client_config *config) {
 		destroy_node(config_node);
 		return code;
 	}
-	config_node->taps = taps;
-
 	// setup xlating frequency filter
 	xlating *filter = NULL;
 	//FIXME maybe some trick with 32 bit numbers?

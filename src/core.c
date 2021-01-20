@@ -59,7 +59,7 @@ static void* dsp_worker(void *arg) {
 	struct linked_list_node *config_node = (struct linked_list_node*) arg;
 	uint8_t *input = NULL;
 	int input_len = 0;
-	float complex *filter_output;
+	float complex *filter_output = NULL;
 	size_t filter_output_len = 0;
 	while (config_node->is_running) {
 		take_buffer_for_processing(&input, &input_len, config_node->queue);

@@ -24,10 +24,10 @@ START_TEST (test_put_take) {
 	ck_assert_int_eq(code, 0);
 
 	const uint8_t buffer[10] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
-	put(buffer, sizeof(buffer), queue_obj);
+	queue_put(buffer, sizeof(buffer), queue_obj);
 
 	const uint8_t buffer2[2] = { 1, 2 };
-	put(buffer2, sizeof(buffer2), queue_obj);
+	queue_put(buffer2, sizeof(buffer2), queue_obj);
 
 	assert_buffer(buffer, sizeof(buffer));
 	assert_buffer(buffer2, sizeof(buffer2));
@@ -39,9 +39,9 @@ START_TEST (test_overflow) {
 	ck_assert_int_eq(code, 0);
 
 	const uint8_t buffer[10] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
-	put(buffer, sizeof(buffer), queue_obj);
+	queue_put(buffer, sizeof(buffer), queue_obj);
 	const uint8_t buffer2[9] = { 11, 12, 13, 14, 15, 16, 17, 18, 19 };
-	put(buffer2, sizeof(buffer2), queue_obj);
+	queue_put(buffer2, sizeof(buffer2), queue_obj);
 
 	assert_buffer(buffer2, sizeof(buffer2));
 }

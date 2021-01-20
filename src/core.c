@@ -47,6 +47,7 @@ int create_core(struct server_config *server_config, core **result) {
 		destroy_core(core);
 		return -ENOMEM;
 	}
+	memset(buffer, 0, server_config->buffer_size);
 	core->buffer = buffer;
 	core->mutex = (pthread_mutex_t )PTHREAD_MUTEX_INITIALIZER;
 	*result = core;
@@ -82,7 +83,7 @@ static void* dsp_worker(void *arg) {
 static void* rtlsdr_worker(void *arg) {
 	core *core = (struct core_t*) arg;
 	uint32_t buffer_size = core->server_config->buffer_size;
-	int n_read;
+	int n_read = 0;
 	while (core->is_rtlsdr_running) {
 		int code = rtlsdr_read_sync(core->dev, core->buffer, buffer_size, &n_read);
 		if (code < 0) {
@@ -93,7 +94,7 @@ static void* rtlsdr_worker(void *arg) {
 		struct linked_list_node *current_node = core->client_configs;
 		while (current_node != NULL) {
 			// copy to client's buffers and notify
-			put(core->buffer, n_read, current_node->queue);
+			queue_put(core->buffer, n_read, current_node->queue);
 			current_node = current_node->next;
 		}
 		pthread_mutex_unlock(&core->mutex);

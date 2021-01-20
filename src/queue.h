@@ -7,7 +7,7 @@ typedef struct queue_t queue;
 
 int create_queue(uint32_t buffer_size, int capacity, queue **queue);
 
-void put(const uint8_t *buffer, const int len, queue *queue);
+void queue_put(const uint8_t *buffer, const int len, queue *queue);
 void take_buffer_for_processing(uint8_t **buffer, int *len, queue *queue);
 void complete_buffer_processing(queue *queue);
 

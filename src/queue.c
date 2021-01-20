@@ -81,7 +81,7 @@ int create_queue(uint32_t buffer_size, int capacity, queue **queue) {
 	return 0;
 }
 
-void put(const uint8_t *buffer, const int len, queue *queue) {
+void queue_put(const uint8_t *buffer, const int len, queue *queue) {
 	pthread_mutex_lock(&queue->mutex);
 	struct queue_node *to_fill;
 	if (queue->first_free_node == NULL) {

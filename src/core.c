@@ -12,6 +12,8 @@
 #include "queue.h"
 #include "core.h"
 
+#include <stdio.h>
+
 struct linked_list_node {
 	struct linked_list_node *next;
 	struct client_config *config;
@@ -69,7 +71,6 @@ static void* dsp_worker(void *arg) {
 			break;
 		}
 		process(input, input_len, &filter_output, &filter_output_len, config_node->filter);
-
 		int n_read = fwrite(filter_output, sizeof(float complex), filter_output_len, config_node->file);
 		//FIXME check how n_read can be less than buffer's expected
 
@@ -185,6 +186,9 @@ void destroy_node(struct linked_list_node *node) {
 }
 
 int add_client(struct client_config *config) {
+	if (config == NULL) {
+		return -1;
+	}
 	struct linked_list_node *config_node = malloc(sizeof(struct linked_list_node));
 	if (config_node == NULL) {
 		return -ENOMEM;
@@ -203,7 +207,7 @@ int add_client(struct client_config *config) {
 	// setup xlating frequency filter
 	xlating *filter = NULL;
 	//FIXME maybe some trick with 32 bit numbers?
-	code = create_frequency_xlating_filter(12, taps, len, (int64_t) config->center_freq - (int64_t) config->band_freq, config->core->server_config->band_sampling_rate, config->core->server_config->buffer_size, &filter);
+	code = create_frequency_xlating_filter(config->core->server_config->band_sampling_rate / config->sampling_rate, taps, len, (int64_t) config->center_freq - (int64_t) config->band_freq, config->core->server_config->band_sampling_rate, config->core->server_config->buffer_size, &filter);
 	if (code != 0) {
 		destroy_node(config_node);
 		return code;
@@ -265,6 +269,9 @@ int add_client(struct client_config *config) {
 	return result;
 }
 void remove_client(struct client_config *config) {
+	if (config == NULL) {
+		return;
+	}
 	struct linked_list_node *node_to_destroy = NULL;
 	pthread_mutex_lock(&config->core->mutex);
 	struct linked_list_node *cur_node = config->core->client_configs;

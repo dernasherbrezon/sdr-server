@@ -4,6 +4,8 @@
 #include <string.h>
 #include "queue.h"
 
+#include <stdio.h>
+
 struct queue_node {
 	uint8_t *buffer;
 	int len;
@@ -88,14 +90,17 @@ void queue_put(const uint8_t *buffer, const int len, queue *queue) {
 		// queue is full
 		// overwrite last node
 		to_fill = queue->last_filled_node;
+		printf("first_free_node: %d\n", len);
 	} else {
 		// remove from free nodes pool
 		to_fill = queue->first_free_node;
 		queue->first_free_node = queue->first_free_node->next;
 		to_fill->next = NULL;
 		if (queue->first_free_node == NULL) {
+			printf("last_free_node == null: %d\n", len);
 			queue->last_free_node = NULL;
 		}
+
 
 		// add to filled nodes pool
 		if (queue->last_filled_node == NULL) {
@@ -114,12 +119,14 @@ void queue_put(const uint8_t *buffer, const int len, queue *queue) {
 }
 
 void destroy_queue(queue *queue) {
+	pthread_mutex_lock(&queue->mutex);
 	destroy_nodes(queue->first_free_node);
 	destroy_nodes(queue->first_filled_node);
 	if (queue->detached_node != NULL) {
 		free(queue->detached_node->buffer);
 		free(queue->detached_node);
 	}
+	pthread_mutex_unlock(&queue->mutex);
 	free(queue);
 }
 
@@ -141,6 +148,7 @@ void take_buffer_for_processing(uint8_t **buffer, int *len, queue *queue) {
 			return;
 		}
 	}
+//	printf("took: %d\n", queue->first_filled_node->len);
 	// the idea is to keep a node that being processed in the detached mode
 	// i.e. input thread cannot read or write into it, while buffer is being sent to client/file (which can be slow)
 	// it would allow non-mutex access to such buffer

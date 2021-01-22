@@ -2,23 +2,64 @@
 #include <check.h>
 #include <stdbool.h>
 #include "mock_librtlsdr.c"
+#include <stdio.h>
+#include <complex.h>
 
-
-extern struct mock_status mock;
 extern void init_mock_librtlsdr();
+extern void wait_for_data_read();
+extern void setup_mock_data(uint8_t *buffer, int len);
 
 core *core_obj = NULL;
 struct server_config *config = NULL;
-struct client_config *client_config = NULL;
+struct client_config *client_config0 = NULL;
+struct client_config *client_config1 = NULL;
 uint8_t *input = NULL;
 
-void setup_input_data(size_t input_offset, size_t len) {
+void create_input_data(size_t input_offset, size_t len) {
 	input = malloc(sizeof(uint8_t) * len);
 	ck_assert_ptr_ne(input, NULL);
 	for (size_t i = 0; i < len; i++) {
 		// don't care about the loss of data
 		input[i] = (uint8_t) (input_offset + i);
 	}
+}
+
+void create_client_config(int id, struct client_config **client_config) {
+	struct client_config *result = malloc(sizeof(struct client_config));
+	ck_assert_ptr_ne(result, NULL);
+	result->core = core_obj;
+	result->id = id;
+	result->is_running = true;
+	result->sampling_rate = 9600;
+	result->band_freq = 460100200;
+	result->center_freq = -12000 + result->band_freq;
+	*client_config = result;
+}
+
+void assert_complex(const float expected[], size_t expected_size, float complex *actual, size_t actual_size) {
+	ck_assert_int_eq(expected_size, actual_size);
+	for (size_t i = 0, j = 0; i < expected_size * 2; i += 2, j++) {
+		ck_assert_int_eq((int32_t ) round(expected[i] * 10000), (int32_t ) round(crealf(actual[j]) * 10000));
+		ck_assert_int_eq((int32_t ) round(expected[i + 1] * 10000), (int32_t ) round(cimagf(actual[j]) * 10000));
+	}
+}
+
+void assert_file(int id, const float expected[], size_t expected_size) {
+	char file_path[4096];
+	snprintf(file_path, sizeof(file_path), "%s/%d.raw", config->base_path, id);
+	FILE *f = fopen(file_path, "rb");
+	ck_assert_ptr_ne(f, NULL);
+	fseek(f, 0, SEEK_END);
+	long fsize = ftell(f);
+	ck_assert_int_gt(fsize, 0);
+	fseek(f, 0, SEEK_SET);
+	uint8_t *buffer = malloc(fsize);
+	ck_assert_ptr_ne(buffer, NULL);
+	fread(buffer, 1, fsize, f);
+	fclose(f);
+	size_t actual_size = fsize / sizeof(float complex);
+	assert_complex(expected, expected_size, (float complex*) buffer, actual_size);
+	free(buffer);
 }
 
 START_TEST (test_process_message) {
@@ -28,20 +69,26 @@ START_TEST (test_process_message) {
 	ck_assert_int_eq(code, 0);
 
 	int length = 200;
-	setup_input_data(0, length);
-	mock.buffer = input;
-	mock.len = length;
-
-	client_config = malloc(sizeof(struct client_config));
-	client_config->core = core_obj;
-	client_config->id = 0;
-	client_config->is_running = true;
-	client_config->sampling_rate = 9600 * 2;
-	client_config->band_freq = 460100200;
-	client_config->center_freq = -12000 + client_config->band_freq;
-	code = add_client(client_config);
+	create_input_data(0, length);
+	create_client_config(0, &client_config0);
+	create_client_config(1, &client_config1);
+	code = add_client(client_config0);
 	ck_assert_int_eq(code, 0);
+	code = add_client(client_config1);
+	ck_assert_int_eq(code, 0);
+	setup_mock_data(input, length);
 	wait_for_data_read();
+	// just to increase code coverage
+	remove_client(client_config1);
+
+	// flush data to files and close them
+	destroy_core(core_obj);
+	core_obj = NULL;
+
+	const float expected[] = { 0.000863, 0.000856, -0.000321, -0.001891, 0.000503, 0.007740, -0.002556, -0.018693, 0.006283, 0.040774, -0.030721, -0.127291, 0.027252, -0.129404, -0.004634, 0.040908, 0.002169, -0.018314, -0.000892, 0.007892, 0.000249, -0.002613, -0.000070, 0.000939, -0.000113, 0.000749, -0.000698, -0.000163, 0.000214, -0.000648, 0.000597, 0.000264, -0.000315, 0.000547, -0.000496, -0.000365, 0.000415, -0.000446, 0.000395, 0.000466 };
+	size_t expected_length = 20;
+	assert_file(0, expected, expected_length);
+	assert_file(1, expected, expected_length);
 }
 END_TEST
 
@@ -50,9 +97,13 @@ void teardown() {
 	core_obj = NULL;
 	destroy_server_config(config);
 	config = NULL;
-	if (client_config != NULL) {
-		free(client_config);
-		client_config = NULL;
+	if (client_config0 != NULL) {
+		free(client_config0);
+		client_config0 = NULL;
+	}
+	if (client_config1 != NULL) {
+		free(client_config1);
+		client_config1 = NULL;
 	}
 	if (input != NULL) {
 		free(input);

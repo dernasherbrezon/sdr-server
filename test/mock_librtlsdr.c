@@ -71,6 +71,14 @@ void wait_for_data_read() {
 	pthread_mutex_unlock(&mock.mutex);
 }
 
+void setup_mock_data(uint8_t *buffer, int len) {
+	pthread_mutex_lock(&mock.mutex);
+	mock.buffer = buffer;
+	mock.len = len;
+	pthread_cond_broadcast(&mock.condition);
+	pthread_mutex_unlock(&mock.mutex);
+}
+
 int rtlsdr_read_sync_mocked(rtlsdr_dev_t *dev, void *buf, int len, int *n_read) {
 	int result;
 	pthread_mutex_lock(&mock.mutex);
@@ -78,23 +86,21 @@ int rtlsdr_read_sync_mocked(rtlsdr_dev_t *dev, void *buf, int len, int *n_read) 
 		pthread_mutex_unlock(&mock.mutex);
 		return -1;
 	}
-	if (mock.buffer != NULL) {
-		buf = mock.buffer;
-		*n_read = mock.len;
-		mock.buffer = NULL;
-		result = 0;
-		mock.data_was_read = true;
-		pthread_cond_broadcast(&mock.data_was_read_condition);
-	} else {
-		*n_read = 0;
-		printf("mock is waiting for data\n");
-		while (!mock.stopped) {
-			pthread_cond_wait(&mock.condition, &mock.mutex);
+	while (mock.buffer == NULL) {
+		pthread_cond_wait(&mock.condition, &mock.mutex);
+		if (mock.stopped) {
+			pthread_mutex_unlock(&mock.mutex);
+			return -1;
 		}
-		result = -1;
 	}
+	// assume mock buffer is a bit less than possible rtl-sdr
+	memcpy(buf, mock.buffer, mock.len);
+	*n_read = mock.len;
+	mock.buffer = NULL;
+	mock.data_was_read = true;
+	pthread_cond_broadcast(&mock.data_was_read_condition);
 	pthread_mutex_unlock(&mock.mutex);
-	return result;
+	return 0;
 }
 
 int rtlsdr_close_mocked(rtlsdr_dev_t *dev) {

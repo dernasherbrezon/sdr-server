@@ -123,8 +123,13 @@ int create_server_config(struct server_config **config, const char *path) {
 	result->port = port;
 	fprintf(stdout, "start listening on %s:%d\n", result->bind_address, result->port);
 
+	const char *default_folder = getenv("TMPDIR");
+	if (default_folder == NULL) {
+		default_folder = "/tmp";
+	}
+
 	setting = config_lookup(&libconfig, "base_path");
-	char *base_path = read_and_copy_str(setting, "/tmp/");
+	char *base_path = read_and_copy_str(setting, default_folder);
 	if (base_path == NULL) {
 		config_destroy(&libconfig);
 		free(result);

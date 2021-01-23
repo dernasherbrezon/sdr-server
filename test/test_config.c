@@ -22,6 +22,12 @@ START_TEST (test_missing_required) {
 }
 END_TEST
 
+START_TEST (test_minimal_config) {
+	int code = create_server_config(&config, "minimal.config");
+	ck_assert_int_eq(code, 0);
+}
+END_TEST
+
 START_TEST (test_success) {
 	int code = create_server_config(&config, "configuration.config");
 	ck_assert_int_eq(code, 0);
@@ -59,6 +65,7 @@ Suite* common_suite(void) {
 	tcase_add_test(tc_core, test_missing_required);
 	tcase_add_test(tc_core, test_missing_file);
 	tcase_add_test(tc_core, test_invalid_format);
+	tcase_add_test(tc_core, test_minimal_config);
 
 	tcase_add_checked_fixture(tc_core, setup, teardown);
 	suite_add_tcase(s, tc_core);

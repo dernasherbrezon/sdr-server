@@ -15,9 +15,24 @@ void assert_buffer(const uint8_t *expected, int expected_len) {
 	uint8_t *result = NULL;
 	int len = 0;
 	take_buffer_for_processing(&result, &len, queue_obj);
+	// TODO doesn't work. segmentation fault if result is null
+	ck_assert(result != NULL);
 	assert_buffers(expected, expected_len, result, len);
 	complete_buffer_processing(queue_obj);
 }
+
+START_TEST (test_terminated_only_after_fully_processed) {
+	int code = create_queue(262144, 10, &queue_obj);
+	ck_assert_int_eq(code, 0);
+
+	const uint8_t buffer[10] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+	queue_put(buffer, sizeof(buffer), queue_obj);
+
+	interrupt_waiting_the_data(queue_obj);
+
+	assert_buffer(buffer, sizeof(buffer));
+}
+END_TEST
 
 START_TEST (test_put_take) {
 	int code = create_queue(262144, 10, &queue_obj);
@@ -66,6 +81,7 @@ Suite* common_suite(void) {
 
 	tcase_add_test(tc_core, test_put_take);
 	tcase_add_test(tc_core, test_overflow);
+	tcase_add_test(tc_core, test_terminated_only_after_fully_processed);
 
 	tcase_add_checked_fixture(tc_core, setup, teardown);
 	suite_add_tcase(s, tc_core);

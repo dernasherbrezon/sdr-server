@@ -17,7 +17,7 @@ uint8_t *input = NULL;
 
 void create_input_data(size_t input_offset, size_t len) {
 	input = malloc(sizeof(uint8_t) * len);
-	ck_assert_ptr_ne(input, NULL);
+	ck_assert(input != NULL);
 	for (size_t i = 0; i < len; i++) {
 		// don't care about the loss of data
 		input[i] = (uint8_t) (input_offset + i);
@@ -26,7 +26,7 @@ void create_input_data(size_t input_offset, size_t len) {
 
 void create_client_config(int id, struct client_config **client_config) {
 	struct client_config *result = malloc(sizeof(struct client_config));
-	ck_assert_ptr_ne(result, NULL);
+	ck_assert(result != NULL);
 	result->core = core_obj;
 	result->id = id;
 	result->is_running = true;
@@ -47,14 +47,15 @@ void assert_complex(const float expected[], size_t expected_size, float complex 
 void assert_file(int id, const float expected[], size_t expected_size) {
 	char file_path[4096];
 	snprintf(file_path, sizeof(file_path), "%s/%d.raw", config->base_path, id);
+	fprintf(stdout, "checking: %s\n", file_path);
 	FILE *f = fopen(file_path, "rb");
-	ck_assert_ptr_ne(f, NULL);
+	ck_assert(f != NULL);
 	fseek(f, 0, SEEK_END);
 	long fsize = ftell(f);
 	ck_assert_int_gt(fsize, 0);
 	fseek(f, 0, SEEK_SET);
 	uint8_t *buffer = malloc(fsize);
-	ck_assert_ptr_ne(buffer, NULL);
+	ck_assert(buffer != NULL);
 	fread(buffer, 1, fsize, f);
 	fclose(f);
 	size_t actual_size = fsize / sizeof(float complex);
@@ -62,22 +63,38 @@ void assert_file(int id, const float expected[], size_t expected_size) {
 	free(buffer);
 }
 
+START_TEST (test_invalid_lpf_config) {
+	int code = create_server_config(&config, "core.config");
+	ck_assert_int_eq(code, 0);
+	code = create_core(config, &core_obj);
+	ck_assert_int_eq(code, 0);
+
+	create_client_config(0, &client_config0);
+	client_config0->sampling_rate = 49000;
+	code = add_client(client_config0);
+	ck_assert_int_eq(code, -1);
+}
+END_TEST
+
 START_TEST (test_process_message) {
 	int code = create_server_config(&config, "core.config");
 	ck_assert_int_eq(code, 0);
 	code = create_core(config, &core_obj);
 	ck_assert_int_eq(code, 0);
 
-	int length = 200;
-	create_input_data(0, length);
 	create_client_config(0, &client_config0);
-	create_client_config(1, &client_config1);
 	code = add_client(client_config0);
 	ck_assert_int_eq(code, 0);
+
+	create_client_config(1, &client_config1);
 	code = add_client(client_config1);
 	ck_assert_int_eq(code, 0);
+
+	int length = 200;
+	create_input_data(0, length);
 	setup_mock_data(input, length);
 	wait_for_data_read();
+
 	// just to increase code coverage
 	remove_client(client_config1);
 
@@ -126,6 +143,7 @@ Suite* common_suite(void) {
 	tc_core = tcase_create("Core");
 
 	tcase_add_test(tc_core, test_process_message);
+	tcase_add_test(tc_core, test_invalid_lpf_config);
 
 	tcase_add_checked_fixture(tc_core, setup, teardown);
 	suite_add_tcase(s, tc_core);

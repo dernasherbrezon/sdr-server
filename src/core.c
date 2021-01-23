@@ -19,7 +19,6 @@ struct linked_list_node {
 	struct client_config *config;
 	queue *queue;
 	xlating *filter;
-	volatile sig_atomic_t is_running;
 	pthread_t dsp_thread;
 	FILE *file;
 };
@@ -64,7 +63,7 @@ static void* dsp_worker(void *arg) {
 	int input_len = 0;
 	float complex *filter_output = NULL;
 	size_t filter_output_len = 0;
-	while (config_node->is_running) {
+	while (true) {
 		take_buffer_for_processing(&input, &input_len, config_node->queue);
 		// poison pill received
 		if (input == NULL) {
@@ -169,7 +168,7 @@ void destroy_node(struct linked_list_node *node) {
 	if (node == NULL) {
 		return;
 	}
-	node->is_running = false;
+	fprintf(stdout, "stopping dsp_worker\n");
 	if (node->queue != NULL) {
 		interrupt_waiting_the_data(node->queue);
 	}
@@ -234,7 +233,6 @@ int add_client(struct client_config *config) {
 		return -1;
 	}
 	config_node->queue = client_queue;
-	config_node->is_running = true;
 
 	// start processing
 	pthread_t dsp_thread;

@@ -4,6 +4,27 @@
 
 float *taps = NULL;
 
+START_TEST (test_bounds1) {
+	size_t len;
+	int code = create_low_pass_filter(1.0, -8000, 1750, 500, &taps, &len);
+	ck_assert_int_eq(code, -1);
+}
+END_TEST
+
+START_TEST (test_bounds2) {
+	size_t len;
+	int code = create_low_pass_filter(1.0, 8000, 5000, 500, &taps, &len);
+	ck_assert_int_eq(code, -1);
+}
+END_TEST
+
+START_TEST (test_bounds3) {
+	size_t len;
+	int code = create_low_pass_filter(1.0, 8000, 1750, -500, &taps, &len);
+	ck_assert_int_eq(code, -1);
+}
+END_TEST
+
 START_TEST (test_lowpassTaps) {
 	size_t len;
 	int code = create_low_pass_filter(1.0, 8000, 1750, 500, &taps, &len);
@@ -40,6 +61,9 @@ Suite* common_suite(void) {
 	tc_core = tcase_create("Core");
 
 	tcase_add_test(tc_core, test_lowpassTaps);
+	tcase_add_test(tc_core, test_bounds1);
+	tcase_add_test(tc_core, test_bounds2);
+	tcase_add_test(tc_core, test_bounds3);
 
 	tcase_add_checked_fixture(tc_core, setup, teardown);
 	suite_add_tcase(s, tc_core);

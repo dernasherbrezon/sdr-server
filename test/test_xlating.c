@@ -18,14 +18,14 @@ void setup_input_data(size_t input_offset, size_t len) {
 void assert_complex(const float expected[], size_t expected_size, float complex *actual, size_t actual_size) {
 	ck_assert_int_eq(expected_size, actual_size);
 	for (size_t i = 0, j = 0; i < expected_size * 2; i += 2, j++) {
-		ck_assert_int_eq((int32_t ) round(expected[i] * 10000), (int32_t ) round(crealf(actual[j]) * 10000));
-		ck_assert_int_eq((int32_t ) round(expected[i + 1] * 10000), (int32_t ) round(cimagf(actual[j]) * 10000));
+		ck_assert_int_eq((int32_t ) expected[i] * 10000, (int32_t ) crealf(actual[j]) * 10000);
+		ck_assert_int_eq((int32_t ) expected[i + 1] * 10000, (int32_t ) cimagf(actual[j]) * 10000);
 	}
 }
 
 void setup_filter(size_t input_offset, size_t input_len, size_t max_input) {
-	double sampling_freq = 48000;
-	double target_freq = 9600;
+	uint32_t sampling_freq = 48000;
+	uint32_t target_freq = 9600;
 	float *taps = NULL;
 	size_t len;
 	int code = create_low_pass_filter(1.0, sampling_freq, target_freq / 2, 2000, &taps, &len);

@@ -39,8 +39,8 @@ void create_client_config(int id, struct client_config **client_config) {
 void assert_complex(const float expected[], size_t expected_size, float complex *actual, size_t actual_size) {
 	ck_assert_int_eq(expected_size, actual_size);
 	for (size_t i = 0, j = 0; i < expected_size * 2; i += 2, j++) {
-		ck_assert_int_eq((int32_t ) round(expected[i] * 10000), (int32_t ) round(crealf(actual[j]) * 10000));
-		ck_assert_int_eq((int32_t ) round(expected[i + 1] * 10000), (int32_t ) round(cimagf(actual[j]) * 10000));
+		ck_assert_int_eq((int32_t ) expected[i] * 10000, (int32_t ) crealf(actual[j]) * 10000);
+		ck_assert_int_eq((int32_t ) expected[i + 1] * 10000, (int32_t ) cimagf(actual[j]) * 10000);
 	}
 }
 

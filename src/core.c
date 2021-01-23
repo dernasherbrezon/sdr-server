@@ -55,7 +55,6 @@ int create_core(struct server_config *server_config, core **result) {
 	return 0;
 }
 
-// FIXME replace double with floats everywhere
 static void* dsp_worker(void *arg) {
 	fprintf(stdout, "starting dsp_worker\n");
 	struct linked_list_node *config_node = (struct linked_list_node*) arg;
@@ -70,8 +69,11 @@ static void* dsp_worker(void *arg) {
 			break;
 		}
 		process(input, input_len, &filter_output, &filter_output_len, config_node->filter);
-		int n_read = fwrite(filter_output, sizeof(float complex), filter_output_len, config_node->file);
-		//FIXME check how n_read can be less than buffer's expected
+		size_t n_read = fwrite(filter_output, sizeof(float complex), filter_output_len, config_node->file);
+		if (n_read < filter_output_len) {
+			// if disk is full, then terminate the client
+			break;
+		}
 
 		complete_buffer_processing(config_node->queue);
 	}

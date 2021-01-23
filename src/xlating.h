@@ -6,9 +6,9 @@
 
 typedef struct xlating_t xlating;
 
-int create_frequency_xlating_filter(int decimation, float *taps, size_t taps_len, double center_freq, double sampling_freq, uint32_t max_input_buffer_length, xlating **filter);
+int create_frequency_xlating_filter(int decimation, float *taps, size_t taps_len, uint32_t center_freq, uint32_t sampling_freq, uint32_t max_input_buffer_length, xlating **filter);
 
-void process(uint8_t *input, size_t input_len, float complex **output, size_t *output_len, xlating *filter);
+void process(const uint8_t *input, size_t input_len, float complex **output, size_t *output_len, xlating *filter);
 
 int destroy_xlating(xlating *filter);
 

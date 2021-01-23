@@ -31,13 +31,13 @@ struct xlating_t {
 	size_t output_len;
 };
 
-void process(uint8_t *input, size_t input_len, float complex **output, size_t *output_len, xlating *filter) {
+void process(const uint8_t *input, size_t input_len, float complex **output, size_t *output_len, xlating *filter) {
 	// input_len cannot be more than (working_len_total - history_offset)
 
 	// convert to [-1.0;1.0] working buffer
 	size_t input_processed = 0;
 	for (size_t i = filter->history_offset; i < filter->working_len_total && input_processed < input_len; i++, input_processed++) {
-		filter->working_buffer[i] = filter->lookup_table[(uint8_t) input[input_processed]];
+		filter->working_buffer[i] = filter->lookup_table[input[input_processed]];
 	}
 
 	size_t working_len = filter->history_offset + input_processed;
@@ -63,7 +63,7 @@ void process(uint8_t *input, size_t input_len, float complex **output, size_t *o
 	*output_len = produced;
 }
 
-int create_frequency_xlating_filter(int decimation, float *taps, size_t taps_len, double center_freq, double sampling_freq, uint32_t max_input_buffer_length, xlating **filter) {
+int create_frequency_xlating_filter(int decimation, float *taps, size_t taps_len, uint32_t center_freq, uint32_t sampling_freq, uint32_t max_input_buffer_length, xlating **filter) {
 	struct xlating_t *result = malloc(sizeof(struct xlating_t));
 	if (result == NULL) {
 		return -ENOMEM;

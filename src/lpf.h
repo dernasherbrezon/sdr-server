@@ -1,6 +1,6 @@
 #ifndef SRC_LPF_H_
 #define SRC_LPF_H_
 
-int create_low_pass_filter(double gain, double sampling_freq, double cutoff_freq, double transition_width, float **taps, size_t *len);
+int create_low_pass_filter(float gain, uint32_t sampling_freq, uint32_t cutoff_freq, uint32_t transition_width, float **taps, size_t *len);
 
 #endif /* SRC_LPF_H_ */

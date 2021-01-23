@@ -11,6 +11,7 @@ struct server_config {
 	int ppm;
 	int bias_t;
 	uint32_t buffer_size;
+	// 4GHz max
 	uint32_t band_sampling_rate;
 	char *base_path;
 };

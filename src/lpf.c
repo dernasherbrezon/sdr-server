@@ -4,7 +4,7 @@
 #include <errno.h>
 
 #ifndef M_PI
-    #define M_PI 3.14159265358979323846264338327950288
+    #define M_PI 3.14159265358979323846
 #endif
 
 #include "lpf.h"
@@ -15,7 +15,7 @@ int sanity_check_1f(uint32_t sampling_freq, uint32_t cutoff_freq, uint32_t trans
 		return -1;
 	}
 
-	if (cutoff_freq <= 0 || cutoff_freq > (float)sampling_freq / 2) {
+	if (cutoff_freq <= 0 || cutoff_freq > (float) sampling_freq / 2) {
 		fprintf(stderr, "cutoff frequency should be positive and less than sampling freq / 2. got: %u\n", cutoff_freq);
 		return -1;
 	}
@@ -29,8 +29,8 @@ int sanity_check_1f(uint32_t sampling_freq, uint32_t cutoff_freq, uint32_t trans
 }
 
 int computeNtaps(uint32_t sampling_freq, uint32_t transition_width) {
-	float a = 53;
-	int ntaps = (int) (a * sampling_freq / (22.0f * transition_width));
+	double a = 53;
+	int ntaps = (int) (a * sampling_freq / (22.0F * transition_width));
 	if ((ntaps & 1) == 0) { // if even...
 		ntaps++; // ...make odd
 	}
@@ -76,7 +76,7 @@ int create_low_pass_filter(float gain, uint32_t sampling_freq, uint32_t cutoff_f
 			taps[n + M] = fwT0 / M_PI * w[n + M];
 		} else {
 			// a little algebra gets this into the more familiar sin(x)/x form
-			taps[n + M] = (float) (sin(n * fwT0) / (n * M_PI) * w[n + M]);
+			taps[n + M] = (float) (sin((double) n * fwT0) / (n * M_PI) * w[n + M]);
 		}
 	}
 

@@ -40,7 +40,16 @@ int main(void) {
 	clock_t end = clock();
 	double time_spent = (double) (end - begin) / CLOCKS_PER_SEC;
 	// MacBook Air:
-	// completed in: 0.002858 seconds
+	// VOLK_GENERIC=1:
+	// completed in: 0.005615 seconds
+	// tuned kernel:
+	// completed in: 0.002649 seconds
+	//
+	// Raspberrypi 3
+	// VOLK_GENERIC=1:
+	// completed in: 0.082677 seconds
+	// tuned kernel:
+	// completed in: 0.032759 seconds
 	printf("completed in: %f seconds\n", time_spent / total_executions);
 	return 0;
 }

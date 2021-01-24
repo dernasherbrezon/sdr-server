@@ -14,7 +14,9 @@
 
 struct xlating_t {
 	int decimation;
-	float complex *taps;
+	float complex **taps;
+	size_t aligned_taps_len;
+	size_t alignment;
 	size_t taps_len;
 	rotator *rot;
 	float *original_taps;
@@ -48,8 +50,11 @@ void process(const uint8_t *input, size_t input_len, float complex **output, siz
 		size_t max_index = working_len - (filter->taps_len - 1) * 2;
 		for (; current_index < max_index; current_index += 2 * filter->decimation, produced++) {
 			const lv_32fc_t *buf = (const lv_32fc_t*) (filter->working_buffer + current_index);
-			// FIXME working_buffer with offset should be aligned as well
-			volk_32fc_x2_dot_prod_32fc_a(filter->volk_output, buf, (const lv_32fc_t*) filter->taps, filter->taps_len);
+
+			const lv_32fc_t *aligned_buffer = (const lv_32fc_t *)((size_t)buf & ~(filter->alignment - 1));
+		    unsigned align_index = buf - aligned_buffer;
+
+			volk_32fc_x2_dot_prod_32fc_a(filter->volk_output, aligned_buffer, (const lv_32fc_t*) filter->taps[align_index], filter->taps_len + align_index);
 			filter->output[produced] = rotator_increment(filter->rot, *filter->volk_output);
 		}
 	}
@@ -61,6 +66,34 @@ void process(const uint8_t *input, size_t input_len, float complex **output, siz
 
 	*output = filter->output;
 	*output_len = produced;
+}
+
+int create_aligned_taps(xlating *filter, float complex *bpfTaps, size_t taps_len) {
+	size_t alignment = volk_get_alignment();
+	size_t number_of_aligned = fmax((size_t) 1, alignment / sizeof(float complex));
+	// Make a set of taps at all possible alignments
+	float complex **result = malloc(number_of_aligned * sizeof(float complex*));
+	if (result == NULL) {
+		return -1;
+	}
+	for (int i = 0; i < number_of_aligned; i++) {
+		size_t aligned_taps_len = taps_len + number_of_aligned - 1;
+		result[i] = (float complex*) volk_malloc(aligned_taps_len * sizeof(float complex), alignment);
+		// some taps will be longer than original, but
+		// since they contain zeros, multiplication on an input will produce 0
+		// there is a tradeoff: multiply unaligned input or
+		// multiply aligned input but with additional zeros
+		for (size_t j = 0; j < aligned_taps_len; j++) {
+			result[i][j] = 0;
+		}
+		for (size_t j = 0; j < taps_len; j++) {
+			result[i][i + j] = bpfTaps[j];
+		}
+	}
+	filter->taps = result;
+	filter->aligned_taps_len = number_of_aligned;
+	filter->alignment = alignment;
+	return 0;
 }
 
 int create_frequency_xlating_filter(int decimation, float *taps, size_t taps_len, uint32_t center_freq, uint32_t sampling_freq, uint32_t max_input_buffer_length, xlating **filter) {
@@ -82,8 +115,7 @@ int create_frequency_xlating_filter(int decimation, float *taps, size_t taps_len
 	// The BPF is the baseband filter (LPF) moved up to the
 	// center frequency fwT0. We then apply a derotator
 	// with -fwT0 to downshift the signal to baseband.
-	size_t alignment = volk_get_alignment();
-	float complex *bpfTaps = volk_malloc(sizeof(float complex) * taps_len, alignment);
+	float complex *bpfTaps = malloc(sizeof(float complex) * taps_len);
 	if (bpfTaps == NULL) {
 		destroy_xlating(result);
 		return -ENOMEM;
@@ -99,11 +131,16 @@ int create_frequency_xlating_filter(int decimation, float *taps, size_t taps_len
 		bpfTaps[taps_len - 1 - i] = bpfTaps[i];
 		bpfTaps[i] = tmp;
 	}
-	result->taps = bpfTaps;
+	int code = create_aligned_taps(result, bpfTaps, taps_len);
+	if (code != 0) {
+		destroy_xlating(result);
+		return code;
+	}
+
 	float complex phase = 1.0 + 0.0 * I;
 	float complex phase_incr = cexpf(0.0f + -fwT0 * decimation * I);
 	rotator *rot = NULL;
-	int code = create_rotator(phase, phase_incr, &rot);
+	code = create_rotator(phase, phase_incr, &rot);
 	if (code != 0) {
 		destroy_xlating(result);
 		return code;
@@ -114,6 +151,7 @@ int create_frequency_xlating_filter(int decimation, float *taps, size_t taps_len
 	// taps_len is a complex number. i.e. 2 floats
 	result->history_offset = (taps_len - 1) * 2;
 	result->working_len_total = max_input_buffer_length + result->history_offset;
+	size_t alignment = volk_get_alignment();
 	result->working_buffer = volk_malloc(sizeof(float) * result->working_len_total, alignment);
 	if (result->working_buffer == NULL) {
 		destroy_xlating(result);
@@ -132,7 +170,7 @@ int create_frequency_xlating_filter(int decimation, float *taps, size_t taps_len
 	}
 
 	result->lookup_table = malloc(sizeof(float) * 256);
-	if( result->lookup_table == NULL ) {
+	if (result->lookup_table == NULL) {
 		destroy_xlating(result);
 		return -ENOMEM;
 	}
@@ -155,7 +193,10 @@ int destroy_xlating(xlating *filter) {
 		return 0;
 	}
 	if (filter->taps != NULL) {
-		volk_free(filter->taps);
+		for (size_t i = 0; i < filter->aligned_taps_len; i++) {
+			volk_free(filter->taps[i]);
+		}
+		free(filter->taps);
 	}
 	if (filter->original_taps != NULL) {
 		free(filter->original_taps);

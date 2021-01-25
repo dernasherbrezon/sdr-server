@@ -136,6 +136,7 @@ int create_frequency_xlating_filter(int decimation, float *taps, size_t taps_len
 		destroy_xlating(result);
 		return code;
 	}
+	free(bpfTaps);
 
 	float complex phase = 1.0 + 0.0 * I;
 	float complex phase_incr = cexpf(0.0f + -fwT0 * decimation * I);

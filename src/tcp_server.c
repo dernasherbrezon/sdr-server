@@ -48,30 +48,28 @@ int read_client_config(int client_socket, struct server_config *server_config, s
 	// init all fields with 0
 	*result = (struct client_config ) { 0 };
 	struct message_header header;
-	while (true) {
-		if (read_struct(client_socket, &header, sizeof(struct message_header)) < 0) {
-			free(result);
-			return -1;
-		}
-		if (header.protocol_version != PROTOCOL_VERSION) {
-			fprintf(stderr, "unsupported protocol: %d\n", header.protocol_version);
-			free(result);
-			return -1;
-		}
-		if (header.type != TYPE_REQUEST) {
-			fprintf(stderr, "unsupported request: %d\n", header.type);
-			free(result);
-			return -1;
-		}
-		struct request req;
-		if (read_struct(client_socket, &req, sizeof(struct request)) < 0) {
-			free(result);
-			return -1;
-		}
-		result->center_freq = req.center_freq;
-		result->sampling_rate = req.sampling_rate;
-		result->band_freq = req.band_freq;
+	if (read_struct(client_socket, &header, sizeof(struct message_header)) < 0) {
+		free(result);
+		return -1;
 	}
+	if (header.protocol_version != PROTOCOL_VERSION) {
+		fprintf(stderr, "unsupported protocol: %d\n", header.protocol_version);
+		free(result);
+		return -1;
+	}
+	if (header.type != TYPE_REQUEST) {
+		fprintf(stderr, "unsupported request: %d\n", header.type);
+		free(result);
+		return -1;
+	}
+	struct request req;
+	if (read_struct(client_socket, &req, sizeof(struct request)) < 0) {
+		free(result);
+		return -1;
+	}
+	result->center_freq = req.center_freq;
+	result->sampling_rate = req.sampling_rate;
+	result->band_freq = req.band_freq;
 	result->client_socket = client_socket;
 	if (result->sampling_rate > 0 && server_config->band_sampling_rate % result->sampling_rate != 0) {
 		free(result);
@@ -163,11 +161,11 @@ static void* client_worker(void *arg) {
 		}
 		if (header.protocol_version != PROTOCOL_VERSION) {
 			fprintf(stderr, "unsupported protocol: %d\n", header.protocol_version);
-			break;
+			continue;
 		}
 		if (header.type != TYPE_SHUTDOWN) {
 			fprintf(stderr, "unsupported request: %d\n", header.type);
-			break;
+			continue;
 		}
 		fprintf(stdout, "client is disconnecting: %u\n", config->id);
 		break;

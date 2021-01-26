@@ -51,8 +51,8 @@ void process(const uint8_t *input, size_t input_len, float complex **output, siz
 		for (; current_index < max_index; current_index += 2 * filter->decimation, produced++) {
 			const lv_32fc_t *buf = (const lv_32fc_t*) (filter->working_buffer + current_index);
 
-			const lv_32fc_t *aligned_buffer = (const lv_32fc_t *)((size_t)buf & ~(filter->alignment - 1));
-		    unsigned align_index = buf - aligned_buffer;
+			const lv_32fc_t *aligned_buffer = (const lv_32fc_t*) ((size_t) buf & ~(filter->alignment - 1));
+			unsigned align_index = buf - aligned_buffer;
 
 			volk_32fc_x2_dot_prod_32fc_a(filter->volk_output, aligned_buffer, (const lv_32fc_t*) filter->taps[align_index], filter->taps_len + align_index);
 			filter->output[produced] = rotator_increment(filter->rot, *filter->volk_output);
@@ -70,7 +70,7 @@ void process(const uint8_t *input, size_t input_len, float complex **output, siz
 
 int create_aligned_taps(xlating *filter, float complex *bpfTaps, size_t taps_len) {
 	size_t alignment = volk_get_alignment();
-	size_t number_of_aligned = fmax((size_t) 1, alignment / sizeof(float complex));
+	size_t number_of_aligned = fmax((size_t ) 1, alignment / sizeof(float complex));
 	// Make a set of taps at all possible alignments
 	float complex **result = malloc(number_of_aligned * sizeof(float complex*));
 	if (result == NULL) {
@@ -97,6 +97,9 @@ int create_aligned_taps(xlating *filter, float complex *bpfTaps, size_t taps_len
 }
 
 int create_frequency_xlating_filter(int decimation, float *taps, size_t taps_len, int32_t center_freq, uint32_t sampling_freq, uint32_t max_input_buffer_length, xlating **filter) {
+	if (taps_len == 0) {
+		return -1;
+	}
 	struct xlating_t *result = malloc(sizeof(struct xlating_t));
 	if (result == NULL) {
 		return -ENOMEM;
@@ -133,6 +136,7 @@ int create_frequency_xlating_filter(int decimation, float *taps, size_t taps_len
 	}
 	int code = create_aligned_taps(result, bpfTaps, taps_len);
 	if (code != 0) {
+		free(bpfTaps);
 		destroy_xlating(result);
 		return code;
 	}

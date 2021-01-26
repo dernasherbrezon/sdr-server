@@ -13,7 +13,7 @@
 #endif
 
 struct xlating_t {
-	int decimation;
+	uint32_t decimation;
 	float complex **taps;
 	size_t aligned_taps_len;
 	size_t alignment;
@@ -96,7 +96,7 @@ int create_aligned_taps(xlating *filter, float complex *bpfTaps, size_t taps_len
 	return 0;
 }
 
-int create_frequency_xlating_filter(int decimation, float *taps, size_t taps_len, int32_t center_freq, uint32_t sampling_freq, uint32_t max_input_buffer_length, xlating **filter) {
+int create_frequency_xlating_filter(uint32_t decimation, float *taps, size_t taps_len, int32_t center_freq, uint32_t sampling_freq, uint32_t max_input_buffer_length, xlating **filter) {
 	if (taps_len == 0) {
 		return -1;
 	}

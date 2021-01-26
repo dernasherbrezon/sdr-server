@@ -7,7 +7,9 @@
 #include <stdio.h>
 #include <signal.h>
 #include <unistd.h>
+#include <string.h>
 
+#include "api.h"
 #include "tcp_server.h"
 
 struct tcp_server_t {
@@ -19,28 +21,22 @@ struct tcp_server_t {
 	struct server_config *server_config;
 };
 
-struct message {
-	uint8_t command;
-	uint32_t argument;
-} __attribute__((packed));
-
 void log_client(struct sockaddr_in *address, uint32_t id) {
 	char str[INET_ADDRSTRLEN];
 	const char *ptr = inet_ntop(AF_INET, &address->sin_addr, str, sizeof(str));
 	printf("accepted client from %s:%d (id: %u)\n", ptr, ntohs(address->sin_port), id);
 }
 
-int read_message(int socket, struct message *result) {
-	int left = sizeof(*result);
+int read_struct(int socket, void *result, size_t len) {
+	int left = len;
 	while (left > 0) {
-		int received = read(socket, (char*) result + (sizeof(*result) - left), left);
+		int received = read(socket, (char*) result + (len - left), left);
 		if (received < 0) {
 			perror("unable to read the message");
 			return -1;
 		}
 		left -= received;
 	}
-	result->argument = ntohl(result->argument);
 	return 0;
 }
 
@@ -51,31 +47,30 @@ int read_client_config(int client_socket, struct server_config *server_config, s
 	}
 	// init all fields with 0
 	*result = (struct client_config ) { 0 };
-	struct message cmd;
-	//FIXME true? what if client do not send 0x10?
+	struct message_header header;
 	while (true) {
-		if (read_message(client_socket, &cmd) < 0) {
+		if (read_struct(client_socket, &header, sizeof(struct message_header)) < 0) {
 			free(result);
 			return -1;
 		}
-		if (cmd.command == 0x10) {
-			break;
+		if (header.protocol_version != PROTOCOL_VERSION) {
+			fprintf(stderr, "unsupported protocol: %d\n", header.protocol_version);
+			free(result);
+			return -1;
 		}
-		//FIXME add api.h + add protocol version command
-		switch (cmd.command) {
-		case 0x01:
-			result->center_freq = cmd.argument;
-			break;
-		case 0x02:
-			result->sampling_rate = cmd.argument;
-			break;
-		case 0x11:
-			result->band_freq = cmd.argument;
-			break;
-		default:
-			fprintf(stderr, "unknown command: %d\n", cmd.command);
-			break;
+		if (header.type != TYPE_REQUEST) {
+			fprintf(stderr, "unsupported request: %d\n", header.type);
+			free(result);
+			return -1;
 		}
+		struct request req;
+		if (read_struct(client_socket, &req, sizeof(struct request)) < 0) {
+			free(result);
+			return -1;
+		}
+		result->center_freq = req.center_freq;
+		result->sampling_rate = req.sampling_rate;
+		result->band_freq = req.band_freq;
 	}
 	result->client_socket = client_socket;
 	if (result->sampling_rate > 0 && server_config->band_sampling_rate % result->sampling_rate != 0) {
@@ -120,48 +115,66 @@ int validate_client_config(struct client_config *config, struct server_config *s
 	return 0;
 }
 
-int write_message(int socket, uint8_t command, uint32_t argument) {
-	struct message result;
-	result.command = command;
-	result.argument = ntohl(argument);
-	int left = sizeof(result);
+int write_message(int socket, uint8_t status, uint8_t details) {
+	struct message_header header;
+	header.protocol_version = PROTOCOL_VERSION;
+	header.type = TYPE_RESPONSE;
+	struct response resp;
+	resp.status = status;
+	resp.details = details;
+
+	// it is possible to directly populate *buffer with the fields,
+	// however populating structs and then serializing them into byte array
+	// is more readable
+	size_t total_len = sizeof(struct message_header) + sizeof(struct response);
+	char *buffer = malloc(total_len);
+	memcpy(buffer, &header, sizeof(struct message_header));
+	memcpy(buffer + sizeof(struct message_header), &resp, sizeof(struct response));
+
+	int left = total_len;
 	while (left > 0) {
-		int written = write(socket, (char*) &result + (sizeof(result) - left), left);
+		int written = write(socket, buffer + (total_len - left), left);
 		if (written < 0) {
 			perror("unable to write the message");
+			free(buffer);
 			return -1;
 		}
 		left -= written;
 	}
+	free(buffer);
 	return 0;
 }
 
-void respond_failure(tcp_server *server, int client_socket, int response, int status) {
-	if (status != 0) {
-		fprintf(stderr, "unable to perform operation. status: %d\n", status);
+void respond_failure(tcp_server *server, int client_socket, uint8_t status, uint8_t details) {
+	if (details != RESPONSE_DETAILS_SUCCESS) {
+		fprintf(stderr, "unable to perform operation. details: %d\n", details);
 	}
-	write_message(client_socket, response, status); // unable to start device
+	write_message(client_socket, status, details); // unable to start device
 	close(client_socket);
 }
 
 static void* client_worker(void *arg) {
 	struct client_config *config = (struct client_config*) arg;
 	while (config->is_running) {
-		struct message cmd;
-		if (read_message(config->client_socket, &cmd) < 0) {
+		struct message_header header;
+		if (read_struct(config->client_socket, &header, sizeof(struct message_header)) < 0) {
 			fprintf(stdout, "client disconnected: %u\n", config->id);
 			break;
 		}
-		if (cmd.command == 0x12) {
-			fprintf(stdout, "client is disconnecting: %u\n", config->id);
+		if (header.protocol_version != PROTOCOL_VERSION) {
+			fprintf(stderr, "unsupported protocol: %d\n", header.protocol_version);
 			break;
 		}
-		// just read any data from client
-		// if connection closed from the client side, then shutdown calculation
-		fprintf(stderr, "unexpected command: %d\n", cmd.command);
+		if (header.type != TYPE_SHUTDOWN) {
+			fprintf(stderr, "unsupported request: %d\n", header.type);
+			break;
+		}
+		fprintf(stdout, "client is disconnecting: %u\n", config->id);
+		break;
 	}
 	remove_client(config);
 	close(config->client_socket);
+	free(config);
 	return (void*) 0;
 }
 
@@ -186,14 +199,12 @@ static void* acceptor_worker(void *arg) {
 			continue;
 		}
 		if (validate_client_config(config, server->server_config) < 0) {
-			// invalid request
-			respond_failure(NULL, client_socket, 0x01, 0x01);
+			respond_failure(NULL, client_socket, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_INVALID_REQUEST);
 			free(config);
 			continue;
 		}
 		if (current_band_freq != 0 && current_band_freq != config->band_freq) {
-			// out of band frequency
-			respond_failure(NULL, client_socket, 0x01, 0x02);
+			respond_failure(NULL, client_socket, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_OUT_OF_BAND_FREQ);
 			free(config);
 			continue;
 		}
@@ -209,7 +220,7 @@ static void* acceptor_worker(void *arg) {
 
 		int code = add_client(config);
 		if (code != 0) {
-			respond_failure(server, client_socket, 0x01, code);
+			respond_failure(server, client_socket, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_INTERNAL_ERROR);
 			free(config);
 			continue;
 		}
@@ -217,18 +228,19 @@ static void* acceptor_worker(void *arg) {
 		pthread_t client_thread;
 		code = pthread_create(&client_thread, &server->attr, &client_worker, config);
 		if (code != 0) {
-			respond_failure(NULL, client_socket, 0x01, 0x04);
+			respond_failure(NULL, client_socket, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_INTERNAL_ERROR);
 			remove_client(config);
 			free(config);
 			continue;
 		}
 
-		write_message(client_socket, 0x01, 0x00); // success
+		write_message(client_socket, RESPONSE_STATUS_SUCCESS, RESPONSE_DETAILS_SUCCESS);
 	}
 
 	int code = pthread_attr_destroy(&server->attr);
 	if (code != 0) {
 		perror("unable to destroy attribute");
+		free(server);
 		return (void*) -1;
 	}
 

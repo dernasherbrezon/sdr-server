@@ -96,7 +96,7 @@ int create_aligned_taps(xlating *filter, float complex *bpfTaps, size_t taps_len
 	return 0;
 }
 
-int create_frequency_xlating_filter(int decimation, float *taps, size_t taps_len, uint32_t center_freq, uint32_t sampling_freq, uint32_t max_input_buffer_length, xlating **filter) {
+int create_frequency_xlating_filter(int decimation, float *taps, size_t taps_len, int32_t center_freq, uint32_t sampling_freq, uint32_t max_input_buffer_length, xlating **filter) {
 	struct xlating_t *result = malloc(sizeof(struct xlating_t));
 	if (result == NULL) {
 		return -ENOMEM;

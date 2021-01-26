@@ -71,7 +71,6 @@ int create_server_config(struct server_config **config, const char *path) {
 		gain = (float) config_setting_get_float(setting);
 	}
 	fprintf(stdout, "gain: %f\n", gain);
-	//FIXME maybe find nearest gain?
 	result->gain = (int) (gain * 10);
 
 	setting = config_lookup(&libconfig, "ppm");

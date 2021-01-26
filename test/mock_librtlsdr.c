@@ -12,6 +12,7 @@
 #define rtlsdr_set_tuner_gain rtlsdr_set_tuner_gain_mocked
 #define rtlsdr_set_bias_tee rtlsdr_set_bias_tee_mocked
 #define rtlsdr_reset_buffer rtlsdr_reset_buffer_mocked
+#define rtlsdr_get_tuner_gains rtlsdr_get_tuner_gains_mocked
 
 int rtlsdr_read_sync_mocked(rtlsdr_dev_t *dev, void *buf, int len, int *n_read);
 int rtlsdr_close_mocked(rtlsdr_dev_t *dev);
@@ -22,6 +23,7 @@ int rtlsdr_set_tuner_gain_mode_mocked(rtlsdr_dev_t *dev, int manual);
 int rtlsdr_set_tuner_gain_mocked(rtlsdr_dev_t *dev, int gain);
 int rtlsdr_set_bias_tee_mocked(rtlsdr_dev_t *dev, int on);
 int rtlsdr_reset_buffer_mocked(rtlsdr_dev_t *dev);
+int rtlsdr_get_tuner_gains(rtlsdr_dev_t *dev, int *gains);
 
 #include "../src/core.c"
 
@@ -34,6 +36,7 @@ int rtlsdr_reset_buffer_mocked(rtlsdr_dev_t *dev);
 #undef rtlsdr_set_tuner_gain
 #undef rtlsdr_set_bias_tee
 #undef rtlsdr_reset_buffer
+#undef rtlsdr_get_tuner_gains
 
 struct mock_status {
 	uint8_t *buffer;
@@ -136,5 +139,12 @@ int rtlsdr_set_bias_tee_mocked(rtlsdr_dev_t *dev, int on) {
 }
 int rtlsdr_reset_buffer_mocked(rtlsdr_dev_t *dev) {
 	return 0;
+}
+int rtlsdr_get_tuner_gains_mocked(rtlsdr_dev_t *dev, int *gains) {
+	if (gains == NULL) {
+		return 1;
+	}
+	gains[0] = 43;
+	return 1;
 }
 

@@ -34,6 +34,32 @@ struct core_t {
 	uint8_t *buffer;
 };
 
+int find_nearest_gain(rtlsdr_dev_t *dev, int target_gain, int *nearest) {
+	int count = rtlsdr_get_tuner_gains(dev, NULL);
+	if (count <= 0) {
+		return -1;
+	}
+	int *gains = malloc(sizeof(int) * count);
+	if (gains == NULL) {
+		return -ENOMEM;
+	}
+	int code = rtlsdr_get_tuner_gains(dev, gains);
+	if (code <= 0) {
+		free(gains);
+		return -1;
+	}
+	*nearest = gains[0];
+	for (int i = 0; i < count; i++) {
+		int err1 = abs(target_gain - *nearest);
+		int err2 = abs(target_gain - gains[i]);
+		if (err2 < err1) {
+			*nearest = gains[i];
+		}
+	}
+	free(gains);
+	return 0;
+}
+
 int create_core(struct server_config *server_config, core **result) {
 	core *core = malloc(sizeof(struct core_t));
 	if (core == NULL) {
@@ -130,9 +156,18 @@ int start_rtlsdr(struct client_config *config) {
 		fprintf(stderr, "unable to set gain mode: %d\n", code);
 	}
 	if (core->server_config->gain_mode == 1) {
-		code = rtlsdr_set_tuner_gain(dev, core->server_config->gain);
+		int nearest_gain = 0;
+		code = find_nearest_gain(dev, core->server_config->gain, &nearest_gain);
 		if (code < 0) {
-			fprintf(stderr, "unable to set tuner gain: %d\n", code);
+			fprintf(stderr, "unable to find nearest gain for: %d\n", core->server_config->gain);
+		} else {
+			if (nearest_gain != core->server_config->gain) {
+				fprintf(stdout, "the actual nearest supported gain is: %f\n", (float) nearest_gain / 10);
+			}
+			code = rtlsdr_set_tuner_gain(dev, nearest_gain);
+			if (code < 0) {
+				fprintf(stderr, "unable to set tuner gain: %d\n", code);
+			}
 		}
 	}
 	code = rtlsdr_set_bias_tee(dev, core->server_config->bias_t);
@@ -207,7 +242,6 @@ int add_client(struct client_config *config) {
 	}
 	// setup xlating frequency filter
 	xlating *filter = NULL;
-	//FIXME maybe some trick with 32 bit numbers?
 	code = create_frequency_xlating_filter(config->core->server_config->band_sampling_rate / config->sampling_rate, taps, len, (int64_t) config->center_freq - (int64_t) config->band_freq, config->core->server_config->band_sampling_rate, config->core->server_config->buffer_size, &filter);
 	if (code != 0) {
 		destroy_node(config_node);

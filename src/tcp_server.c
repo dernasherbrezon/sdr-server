@@ -28,7 +28,7 @@ void log_client(struct sockaddr_in *address, uint32_t id) {
 }
 
 int read_struct(int socket, void *result, size_t len) {
-	int left = len;
+	size_t left = len;
 	while (left > 0) {
 		int received = read(socket, (char*) result + (len - left), left);
 		if (received < 0) {
@@ -129,7 +129,7 @@ int write_message(int socket, uint8_t status, uint8_t details) {
 	memcpy(buffer, &header, sizeof(struct message_header));
 	memcpy(buffer + sizeof(struct message_header), &resp, sizeof(struct response));
 
-	int left = total_len;
+	size_t left = total_len;
 	while (left > 0) {
 		int written = write(socket, buffer + (total_len - left), left);
 		if (written < 0) {
@@ -143,7 +143,7 @@ int write_message(int socket, uint8_t status, uint8_t details) {
 	return 0;
 }
 
-void respond_failure(tcp_server *server, int client_socket, uint8_t status, uint8_t details) {
+void respond_failure(int client_socket, uint8_t status, uint8_t details) {
 	if (details != RESPONSE_DETAILS_SUCCESS) {
 		fprintf(stderr, "unable to perform operation. details: %d\n", details);
 	}
@@ -197,12 +197,12 @@ static void* acceptor_worker(void *arg) {
 			continue;
 		}
 		if (validate_client_config(config, server->server_config) < 0) {
-			respond_failure(NULL, client_socket, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_INVALID_REQUEST);
+			respond_failure(client_socket, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_INVALID_REQUEST);
 			free(config);
 			continue;
 		}
 		if (current_band_freq != 0 && current_band_freq != config->band_freq) {
-			respond_failure(NULL, client_socket, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_OUT_OF_BAND_FREQ);
+			respond_failure(client_socket, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_OUT_OF_BAND_FREQ);
 			free(config);
 			continue;
 		}
@@ -218,7 +218,7 @@ static void* acceptor_worker(void *arg) {
 
 		int code = add_client(config);
 		if (code != 0) {
-			respond_failure(server, client_socket, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_INTERNAL_ERROR);
+			respond_failure(client_socket, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_INTERNAL_ERROR);
 			free(config);
 			continue;
 		}
@@ -226,7 +226,7 @@ static void* acceptor_worker(void *arg) {
 		pthread_t client_thread;
 		code = pthread_create(&client_thread, &server->attr, &client_worker, config);
 		if (code != 0) {
-			respond_failure(NULL, client_socket, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_INTERNAL_ERROR);
+			respond_failure(client_socket, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_INTERNAL_ERROR);
 			remove_client(config);
 			free(config);
 			continue;

@@ -6,6 +6,7 @@
 #include <pthread.h>
 #include <string.h>
 #include <complex.h>
+#include <unistd.h>
 
 #include "lpf.h"
 #include "xlating.h"
@@ -138,6 +139,7 @@ int start_rtlsdr(struct client_config *config) {
 	rtlsdr_dev_t *dev = NULL;
 	rtlsdr_open(&dev, 0);
 	if (dev == NULL) {
+		fprintf(stderr, "unable to open rtl-sdr device\n");
 		return 0x04;
 	}
 
@@ -215,6 +217,11 @@ void destroy_node(struct linked_list_node *node) {
 	}
 	if (node->filter != NULL) {
 		destroy_xlating(node->filter);
+	}
+	if (node->config != NULL) {
+		if (node->config->client_socket != 0) {
+			close(node->config->client_socket);
+		}
 	}
 	free(node);
 }
@@ -318,11 +325,10 @@ void remove_client(struct client_config *config) {
 				}
 				// update pointer to the first node
 				config->core->client_configs = cur_node->next;
-				node_to_destroy = cur_node;
 			} else {
 				last_node->next = cur_node->next;
-				node_to_destroy = cur_node;
 			}
+			node_to_destroy = cur_node;
 			break;
 		}
 		last_node = cur_node;
@@ -356,6 +362,7 @@ void destroy_core(core *core) {
 		destroy_node(cur_node);
 		cur_node = next;
 	}
+	core->client_configs = NULL;
 	pthread_mutex_unlock(&core->mutex);
 	free(core);
 }

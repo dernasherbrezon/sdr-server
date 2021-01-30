@@ -33,6 +33,7 @@ void create_client_config(int id, struct client_config **client_config) {
 	result->sampling_rate = 9600;
 	result->band_freq = 460100200;
 	result->center_freq = -12000 + result->band_freq;
+	result->client_socket = 0;
 	*client_config = result;
 }
 

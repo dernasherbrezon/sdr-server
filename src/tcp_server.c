@@ -32,7 +32,6 @@ int read_struct(int socket, void *result, size_t len) {
 	while (left > 0) {
 		int received = recv(socket, (char*) result + (len - left), left, 0);
 		if (received < 0) {
-			perror("unable to read the message");
 			return -1;
 		}
 		left -= received;
@@ -49,6 +48,7 @@ int read_client_config(int client_socket, struct server_config *server_config, s
 	*result = (struct client_config ) { 0 };
 	struct message_header header;
 	if (read_struct(client_socket, &header, sizeof(struct message_header)) < 0) {
+		fprintf(stderr, "unable to read header fully\n");
 		free(result);
 		return -1;
 	}
@@ -64,6 +64,7 @@ int read_client_config(int client_socket, struct server_config *server_config, s
 	}
 	struct request req;
 	if (read_struct(client_socket, &req, sizeof(struct request)) < 0) {
+		fprintf(stderr, "unable to read request fully\n");
 		free(result);
 		return -1;
 	}
@@ -72,8 +73,8 @@ int read_client_config(int client_socket, struct server_config *server_config, s
 	result->band_freq = req.band_freq;
 	result->client_socket = client_socket;
 	if (result->sampling_rate > 0 && server_config->band_sampling_rate % result->sampling_rate != 0) {
-		free(result);
 		fprintf(stderr, "sampling frequency is not an integer factor of server sample rate: %u\n", server_config->band_sampling_rate);
+		free(result);
 		return -1;
 	}
 

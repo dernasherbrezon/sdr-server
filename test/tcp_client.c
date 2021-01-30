@@ -76,18 +76,30 @@ int read_response_struct(int socket, void *result, size_t len) {
 	return 0;
 }
 
-int read_data(struct response **resp, struct tcp_client *tcp_client) {
-	struct response *result = malloc(sizeof(struct response));
-	if (result == NULL) {
+int read_data(struct message_header **response_header, struct response **resp, struct tcp_client *tcp_client) {
+	struct message_header *header = malloc(sizeof(struct message_header));
+	if (header == NULL) {
 		return -ENOMEM;
 	}
-	int code = read_response_struct(tcp_client->client_socket, result, sizeof(struct response));
+	int code = read_response_struct(tcp_client->client_socket, header, sizeof(struct message_header));
 	if (code != 0) {
-		free(result);
-	} else {
-		*resp = result;
+		free(header);
+		return code;
 	}
-	return code;
+	struct response *result = malloc(sizeof(struct response));
+	if (result == NULL) {
+		free(header);
+		return -ENOMEM;
+	}
+	code = read_response_struct(tcp_client->client_socket, result, sizeof(struct response));
+	if (code != 0) {
+		free(header);
+		free(result);
+		return code;
+	}
+	*response_header = header;
+	*resp = result;
+	return 0;
 }
 
 void destroy_client(struct tcp_client *tcp_client) {

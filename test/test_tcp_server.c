@@ -1,8 +1,13 @@
 #include <stdlib.h>
 #include <check.h>
+#include "mock_librtlsdr.c"
 #include "../src/tcp_server.h"
 #include "tcp_client.h"
 #include "../src/api.h"
+
+#include <stdio.h>
+
+extern void init_mock_librtlsdr();
 
 tcp_server *server = NULL;
 core *core_obj = NULL;
@@ -10,7 +15,7 @@ struct server_config *config = NULL;
 struct tcp_client *client = NULL;
 
 void create_and_init_tcpserver() {
-	int code = create_server_config(&config, "core.config");
+	int code = create_server_config(&config, "tcp_server.config");
 	ck_assert_int_eq(code, 0);
 	code = create_core(config, &core_obj);
 	ck_assert_int_eq(code, 0);
@@ -27,6 +32,14 @@ START_TEST (test_connect_and_keep_quiet) {
 }
 END_TEST
 
+START_TEST (test_partial_request) {
+	create_and_init_tcpserver();
+	uint8_t buffer[] = { PROTOCOL_VERSION };
+	int code = write_data(buffer, sizeof(buffer), client);
+	ck_assert_int_eq(code, 0);
+}
+END_TEST
+
 START_TEST (test_invalid_request) {
 	create_and_init_tcpserver();
 
@@ -40,12 +53,15 @@ START_TEST (test_invalid_request) {
 	int code = write_client_message(header, req, client);
 	ck_assert_int_eq(code, 0);
 
+	struct message_header *response_header = NULL;
 	struct response *resp = NULL;
-	code = read_data(&resp, client);
+	code = read_data(&response_header, &resp, client);
 	ck_assert_int_eq(code, 0);
+	ck_assert_int_eq(response_header->type, TYPE_RESPONSE);
 	ck_assert_int_eq(resp->status, RESPONSE_STATUS_FAILURE);
 	ck_assert_int_eq(resp->details, RESPONSE_DETAILS_INVALID_REQUEST);
 	free(resp);
+	free(response_header);
 }
 END_TEST
 
@@ -62,20 +78,20 @@ START_TEST (test_connect_disconnect) {
 	int code = write_client_message(header, req, client);
 	ck_assert_int_eq(code, 0);
 
+	struct message_header *response_header = NULL;
 	struct response *resp = NULL;
-	code = read_data(&resp, client);
+	code = read_data(&response_header, &resp, client);
 	ck_assert_int_eq(code, 0);
+	ck_assert_int_eq(response_header->type, TYPE_RESPONSE);
 	ck_assert_int_eq(resp->status, RESPONSE_STATUS_SUCCESS);
 	ck_assert_int_eq(resp->details, RESPONSE_DETAILS_SUCCESS);
 	free(resp);
+	free(response_header);
 
 	header.type = TYPE_SHUTDOWN;
 	code = write_client_message(header, req, client);
 	ck_assert_int_eq(code, 0);
-
-
-	//send partial request
-	//assert response
+	// no response here is expected
 }
 END_TEST
 
@@ -91,7 +107,7 @@ void teardown() {
 }
 
 void setup() {
-//do nothing
+	init_mock_librtlsdr();
 }
 
 Suite* common_suite(void) {
@@ -105,6 +121,7 @@ Suite* common_suite(void) {
 
 	tcase_add_test(tc_core, test_connect_disconnect);
 	tcase_add_test(tc_core, test_invalid_request);
+	tcase_add_test(tc_core, test_partial_request);
 	tcase_add_test(tc_core, test_connect_and_keep_quiet);
 
 	tcase_add_checked_fixture(tc_core, setup, teardown);

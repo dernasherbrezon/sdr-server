@@ -184,7 +184,6 @@ static void* acceptor_worker(void *arg) {
 		int client_socket;
 		int addrlen = sizeof(address);
 		if ((client_socket = accept(server->server_socket, (struct sockaddr*) &address, (socklen_t*) &addrlen)) < 0) {
-			perror("terminating");
 			break;
 		}
 
@@ -339,7 +338,12 @@ void stop_tcp_server(tcp_server *server) {
 	}
 	fprintf(stdout, "stopping tcp server\n");
 	server->is_running = false;
-	close(server->server_socket);
+	// close is not enough to exit from the blocking "accept" method
+	// execute shutdown first
+	int code = shutdown(server->server_socket, SHUT_RDWR);
+	if (code != 0) {
+		close(server->server_socket);
+	}
 	pthread_join(server->acceptor_thread, NULL);
 	// do not free tcp_server here
 	// it should be destroyed on the thread during shutdown

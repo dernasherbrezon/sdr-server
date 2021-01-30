@@ -7,6 +7,7 @@
 #include <string.h>
 #include <complex.h>
 #include <unistd.h>
+#include <zlib.h>
 
 #include "lpf.h"
 #include "xlating.h"
@@ -20,6 +21,7 @@ struct linked_list_node {
 	xlating *filter;
 	pthread_t dsp_thread;
 	FILE *file;
+	gzFile gz;
 };
 
 struct core_t {
@@ -94,7 +96,15 @@ static void* dsp_worker(void *arg) {
 			break;
 		}
 		process(input, input_len, &filter_output, &filter_output_len, config_node->filter);
-		size_t n_read = fwrite(filter_output, sizeof(float complex), filter_output_len, config_node->file);
+		size_t n_read;
+		if (config_node->file != NULL) {
+			n_read = fwrite(filter_output, sizeof(float complex), filter_output_len, config_node->file);
+		} else if (config_node->gz != NULL) {
+			n_read = gzfwrite(filter_output, sizeof(float complex), filter_output_len, config_node->gz);
+		} else {
+			fprintf(stderr, "unknown output\n");
+			break;
+		}
 		if (n_read < filter_output_len) {
 			// if disk is full, then terminate the client
 			break;
@@ -215,6 +225,9 @@ void destroy_node(struct linked_list_node *node) {
 	if (node->file != NULL) {
 		fclose(node->file);
 	}
+	if (node->gz != NULL) {
+		gzclose(node->gz);
+	}
 	if (node->filter != NULL) {
 		destroy_xlating(node->filter);
 	}
@@ -256,15 +269,25 @@ int add_client(struct client_config *config) {
 	config_node->filter = filter;
 	config_node->config = config;
 
-	//TODO add optional zlib
 	//TODO add optional stream back to client via socket
-	char file_path[4096];
-	snprintf(file_path, sizeof(file_path), "%s/%d.raw", config->core->server_config->base_path, config->id);
-	config_node->file = fopen(file_path, "wb");
-	if (config_node->file == NULL) {
-		fprintf(stderr, "unable to open file for output: %s\n", file_path);
-		destroy_node(config_node);
-		return -1;
+	if (config->core->server_config->use_gzip) {
+		char file_path[4096];
+		snprintf(file_path, sizeof(file_path), "%s/%d.raw.gz", config->core->server_config->base_path, config->id);
+		config_node->gz = gzopen(file_path, "wb");
+		if (config_node->gz == NULL) {
+			fprintf(stderr, "unable to open gz file for output: %s\n", file_path);
+			destroy_node(config_node);
+			return -1;
+		}
+	} else {
+		char file_path[4096];
+		snprintf(file_path, sizeof(file_path), "%s/%d.raw", config->core->server_config->base_path, config->id);
+		config_node->file = fopen(file_path, "wb");
+		if (config_node->file == NULL) {
+			fprintf(stderr, "unable to open file for output: %s\n", file_path);
+			destroy_node(config_node);
+			return -1;
+		}
 	}
 
 	// setup queue

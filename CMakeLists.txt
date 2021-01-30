@@ -29,7 +29,7 @@ find_library(LIBCONFIG config)
 find_path(LIBCONFIG_INCLUDE_DIR libconfig.h)
 include_directories(${LIBCONFIG_INCLUDE_DIR})
 target_link_libraries(sdr_serverLib ${LIBCONFIG})
-target_link_libraries(sdr_serverLib pthread m)
+target_link_libraries(sdr_serverLib pthread m z)
 
 enable_testing()
 

@@ -2,6 +2,7 @@
 #define CONFIG_H_
 
 #include <stdint.h>
+#include <stdbool.h>
 
 struct server_config {
 	// socket settings
@@ -17,7 +18,10 @@ struct server_config {
 	uint32_t buffer_size;
 	// 4GHz max
 	uint32_t band_sampling_rate;
+
+	// output settings
 	char *base_path;
+	bool use_gzip;
 };
 
 int create_server_config(struct server_config **config, const char *path);

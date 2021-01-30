@@ -153,6 +153,16 @@ int create_server_config(struct server_config **config, const char *path) {
 	result->base_path = base_path;
 	fprintf(stdout, "base path for storing results: %s\n", result->base_path);
 
+	setting = config_lookup(&libconfig, "use_gzip");
+	bool use_gzip;
+	if (setting == NULL) {
+		use_gzip = true;
+	} else {
+		use_gzip = config_setting_get_bool(setting);
+	}
+	result->use_gzip = use_gzip;
+	fprintf(stdout, "using gzip: %d\n", result->use_gzip);
+
 	config_destroy(&libconfig);
 
 	*config = result;

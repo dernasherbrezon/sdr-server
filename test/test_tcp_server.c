@@ -102,7 +102,9 @@ START_TEST (test_connect_disconnect) {
 	struct message_header header;
 	header.protocol_version = PROTOCOL_VERSION;
 	header.type = TYPE_SHUTDOWN;
-	struct request req;
+	// not necessary, but I don't want to write another method:
+	// write_client_message_header
+	struct request req = { 0 };
 	int code = write_client_message(header, req, client);
 	ck_assert_int_eq(code, 0);
 	// no response here is expected

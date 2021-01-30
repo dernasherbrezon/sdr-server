@@ -4,8 +4,12 @@
 #include <stdint.h>
 
 struct server_config {
+	// socket settings
 	char* bind_address;
 	int port;
+	int read_timeout_seconds;
+
+	// rf settings
 	int gain_mode;
 	int gain;
 	int ppm;

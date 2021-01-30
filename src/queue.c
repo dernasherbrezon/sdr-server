@@ -73,6 +73,7 @@ int create_queue(uint32_t buffer_size, int capacity, queue **queue) {
 	result->last_free_node = last_node;
 	result->first_filled_node = NULL;
 	result->last_filled_node = NULL;
+	result->detached_node = NULL;
 	result->condition = (pthread_cond_t )PTHREAD_COND_INITIALIZER;
 	result->mutex = (pthread_mutex_t )PTHREAD_MUTEX_INITIALIZER;
 	result->poison_pill = 0;

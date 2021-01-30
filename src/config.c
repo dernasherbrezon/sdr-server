@@ -122,6 +122,22 @@ int create_server_config(struct server_config **config, const char *path) {
 	result->port = port;
 	fprintf(stdout, "start listening on %s:%d\n", result->bind_address, result->port);
 
+	setting = config_lookup(&libconfig, "read_timeout_seconds");
+	int read_timeout_seconds;
+	if (setting == NULL) {
+		read_timeout_seconds = 5;
+	} else {
+		read_timeout_seconds = config_setting_get_int(setting);
+		if (read_timeout_seconds <= 0) {
+			config_destroy(&libconfig);
+			free(result);
+			fprintf(stderr, "read timeout should be positive: %d\n", read_timeout_seconds);
+			return -1;
+		}
+	}
+	result->read_timeout_seconds = read_timeout_seconds;
+	fprintf(stdout, "read timeout %ds\n", result->read_timeout_seconds);
+
 	const char *default_folder = getenv("TMPDIR");
 	if (default_folder == NULL) {
 		default_folder = "/tmp";

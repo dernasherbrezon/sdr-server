@@ -30,7 +30,7 @@ void log_client(struct sockaddr_in *address, uint32_t id) {
 int read_struct(int socket, void *result, size_t len) {
 	size_t left = len;
 	while (left > 0) {
-		int received = read(socket, (char*) result + (len - left), left);
+		int received = recv(socket, (char*) result + (len - left), left, 0);
 		if (received < 0) {
 			perror("unable to read the message");
 			return -1;
@@ -190,6 +190,15 @@ static void* acceptor_worker(void *arg) {
 
 		log_client(&address, client_counter);
 
+		struct timeval tv;
+		tv.tv_sec = server->server_config->read_timeout_seconds;
+		tv.tv_usec = 0;
+		if (setsockopt(client_socket, SOL_SOCKET, SO_RCVTIMEO, (const char*) &tv, sizeof tv)) {
+			close(client_socket);
+			perror("setsockopt - SO_RCVTIMEO");
+			continue;
+		}
+
 		struct client_config *config = NULL;
 		if (read_client_config(client_socket, server->server_config, &config) < 0) {
 			// close silently
@@ -271,6 +280,7 @@ int start_tcp_server(struct server_config *config, core *core, tcp_server **serv
 		perror("setsockopt - SO_REUSEPORT");
 		return -1;
 	}
+
 	struct sockaddr_in address;
 	address.sin_family = AF_INET;
 	if (inet_pton(AF_INET, config->bind_address, &address.sin_addr) <= 0) {

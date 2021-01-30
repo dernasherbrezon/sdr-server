@@ -40,6 +40,7 @@ START_TEST (test_success) {
 	ck_assert_int_eq(config->port, 8090);
 	ck_assert_int_eq(config->buffer_size, 131072);
 	ck_assert_str_eq(config->base_path, "/tmp/");
+	ck_assert_int_eq(config->read_timeout_seconds, 10);
 }
 END_TEST
 

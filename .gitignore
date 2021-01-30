@@ -55,3 +55,4 @@ Debug
 .project
 .cproject
 /build/
+/dbg/

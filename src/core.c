@@ -12,8 +12,6 @@
 #include "queue.h"
 #include "core.h"
 
-#include <stdio.h>
-
 struct linked_list_node {
 	struct linked_list_node *next;
 	struct client_config *config;

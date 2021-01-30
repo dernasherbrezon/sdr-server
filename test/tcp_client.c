@@ -56,6 +56,9 @@ int write_client_message(struct message_header header, struct request req, struc
 	// is more readable
 	size_t total_len = sizeof(struct message_header) + sizeof(struct request);
 	uint8_t *buffer = malloc(total_len);
+	if (buffer == NULL) {
+		return -ENOMEM;
+	}
 	memcpy(buffer, &header, sizeof(struct message_header));
 	memcpy(buffer + sizeof(struct message_header), &req, sizeof(struct request));
 	int code = write_data(buffer, total_len, tcp_client);

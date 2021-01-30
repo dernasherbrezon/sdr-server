@@ -219,6 +219,7 @@ void destroy_node(struct linked_list_node *node) {
 		destroy_xlating(node->filter);
 	}
 	if (node->config != NULL) {
+		node->config->is_running = false;
 		if (node->config->client_socket != 0) {
 			close(node->config->client_socket);
 		}

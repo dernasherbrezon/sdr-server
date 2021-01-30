@@ -4,15 +4,16 @@
 
 ## Key features
 
- * share available RF bandwidth between several independent clients:
-   * total bandwidth can be 2016000 samples/sec at 436,600,000 hz
-   * one client might request 48000 samples/sec at 436,700,000 hz
-   * another client might request 96000 samples/sec at 435,000,000 hz
- * several clients can access the same band simultaneously
- * output saved onto disk
- * output can be gzipped (by default = true)
- * output will be decimated to the requested bandwidth
- * clients can request overlapping RF spectrum
+ * Share available RF bandwidth between several independent clients:
+   * Total bandwidth can be 2016000 samples/sec at 436,600,000 hz
+   * One client might request 48000 samples/sec at 436,700,000 hz
+   * Another client might request 96000 samples/sec at 435,000,000 hz
+ * Several clients can access the same band simultaneously
+ * Output saved onto disk
+ * Output can be gzipped (by default = true)
+ * Output will be decimated to the requested bandwidth
+ * Clients can request overlapping RF spectrum
+ * Rtl-sdr starts only after first client connects (i.e. save solar power &etc). Stops only when last client disconnects
  
 ## Design
 
@@ -20,8 +21,17 @@
 
  * Each client has its own dsp thread
  * Each dsp thread executes [Frequency Xlating FIR Filter](http://blog.sdr.hu/grblocks/xlating-fir.html)
- * [libvolk](https://www.libvolk.org) is used for SIMD optimizations
- * only RTL-SDRs are supported
+ * [Libvolk](https://www.libvolk.org) is used for SIMD optimizations
+ * Only RTL-SDRs are supported
+ 
+## API
+
+ * Defined in the [api.h](https://github.com/dernasherbrezon/sdr-server/blob/main/src/api.h)
+ * Clients can connect and send request to initiate listening:
+   * center_freq - this is required center frequency. For example, 436,700,000 hz
+   * sampling_rate - required sampling rate. For example, 48000
+   * band\_freq - first connected client can select the center of the band. All other clients should request center\_freq within the currently selected band
+ * To stop listening, clients can send SHUTDOWN request or disconnect
  
 ## Queue
 
@@ -29,7 +39,7 @@
 
 The data between rtl-sdr worker and the dsp workers is passed via queue. This is bounded queue with pre-allocated memory blocks. It has the following features:
 
- * thread-safe
- * if no free blocks (consumer is slow), then the last block will be overriden by the next one
+ * Thread-safe
+ * If no free blocks (consumer is slow), then the last block will be overriden by the next one
  * there is a special detached block. It is used to minimize synchronization section. All potentially long operations on it are happening outside of synchronization section.
- * consumer will block and wait until new data produced
+ * Consumer will block and wait until new data produced

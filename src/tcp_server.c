@@ -146,9 +146,6 @@ int write_message(int socket, uint8_t status, uint8_t details) {
 }
 
 void respond_failure(int client_socket, uint8_t status, uint8_t details) {
-	if (details != RESPONSE_DETAILS_SUCCESS) {
-		fprintf(stderr, "unable to perform operation. details: %d\n", details);
-	}
 	write_message(client_socket, status, details); // unable to start device
 	close(client_socket);
 }

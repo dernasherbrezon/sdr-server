@@ -83,7 +83,7 @@ int create_core(struct server_config *server_config, core **result) {
 }
 
 static void* dsp_worker(void *arg) {
-	fprintf(stdout, "starting dsp_worker\n");
+	fprintf(stdout, "[dsp_worker] starting\n");
 	struct linked_list_node *config_node = (struct linked_list_node*) arg;
 	uint8_t *input = NULL;
 	int input_len = 0;
@@ -113,7 +113,7 @@ static void* dsp_worker(void *arg) {
 		complete_buffer_processing(config_node->queue);
 	}
 	destroy_queue(config_node->queue);
-	printf("dsp_worker stopped\n");
+	printf("[dsp_worker] stopped\n");
 	return (void*) 0;
 }
 
@@ -137,13 +137,13 @@ static void* rtlsdr_worker(void *arg) {
 		pthread_mutex_unlock(&core->mutex);
 	}
 	core->dev = NULL;
-	printf("rtl-sdr stopped\n");
+	printf("[rtl-sdr] stopped\n");
 	return (void*) 0;
 }
 
 int start_rtlsdr(struct client_config *config) {
 	core *core = config->core;
-	fprintf(stdout, "starting rtl-sdr\n");
+	fprintf(stdout, "[rtl-sdr] starting\n");
 	rtlsdr_dev_t *dev = NULL;
 	rtlsdr_open(&dev, 0);
 	if (dev == NULL) {
@@ -199,7 +199,7 @@ int start_rtlsdr(struct client_config *config) {
 }
 
 void stop_rtlsdr(core *core) {
-	fprintf(stdout, "stopping rtl-sdr\n");
+	fprintf(stdout, "[rtl-sdr] stopping\n");
 	core->is_rtlsdr_running = false;
 	// this will close reading from the sync
 	rtlsdr_close(core->dev);
@@ -212,7 +212,7 @@ void destroy_node(struct linked_list_node *node) {
 	if (node == NULL) {
 		return;
 	}
-	fprintf(stdout, "stopping dsp_worker\n");
+	fprintf(stdout, "[dsp_worker] stopping\n");
 	if (node->queue != NULL) {
 		interrupt_waiting_the_data(node->queue);
 	}
@@ -333,6 +333,7 @@ void remove_client(struct client_config *config) {
 		return;
 	}
 	struct linked_list_node *node_to_destroy = NULL;
+	bool should_stop_rtlsdr = false;
 	pthread_mutex_lock(&config->core->mutex);
 	struct linked_list_node *cur_node = config->core->client_configs;
 	struct linked_list_node *last_node = NULL;
@@ -342,7 +343,7 @@ void remove_client(struct client_config *config) {
 				if (cur_node->next == NULL) {
 					// this is the first and the last node
 					// shutdown rtlsdr
-					stop_rtlsdr(config->core);
+					should_stop_rtlsdr = true;
 				}
 				// update pointer to the first node
 				config->core->client_configs = cur_node->next;
@@ -356,6 +357,13 @@ void remove_client(struct client_config *config) {
 		cur_node = cur_node->next;
 	}
 	pthread_mutex_unlock(&config->core->mutex);
+	// all access to stop_rtlsdr should be out of mutex,
+	// otherwise deadlock can happen:
+	//	- stop lock the mutex
+	//	- rtlsdr thread cannot acquire mutex to notify clients and shutdown
+	if (should_stop_rtlsdr) {
+		stop_rtlsdr(config->core);
+	}
 	// stopping the thread can take some time
 	// do it outside of synch block
 	if (node_to_destroy != NULL) {

@@ -251,6 +251,7 @@ static void* acceptor_worker(void *arg) {
 	}
 
 	free(server);
+	printf("[tcp server] stopped\n");
 	return (void*) 0;
 }
 
@@ -336,7 +337,7 @@ void stop_tcp_server(tcp_server *server) {
 	if (server == NULL) {
 		return;
 	}
-	fprintf(stdout, "stopping tcp server\n");
+	fprintf(stdout, "[tcp server] stopping\n");
 	server->is_running = false;
 	// close is not enough to exit from the blocking "accept" method
 	// execute shutdown first

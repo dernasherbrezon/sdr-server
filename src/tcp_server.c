@@ -338,7 +338,7 @@ void stop_tcp_server(tcp_server *server) {
 	}
 	fprintf(stdout, "stopping tcp server\n");
 	server->is_running = false;
-	close(server->server_socket);
+	shutdown(server->server_socket, SHUT_RDWR);
 	pthread_join(server->acceptor_thread, NULL);
 	// do not free tcp_server here
 	// it should be destroyed on the thread during shutdown

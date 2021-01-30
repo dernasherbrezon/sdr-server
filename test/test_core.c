@@ -4,6 +4,7 @@
 #include "mock_librtlsdr.c"
 #include <stdio.h>
 #include <complex.h>
+#include <zlib.h>
 
 extern void init_mock_librtlsdr();
 extern void wait_for_data_read();
@@ -67,8 +68,8 @@ void assert_file(int id, const float expected[], size_t expected_size) {
 int read_gzfile_fully(gzFile f, void *result, size_t len) {
 	size_t left = len;
 	while (left > 0) {
-		int received = gzfread((char*) result + (len - left), 1, left, f);
-		if (received < 0) {
+		int received = gzread(f, (char*) result + (len - left), left);
+		if (received <= 0) {
 			perror("unable to read the message");
 			return -1;
 		}
@@ -83,7 +84,7 @@ void assert_gzfile(int id, const float expected[], size_t expected_size) {
 	fprintf(stdout, "checking: %s\n", file_path);
 	gzFile f = gzopen(file_path, "rb");
 	ck_assert(f != NULL);
-	size_t expected_size_bytes = sizeof(float) * expected_size;
+	size_t expected_size_bytes = sizeof(float complex) * expected_size;
 	uint8_t *buffer = malloc(expected_size_bytes);
 	ck_assert(buffer != NULL);
 	int code = read_gzfile_fully(f, buffer, expected_size_bytes);

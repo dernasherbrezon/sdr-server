@@ -100,7 +100,7 @@ static void* dsp_worker(void *arg) {
 		if (config_node->file != NULL) {
 			n_read = fwrite(filter_output, sizeof(float complex), filter_output_len, config_node->file);
 		} else if (config_node->gz != NULL) {
-			n_read = gzfwrite(filter_output, sizeof(float complex), filter_output_len, config_node->gz);
+			n_read = gzwrite(config_node->gz, filter_output, sizeof(float complex) * filter_output_len);
 		} else {
 			fprintf(stderr, "unknown output\n");
 			break;
@@ -136,15 +136,13 @@ static void* rtlsdr_worker(void *arg) {
 		}
 		pthread_mutex_unlock(&core->mutex);
 	}
+	core->dev = NULL;
 	printf("rtl-sdr stopped\n");
 	return (void*) 0;
 }
 
 int start_rtlsdr(struct client_config *config) {
 	core *core = config->core;
-	if (core->is_rtlsdr_running) {
-		return 0;
-	}
 	fprintf(stdout, "starting rtl-sdr\n");
 	rtlsdr_dev_t *dev = NULL;
 	rtlsdr_open(&dev, 0);
@@ -205,7 +203,6 @@ void stop_rtlsdr(core *core) {
 	core->is_rtlsdr_running = false;
 	// this will close reading from the sync
 	rtlsdr_close(core->dev);
-	core->dev = NULL;
 
 	// block access to core until rtlsdr fully stops and cleans the resources
 	pthread_join(core->rtlsdr_worker_thread, NULL);
@@ -370,10 +367,10 @@ void destroy_core(core *core) {
 	if (core == NULL) {
 		return;
 	}
-	pthread_mutex_lock(&core->mutex);
-	if (core->dev != NULL) {
+	if (core->is_rtlsdr_running) {
 		stop_rtlsdr(core);
 	}
+	pthread_mutex_lock(&core->mutex);
 	if (core->buffer != NULL) {
 		free(core->buffer);
 	}

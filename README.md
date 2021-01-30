@@ -1,6 +1,6 @@
 # About [![Build Status](https://travis-ci.com/dernasherbrezon/sdr-server.svg?branch=main)](https://travis-ci.com/dernasherbrezon/sdr-server) [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=dernasherbrezon_sdr-server&metric=alert_status)](https://sonarcloud.io/dashboard?id=dernasherbrezon_sdr-server)
 
-![design](/doc/dsp.jpg?raw=true)
+![design](/docs/dsp.jpg?raw=true)
 
 ## Key features
 
@@ -16,7 +16,7 @@
  
 ## Design
 
-![design](/doc/threads.png?raw=true)
+![design](/docs/threads.png?raw=true)
 
  * Each client has its own dsp thread
  * Each dsp thread executes [Frequency Xlating FIR Filter](http://blog.sdr.hu/grblocks/xlating-fir.html)
@@ -25,7 +25,7 @@
  
 ## Queue
 
-![design](/doc/queue.png?raw=true)
+![design](/docs/queue.png?raw=true)
 
 The data between rtl-sdr worker and the dsp workers is passed via queue. This is bounded queue with pre-allocated memory blocks. It has the following features:
 

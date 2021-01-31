@@ -156,7 +156,7 @@ void respond_failure(int client_socket, uint8_t status, uint8_t details) {
 	close(client_socket);
 }
 
-void remove_tcp_client(struct linked_list_tcp_node *node) {
+void destroy_tcp_node(struct linked_list_tcp_node *node) {
 	pthread_mutex_lock(&node->server->mutex);
 	struct linked_list_tcp_node *cur_node = node->server->tcp_nodes;
 	struct linked_list_tcp_node *previous_node = NULL;
@@ -174,12 +174,15 @@ void remove_tcp_client(struct linked_list_tcp_node *node) {
 		}
 	}
 	pthread_mutex_unlock(&node->server->mutex);
+	int id = node->config->id;
+	free(node->config);
 	free(node);
+	fprintf(stdout, "[tcp_worker %d] stopped\n", id);
 }
 
-static void* client_worker(void *arg) {
+static void* tcp_worker(void *arg) {
 	struct linked_list_tcp_node *node = (struct linked_list_tcp_node*) arg;
-
+	fprintf(stdout, "[tcp_worker %d] starting\n", node->config->id);
 	int code = add_client(node->config);
 	if (code != 0) {
 		respond_failure(node->config->client_socket, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_INTERNAL_ERROR);
@@ -206,8 +209,7 @@ static void* client_worker(void *arg) {
 	}
 
 	close(node->config->client_socket);
-	free(node->config);
-	remove_tcp_client(node);
+	destroy_tcp_node(node);
 	return (void*) 0;
 }
 
@@ -226,21 +228,43 @@ void add_tcp_node(struct linked_list_tcp_node *node) {
 }
 
 void remove_all_tcp_nodes(tcp_server *server) {
+	int number_of_threads = 0;
+	pthread_t *threads = NULL;
 	pthread_mutex_lock(&server->mutex);
+	// get number of threads and signal them to terminate
 	struct linked_list_tcp_node *cur_node = server->tcp_nodes;
 	while (cur_node != NULL) {
 		struct linked_list_tcp_node *next = cur_node->next;
-		// stop tcp thread
 		cur_node->config->is_running = false;
 		close(cur_node->config->client_socket);
-
-		// wait while thread stopped
-		pthread_join(cur_node->client_thread, NULL);
-
+		fprintf(stdout, "[tcp_worker %d] stopping\n", cur_node->config->id);
+		number_of_threads++;
 		cur_node = next;
+	}
+	// store all threads in array
+	threads = malloc(sizeof(pthread_t) * number_of_threads);
+	if (threads != NULL) {
+		int i = 0;
+		struct linked_list_tcp_node *cur_node = server->tcp_nodes;
+		while (cur_node != NULL) {
+			struct linked_list_tcp_node *next = cur_node->next;
+			threads[i] = cur_node->client_thread;
+			i++;
+			cur_node = next;
+		}
 	}
 	server->tcp_nodes = NULL;
 	pthread_mutex_unlock(&server->mutex);
+
+	// wait for threads to terminate
+	// this should happen outside of synch lock, because
+	// each thread needs mutex to remove itself from the server->tcp_nodes
+	if (threads != NULL) {
+		for (int i = 0; i < number_of_threads; i++) {
+			pthread_join(threads[i], NULL);
+		}
+		free(threads);
+	}
 }
 
 static void* acceptor_worker(void *arg) {
@@ -303,7 +327,7 @@ static void* acceptor_worker(void *arg) {
 		tcp_node->next = NULL;
 		tcp_node->server = server;
 
-		int code = pthread_create(&client_thread, &server->attr, &client_worker, tcp_node);
+		int code = pthread_create(&client_thread, &server->attr, &tcp_worker, tcp_node);
 		if (code != 0) {
 			respond_failure(client_socket, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_INTERNAL_ERROR);
 			free(config);

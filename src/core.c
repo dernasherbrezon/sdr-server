@@ -228,12 +228,6 @@ void destroy_node(struct linked_list_node *node) {
 	if (node->filter != NULL) {
 		destroy_xlating(node->filter);
 	}
-	if (node->config != NULL) {
-		node->config->is_running = false;
-		if (node->config->client_socket != 0) {
-			close(node->config->client_socket);
-		}
-	}
 	free(node);
 }
 
@@ -328,6 +322,7 @@ int add_client(struct client_config *config) {
 	}
 	return result;
 }
+
 void remove_client(struct client_config *config) {
 	if (config == NULL) {
 		return;
@@ -336,10 +331,10 @@ void remove_client(struct client_config *config) {
 	bool should_stop_rtlsdr = false;
 	pthread_mutex_lock(&config->core->mutex);
 	struct linked_list_node *cur_node = config->core->client_configs;
-	struct linked_list_node *last_node = NULL;
+	struct linked_list_node *previous_node = NULL;
 	while (cur_node != NULL) {
 		if (cur_node->config->id == config->id) {
-			if (last_node == NULL) {
+			if (previous_node == NULL) {
 				if (cur_node->next == NULL) {
 					// this is the first and the last node
 					// shutdown rtlsdr
@@ -348,12 +343,12 @@ void remove_client(struct client_config *config) {
 				// update pointer to the first node
 				config->core->client_configs = cur_node->next;
 			} else {
-				last_node->next = cur_node->next;
+				previous_node->next = cur_node->next;
 			}
 			node_to_destroy = cur_node;
 			break;
 		}
-		last_node = cur_node;
+		previous_node = cur_node;
 		cur_node = cur_node->next;
 	}
 	pthread_mutex_unlock(&config->core->mutex);

@@ -13,6 +13,13 @@
 #include "api.h"
 #include "tcp_server.h"
 
+struct linked_list_tcp_node {
+	struct client_config *config;
+	struct linked_list_tcp_node *next;
+	pthread_t client_thread;
+	tcp_server *server;
+};
+
 struct tcp_server_t {
 	int server_socket;
 	pthread_attr_t attr;
@@ -20,6 +27,9 @@ struct tcp_server_t {
 	pthread_t acceptor_thread;
 	core *core;
 	struct server_config *server_config;
+
+	struct linked_list_tcp_node *tcp_nodes;
+	pthread_mutex_t mutex;
 };
 
 void log_client(struct sockaddr_in *address, uint32_t id) {
@@ -146,29 +156,91 @@ void respond_failure(int client_socket, uint8_t status, uint8_t details) {
 	close(client_socket);
 }
 
+void remove_tcp_client(struct linked_list_tcp_node *node) {
+	pthread_mutex_lock(&node->server->mutex);
+	struct linked_list_tcp_node *cur_node = node->server->tcp_nodes;
+	struct linked_list_tcp_node *previous_node = NULL;
+	while (cur_node != NULL) {
+		if (cur_node->config->id != node->config->id) {
+			previous_node = cur_node;
+			cur_node = cur_node->next;
+			continue;
+		}
+
+		if (previous_node == NULL) {
+			node->server->tcp_nodes = cur_node->next;
+		} else {
+			previous_node->next = cur_node->next;
+		}
+	}
+	pthread_mutex_unlock(&node->server->mutex);
+	free(node);
+}
+
 static void* client_worker(void *arg) {
-	struct client_config *config = (struct client_config*) arg;
-	while (config->is_running) {
-		struct message_header header;
-		if (read_struct(config->client_socket, &header, sizeof(struct message_header)) < 0) {
-			fprintf(stdout, "client disconnected: %u\n", config->id);
+	struct linked_list_tcp_node *node = (struct linked_list_tcp_node*) arg;
+
+	int code = add_client(node->config);
+	if (code != 0) {
+		respond_failure(node->config->client_socket, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_INTERNAL_ERROR);
+	} else {
+		write_message(node->config->client_socket, RESPONSE_STATUS_SUCCESS, node->config->id);
+		while (node->config->is_running) {
+			struct message_header header;
+			if (read_struct(node->config->client_socket, &header, sizeof(struct message_header)) < 0) {
+				fprintf(stdout, "client disconnected: %u\n", node->config->id);
+				break;
+			}
+			if (header.protocol_version != PROTOCOL_VERSION) {
+				fprintf(stderr, "unsupported protocol: %d\n", header.protocol_version);
+				continue;
+			}
+			if (header.type != TYPE_SHUTDOWN) {
+				fprintf(stderr, "unsupported request: %d\n", header.type);
+				continue;
+			}
+			fprintf(stdout, "client is disconnecting: %u\n", node->config->id);
 			break;
 		}
-		if (header.protocol_version != PROTOCOL_VERSION) {
-			fprintf(stderr, "unsupported protocol: %d\n", header.protocol_version);
-			continue;
-		}
-		if (header.type != TYPE_SHUTDOWN) {
-			fprintf(stderr, "unsupported request: %d\n", header.type);
-			continue;
-		}
-		fprintf(stdout, "client is disconnecting: %u\n", config->id);
-		break;
+		remove_client(node->config);
 	}
-	remove_client(config);
-	close(config->client_socket);
-	free(config);
+
+	close(node->config->client_socket);
+	free(node->config);
+	remove_tcp_client(node);
 	return (void*) 0;
+}
+
+void add_tcp_node(struct linked_list_tcp_node *node) {
+	pthread_mutex_lock(&node->server->mutex);
+	if (node->server->tcp_nodes == NULL) {
+		node->server->tcp_nodes = node;
+	} else {
+		struct linked_list_tcp_node *cur_node = node->server->tcp_nodes;
+		while (cur_node->next != NULL) {
+			cur_node = cur_node->next;
+		}
+		cur_node->next = cur_node;
+	}
+	pthread_mutex_unlock(&node->server->mutex);
+}
+
+void remove_all_tcp_nodes(tcp_server *server) {
+	pthread_mutex_lock(&server->mutex);
+	struct linked_list_tcp_node *cur_node = server->tcp_nodes;
+	while (cur_node != NULL) {
+		struct linked_list_tcp_node *next = cur_node->next;
+		// stop tcp thread
+		cur_node->config->is_running = false;
+		close(cur_node->config->client_socket);
+
+		// wait while thread stopped
+		pthread_join(cur_node->client_thread, NULL);
+
+		cur_node = next;
+	}
+	server->tcp_nodes = NULL;
+	pthread_mutex_unlock(&server->mutex);
 }
 
 static void* acceptor_worker(void *arg) {
@@ -219,23 +291,27 @@ static void* acceptor_worker(void *arg) {
 		config->id = client_counter;
 		client_counter++;
 
-		int code = add_client(config);
-		if (code != 0) {
+		struct linked_list_tcp_node *tcp_node = malloc(sizeof(struct linked_list_tcp_node));
+		if (tcp_node == NULL) {
 			respond_failure(client_socket, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_INTERNAL_ERROR);
 			free(config);
 			continue;
 		}
-
+		tcp_node->config = config;
 		pthread_t client_thread;
-		code = pthread_create(&client_thread, &server->attr, &client_worker, config);
+		tcp_node->client_thread = client_thread;
+		tcp_node->next = NULL;
+		tcp_node->server = server;
+
+		int code = pthread_create(&client_thread, &server->attr, &client_worker, tcp_node);
 		if (code != 0) {
 			respond_failure(client_socket, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_INTERNAL_ERROR);
-			remove_client(config);
 			free(config);
+			free(tcp_node);
 			continue;
 		}
 
-		write_message(client_socket, RESPONSE_STATUS_SUCCESS, config->id);
+		add_tcp_node(tcp_node);
 	}
 
 	int code = pthread_attr_destroy(&server->attr);
@@ -243,6 +319,8 @@ static void* acceptor_worker(void *arg) {
 		perror("unable to destroy attribute");
 		return (void*) -1;
 	}
+
+	remove_all_tcp_nodes(server);
 
 	printf("[tcp server] stopped\n");
 	return (void*) 0;
@@ -253,6 +331,9 @@ int start_tcp_server(struct server_config *config, core *core, tcp_server **serv
 	if (result == NULL) {
 		return -ENOMEM;
 	}
+	result->mutex = (pthread_mutex_t )PTHREAD_MUTEX_INITIALIZER;
+	result->tcp_nodes = NULL;
+
 	int server_socket = socket(AF_INET, SOCK_STREAM, 0);
 	if (server_socket == 0) {
 		free(result);

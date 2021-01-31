@@ -31,6 +31,7 @@ int create_server_config(struct server_config **config, const char *path) {
 	if (result == NULL) {
 		return -ENOMEM;
 	}
+	*result = (struct server_config ) { 0 };
 
 	config_t libconfig;
 	config_init(&libconfig);

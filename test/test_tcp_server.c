@@ -14,6 +14,7 @@ core *core_obj = NULL;
 struct server_config *config = NULL;
 struct tcp_client *client0 = NULL;
 struct tcp_client *client1 = NULL;
+struct tcp_client *client2 = NULL;
 
 void reconnect_client() {
 	destroy_client(client0);
@@ -118,14 +119,14 @@ START_TEST (test_connect_disconnect) {
 	send_message(client1, PROTOCOL_VERSION, TYPE_REQUEST, 460700000, 48000, 460600000);
 	assert_response(client1, TYPE_RESPONSE, RESPONSE_STATUS_SUCCESS, 1);
 
-	struct message_header header;
-	header.protocol_version = PROTOCOL_VERSION;
-	header.type = TYPE_SHUTDOWN;
-	// not necessary, but I don't want to write another method:
-	// write_client_message_header
-	struct request req = { 0 };
-	code = write_client_message(header, req, client0);
+	code = create_client(config->bind_address, config->port, &client2);
 	ck_assert_int_eq(code, 0);
+	send_message(client2, PROTOCOL_VERSION, TYPE_REQUEST, 460700000, 48000, 460600000);
+	assert_response(client2, TYPE_RESPONSE, RESPONSE_STATUS_SUCCESS, 2);
+
+	send_message(client1, PROTOCOL_VERSION, TYPE_SHUTDOWN, 0, 0, 0);
+	// no response here is expected
+	send_message(client0, PROTOCOL_VERSION, TYPE_SHUTDOWN, 0, 0, 0);
 	// no response here is expected
 }
 END_TEST
@@ -141,6 +142,8 @@ void teardown() {
 	client0 = NULL;
 	destroy_client(client1);
 	client1 = NULL;
+	destroy_client(client2);
+	client2 = NULL;
 }
 
 void setup() {

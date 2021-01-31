@@ -200,8 +200,7 @@ static void* acceptor_worker(void *arg) {
 
 		struct client_config *config = NULL;
 		if (read_client_config(client_socket, server->server_config, &config) < 0) {
-			// close silently
-			close(client_socket);
+			respond_failure(client_socket, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_INVALID_REQUEST);
 			continue;
 		}
 		if (validate_client_config(config, server->server_config) < 0) {

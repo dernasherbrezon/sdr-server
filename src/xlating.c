@@ -179,8 +179,8 @@ int create_frequency_xlating_filter(uint32_t decimation, float *taps, size_t tap
 		destroy_xlating(result);
 		return -ENOMEM;
 	}
-	for (size_t i = 0; i < 256; i++) {
-		result->lookup_table[i] = (i - 127.5f) / 128.0f;
+	for (int i = 0; i < 256; i++) {
+		result->lookup_table[i] = (i - 127.5F) / 128.0F;
 	}
 
 	result->volk_output = volk_malloc(1 * sizeof(float complex), alignment);

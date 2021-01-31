@@ -241,15 +241,17 @@ void remove_all_tcp_nodes(tcp_server *server) {
 		cur_node = next;
 	}
 	// store all threads in array
-	threads = malloc(sizeof(pthread_t) * number_of_threads);
-	if (threads != NULL) {
-		int i = 0;
-		struct linked_list_tcp_node *cur_node = server->tcp_nodes;
-		while (cur_node != NULL) {
-			struct linked_list_tcp_node *next = cur_node->next;
-			threads[i] = cur_node->client_thread;
-			i++;
-			cur_node = next;
+	if (number_of_threads > 0) {
+		threads = malloc(sizeof(pthread_t) * number_of_threads);
+		if (threads != NULL) {
+			int i = 0;
+			cur_node = server->tcp_nodes;
+			while (cur_node != NULL) {
+				struct linked_list_tcp_node *next = cur_node->next;
+				threads[i] = cur_node->client_thread;
+				i++;
+				cur_node = next;
+			}
 		}
 	}
 	server->tcp_nodes = NULL;

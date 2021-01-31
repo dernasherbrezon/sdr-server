@@ -14,6 +14,7 @@
  * Output will be decimated to the requested bandwidth
  * Clients can request overlapping RF spectrum
  * Rtl-sdr starts only after first client connects (i.e. save solar power &etc). Stops only when last client disconnects
+ * MacOS and Linux (Debian Raspberrypi)
  
 ## Design
 

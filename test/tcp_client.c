@@ -51,6 +51,9 @@ int write_data(uint8_t *buffer, size_t total_len, struct tcp_client *tcp_client)
 }
 
 int write_client_message(struct message_header header, struct request req, struct tcp_client *tcp_client) {
+	req.band_freq = htonl(req.band_freq);
+	req.center_freq = htonl(req.center_freq);
+	req.sampling_rate = htonl(req.sampling_rate);
 	// it is possible to directly populate *buffer with the fields,
 	// however populating structs and then serializing them into byte array
 	// is more readable

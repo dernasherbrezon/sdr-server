@@ -83,8 +83,8 @@ int create_core(struct server_config *server_config, core **result) {
 }
 
 static void* dsp_worker(void *arg) {
-	fprintf(stdout, "[dsp_worker] starting\n");
 	struct linked_list_node *config_node = (struct linked_list_node*) arg;
+	fprintf(stdout, "[dsp_worker %d] starting\n", config_node->config->id);
 	uint8_t *input = NULL;
 	int input_len = 0;
 	float complex *filter_output = NULL;
@@ -113,7 +113,7 @@ static void* dsp_worker(void *arg) {
 		complete_buffer_processing(config_node->queue);
 	}
 	destroy_queue(config_node->queue);
-	printf("[dsp_worker] stopped\n");
+	printf("[dsp_worker %d] stopped\n", config_node->config->id);
 	return (void*) 0;
 }
 
@@ -212,7 +212,7 @@ void destroy_node(struct linked_list_node *node) {
 	if (node == NULL) {
 		return;
 	}
-	fprintf(stdout, "[dsp_worker] stopping\n");
+	fprintf(stdout, "[dsp_worker %d] stopping\n", node->config->id);
 	if (node->queue != NULL) {
 		interrupt_waiting_the_data(node->queue);
 	}
@@ -247,6 +247,7 @@ int add_client(struct client_config *config) {
 	}
 	// init all fields with 0 so that destroy_* method would work
 	*config_node = (struct linked_list_node ) { 0 };
+	config_node->config = config;
 
 	// setup taps
 	float *taps = NULL;
@@ -264,7 +265,6 @@ int add_client(struct client_config *config) {
 		return code;
 	}
 	config_node->filter = filter;
-	config_node->config = config;
 
 	//TODO add optional stream back to client via socket
 	if (config->core->server_config->use_gzip) {

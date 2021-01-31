@@ -102,7 +102,7 @@ START_TEST (test_connect_disconnect) {
 	create_and_init_tcpserver();
 
 	send_message(PROTOCOL_VERSION, TYPE_REQUEST, 460700000, 48000, 460600000);
-	assert_response(TYPE_RESPONSE, RESPONSE_STATUS_SUCCESS, RESPONSE_DETAILS_SUCCESS);
+	assert_response(TYPE_RESPONSE, RESPONSE_STATUS_SUCCESS, 0);
 
 	struct message_header header;
 	header.protocol_version = PROTOCOL_VERSION;

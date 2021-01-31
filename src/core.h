@@ -14,7 +14,7 @@ struct client_config {
 	uint32_t sampling_rate;
 	uint32_t band_freq;
 	int client_socket;
-	uint32_t id;
+	uint8_t id;
 	volatile sig_atomic_t is_running;
 	core *core;
 };

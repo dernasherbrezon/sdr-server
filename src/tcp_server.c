@@ -69,9 +69,9 @@ int read_client_config(int client_socket, struct server_config *server_config, s
 		free(result);
 		return -1;
 	}
-	result->center_freq = req.center_freq;
-	result->sampling_rate = req.sampling_rate;
-	result->band_freq = req.band_freq;
+	result->center_freq = ntohl(req.center_freq);
+	result->sampling_rate = ntohl(req.sampling_rate);
+	result->band_freq = ntohl(req.band_freq);
 	result->client_socket = client_socket;
 	if (result->sampling_rate > 0 && server_config->band_sampling_rate % result->sampling_rate != 0) {
 		fprintf(stderr, "sampling frequency is not an integer factor of server sample rate: %u\n", server_config->band_sampling_rate);
@@ -179,7 +179,7 @@ static void* acceptor_worker(void *arg) {
 	tcp_server *server = (tcp_server*) arg;
 	uint32_t current_band_freq = 0;
 	struct sockaddr_in address;
-	uint32_t client_counter = 0;
+	uint8_t client_counter = 0;
 	while (server->is_running) {
 		int client_socket;
 		int addrlen = sizeof(address);
@@ -239,7 +239,7 @@ static void* acceptor_worker(void *arg) {
 			continue;
 		}
 
-		write_message(client_socket, RESPONSE_STATUS_SUCCESS, RESPONSE_DETAILS_SUCCESS);
+		write_message(client_socket, RESPONSE_STATUS_SUCCESS, config->id);
 	}
 
 	int code = pthread_attr_destroy(&server->attr);

@@ -245,11 +245,9 @@ static void* acceptor_worker(void *arg) {
 	int code = pthread_attr_destroy(&server->attr);
 	if (code != 0) {
 		perror("unable to destroy attribute");
-		free(server);
 		return (void*) -1;
 	}
 
-	free(server);
 	printf("[tcp server] stopped\n");
 	return (void*) 0;
 }
@@ -345,6 +343,6 @@ void stop_tcp_server(tcp_server *server) {
 		close(server->server_socket);
 	}
 	pthread_join(server->acceptor_thread, NULL);
-	// do not free tcp_server here
-	// it should be destroyed on the thread during shutdown
+
+	free(server);
 }

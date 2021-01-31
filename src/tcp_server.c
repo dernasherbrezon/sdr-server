@@ -22,7 +22,6 @@ struct linked_list_tcp_node {
 
 struct tcp_server_t {
 	int server_socket;
-	pthread_attr_t attr;
 	volatile sig_atomic_t is_running;
 	pthread_t acceptor_thread;
 	core *core;
@@ -326,7 +325,7 @@ static void* acceptor_worker(void *arg) {
 		tcp_node->server = server;
 
 		pthread_t client_thread;
-		int code = pthread_create(&client_thread, &server->attr, &tcp_worker, tcp_node);
+		int code = pthread_create(&client_thread, NULL, &tcp_worker, tcp_node);
 		if (code != 0) {
 			respond_failure(client_socket, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_INTERNAL_ERROR);
 			free(config);
@@ -336,12 +335,6 @@ static void* acceptor_worker(void *arg) {
 		tcp_node->client_thread = client_thread;
 
 		add_tcp_node(tcp_node);
-	}
-
-	int code = pthread_attr_destroy(&server->attr);
-	if (code != 0) {
-		perror("unable to destroy attribute");
-		return (void*) -1;
 	}
 
 	remove_all_tcp_nodes(server);
@@ -398,25 +391,10 @@ int start_tcp_server(struct server_config *config, core *core, tcp_server **serv
 		perror("listen failed");
 		return -1;
 	}
-
-	pthread_attr_t attr;
-	int code = pthread_attr_init(&attr);
-	if (code != 0) {
-		free(result);
-		perror("unable to init attributes");
-		return -1;
-	}
-	code = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	if (code != 0) {
-		free(result);
-		perror("unable to set attribute");
-		return -1;
-	}
-	result->attr = attr;
 	result->core = core;
 
 	pthread_t acceptor_thread;
-	code = pthread_create(&acceptor_thread, NULL, &acceptor_worker, result);
+	int code = pthread_create(&acceptor_thread, NULL, &acceptor_worker, result);
 	if (code != 0) {
 		free(result);
 		return -1;

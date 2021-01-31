@@ -221,7 +221,7 @@ void add_tcp_node(struct linked_list_tcp_node *node) {
 		while (cur_node->next != NULL) {
 			cur_node = cur_node->next;
 		}
-		cur_node->next = cur_node;
+		cur_node->next = node;
 	}
 	pthread_mutex_unlock(&node->server->mutex);
 }

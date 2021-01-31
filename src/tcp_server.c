@@ -171,6 +171,7 @@ void destroy_tcp_node(struct linked_list_tcp_node *node) {
 		} else {
 			previous_node->next = cur_node->next;
 		}
+		break;
 	}
 	pthread_mutex_unlock(&node->server->mutex);
 	int id = node->config->id;

@@ -131,6 +131,17 @@ START_TEST (test_connect_disconnect) {
 }
 END_TEST
 
+START_TEST (test_connect_disconnect_single_client) {
+	create_and_init_tcpserver();
+
+	send_message(client0, PROTOCOL_VERSION, TYPE_REQUEST, 460700000, 48000, 460600000);
+	assert_response(client0, TYPE_RESPONSE, RESPONSE_STATUS_SUCCESS, 0);
+
+	send_message(client0, PROTOCOL_VERSION, TYPE_SHUTDOWN, 0, 0, 0);
+	reconnect_client();
+}
+END_TEST
+
 void teardown() {
 	stop_tcp_server(server);
 	server = NULL;
@@ -163,6 +174,7 @@ Suite* common_suite(void) {
 	tcase_add_test(tc_core, test_invalid_request);
 	tcase_add_test(tc_core, test_partial_request);
 	tcase_add_test(tc_core, test_connect_and_keep_quiet);
+	tcase_add_test(tc_core, test_connect_disconnect_single_client);
 
 	tcase_add_checked_fixture(tc_core, setup, teardown);
 	suite_add_tcase(s, tc_core);

@@ -322,11 +322,10 @@ static void* acceptor_worker(void *arg) {
 			continue;
 		}
 		tcp_node->config = config;
-		pthread_t client_thread;
-		tcp_node->client_thread = client_thread;
 		tcp_node->next = NULL;
 		tcp_node->server = server;
 
+		pthread_t client_thread;
 		int code = pthread_create(&client_thread, &server->attr, &tcp_worker, tcp_node);
 		if (code != 0) {
 			respond_failure(client_socket, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_INTERNAL_ERROR);
@@ -334,6 +333,7 @@ static void* acceptor_worker(void *arg) {
 			free(tcp_node);
 			continue;
 		}
+		tcp_node->client_thread = client_thread;
 
 		add_tcp_node(tcp_node);
 	}

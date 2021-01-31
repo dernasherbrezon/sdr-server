@@ -130,7 +130,7 @@ int create_server_config(struct server_config **config, const char *path) {
 		read_timeout_seconds = config_setting_get_int(setting);
 		if (read_timeout_seconds <= 0) {
 			config_destroy(&libconfig);
-			free(result);
+			destroy_server_config(result);
 			fprintf(stderr, "read timeout should be positive: %d\n", read_timeout_seconds);
 			return -1;
 		}

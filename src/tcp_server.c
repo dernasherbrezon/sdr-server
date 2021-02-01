@@ -42,6 +42,13 @@ int read_struct(int socket, void *result, size_t len) {
 	while (left > 0) {
 		int received = recv(socket, (char*) result + (len - left), left, 0);
 		if (received < 0) {
+			if (errno == EWOULDBLOCK || errno == EAGAIN) {
+				return -errno;
+			}
+			return -1;
+		}
+		// client has closed the socket
+		if (received == 0) {
 			return -1;
 		}
 		left -= received;
@@ -58,7 +65,7 @@ int read_client_config(int client_socket, struct server_config *server_config, s
 	*result = (struct client_config ) { 0 };
 	struct message_header header;
 	if (read_struct(client_socket, &header, sizeof(struct message_header)) < 0) {
-		fprintf(stderr, "unable to read header fully\n");
+		fprintf(stderr, "unable to read request header fully\n");
 		free(result);
 		return -1;
 	}
@@ -190,7 +197,13 @@ static void* tcp_worker(void *arg) {
 		write_message(node->config->client_socket, RESPONSE_STATUS_SUCCESS, node->config->id);
 		while (node->config->is_running) {
 			struct message_header header;
-			if (read_struct(node->config->client_socket, &header, sizeof(struct message_header)) < 0) {
+			code = read_struct(node->config->client_socket, &header, sizeof(struct message_header));
+			if (code < -1) {
+				// read timeout happened. it's ok.
+				// client already sent all information we need
+				continue;
+			}
+			if (code == -1) {
 				fprintf(stdout, "client disconnected: %u\n", node->config->id);
 				break;
 			}
@@ -234,12 +247,11 @@ void remove_all_tcp_nodes(tcp_server *server) {
 	// get number of threads and signal them to terminate
 	struct linked_list_tcp_node *cur_node = server->tcp_nodes;
 	while (cur_node != NULL) {
-		struct linked_list_tcp_node *next = cur_node->next;
 		cur_node->config->is_running = false;
 		close(cur_node->config->client_socket);
 		fprintf(stdout, "[tcp_worker %d] stopping\n", cur_node->config->id);
 		number_of_threads++;
-		cur_node = next;
+		cur_node = cur_node->next;
 	}
 	// store all threads in array
 	if (number_of_threads > 0) {
@@ -248,10 +260,9 @@ void remove_all_tcp_nodes(tcp_server *server) {
 			int i = 0;
 			cur_node = server->tcp_nodes;
 			while (cur_node != NULL) {
-				struct linked_list_tcp_node *next = cur_node->next;
 				threads[i] = cur_node->client_thread;
 				i++;
-				cur_node = next;
+				cur_node = cur_node->next;
 			}
 		}
 	}

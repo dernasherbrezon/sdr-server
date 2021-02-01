@@ -33,21 +33,6 @@ void create_and_init_tcpserver() {
 	reconnect_client();
 }
 
-// this test will ensure tcp server stops
-// if client connected and didn't send anything
-START_TEST (test_connect_and_keep_quiet) {
-	create_and_init_tcpserver();
-}
-END_TEST
-
-START_TEST (test_partial_request) {
-	create_and_init_tcpserver();
-	uint8_t buffer[] = { PROTOCOL_VERSION };
-	int code = write_data(buffer, sizeof(buffer), client0);
-	ck_assert_int_eq(code, 0);
-}
-END_TEST
-
 void send_message(struct tcp_client *client, uint8_t protocol, uint8_t type, uint32_t center_freq, uint32_t sampling_rate, uint32_t band_freq) {
 	struct message_header header;
 	header.protocol_version = protocol;
@@ -71,6 +56,21 @@ void assert_response(struct tcp_client *client, uint8_t type, uint8_t status, ui
 	free(resp);
 	free(response_header);
 }
+
+// this test will ensure tcp server stops
+// if client connected and didn't send anything
+START_TEST (test_connect_and_keep_quiet) {
+	create_and_init_tcpserver();
+}
+END_TEST
+
+START_TEST (test_partial_request) {
+	create_and_init_tcpserver();
+	uint8_t buffer[] = { PROTOCOL_VERSION };
+	int code = write_data(buffer, sizeof(buffer), client0);
+	ck_assert_int_eq(code, 0);
+}
+END_TEST
 
 START_TEST (test_invalid_request) {
 	create_and_init_tcpserver();
@@ -136,9 +136,17 @@ START_TEST (test_connect_disconnect_single_client) {
 
 	send_message(client0, PROTOCOL_VERSION, TYPE_REQUEST, 460700000, 48000, 460600000);
 	assert_response(client0, TYPE_RESPONSE, RESPONSE_STATUS_SUCCESS, 0);
+}
+END_TEST
 
-	send_message(client0, PROTOCOL_VERSION, TYPE_SHUTDOWN, 0, 0, 0);
-	reconnect_client();
+START_TEST (test_disconnect_client) {
+	create_and_init_tcpserver();
+
+	send_message(client0, PROTOCOL_VERSION, TYPE_REQUEST, 460700000, 48000, 460600000);
+	assert_response(client0, TYPE_RESPONSE, RESPONSE_STATUS_SUCCESS, 0);
+
+	destroy_client(client0);
+	client0 = NULL;
 }
 END_TEST
 
@@ -175,6 +183,7 @@ Suite* common_suite(void) {
 	tcase_add_test(tc_core, test_partial_request);
 	tcase_add_test(tc_core, test_connect_and_keep_quiet);
 	tcase_add_test(tc_core, test_connect_disconnect_single_client);
+	tcase_add_test(tc_core, test_disconnect_client);
 
 	tcase_add_checked_fixture(tc_core, setup, teardown);
 	suite_add_tcase(s, tc_core);

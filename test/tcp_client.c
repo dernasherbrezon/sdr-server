@@ -73,7 +73,7 @@ int read_response_struct(int socket, void *result, size_t len) {
 	size_t left = len;
 	while (left > 0) {
 		int received = recv(socket, (char*) result + (len - left), left, 0);
-		if (received < 0) {
+		if (received <= 0) {
 			perror("unable to read the message");
 			return -1;
 		}

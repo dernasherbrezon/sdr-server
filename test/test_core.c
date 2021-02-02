@@ -48,7 +48,7 @@ void assert_complex(const float expected[], size_t expected_size, float complex 
 
 void assert_file(int id, const float expected[], size_t expected_size) {
 	char file_path[4096];
-	snprintf(file_path, sizeof(file_path), "%s/%d.raw", config->base_path, id);
+	snprintf(file_path, sizeof(file_path), "%s/%d.cf32", config->base_path, id);
 	fprintf(stdout, "checking: %s\n", file_path);
 	FILE *f = fopen(file_path, "rb");
 	ck_assert(f != NULL);
@@ -80,7 +80,7 @@ int read_gzfile_fully(gzFile f, void *result, size_t len) {
 
 void assert_gzfile(int id, const float expected[], size_t expected_size) {
 	char file_path[4096];
-	snprintf(file_path, sizeof(file_path), "%s/%d.raw.gz", config->base_path, id);
+	snprintf(file_path, sizeof(file_path), "%s/%d.cf32.gz", config->base_path, id);
 	fprintf(stdout, "checking: %s\n", file_path);
 	gzFile f = gzopen(file_path, "rb");
 	ck_assert(f != NULL);

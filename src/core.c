@@ -263,7 +263,7 @@ int add_client(struct client_config *config) {
 	//TODO add optional stream back to client via socket
 	if (config->core->server_config->use_gzip) {
 		char file_path[4096];
-		snprintf(file_path, sizeof(file_path), "%s/%d.raw.gz", config->core->server_config->base_path, config->id);
+		snprintf(file_path, sizeof(file_path), "%s/%d.cf32.gz", config->core->server_config->base_path, config->id);
 		config_node->gz = gzopen(file_path, "wb");
 		if (config_node->gz == NULL) {
 			fprintf(stderr, "unable to open gz file for output: %s\n", file_path);
@@ -272,7 +272,7 @@ int add_client(struct client_config *config) {
 		}
 	} else {
 		char file_path[4096];
-		snprintf(file_path, sizeof(file_path), "%s/%d.raw", config->core->server_config->base_path, config->id);
+		snprintf(file_path, sizeof(file_path), "%s/%d.cf32", config->core->server_config->base_path, config->id);
 		config_node->file = fopen(file_path, "wb");
 		if (config_node->file == NULL) {
 			fprintf(stderr, "unable to open file for output: %s\n", file_path);

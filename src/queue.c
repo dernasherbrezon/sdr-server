@@ -2,6 +2,8 @@
 #include <errno.h>
 #include <pthread.h>
 #include <string.h>
+#include <stdio.h>
+
 #include "queue.h"
 
 struct queue_node {
@@ -89,6 +91,7 @@ void queue_put(const uint8_t *buffer, const int len, queue *queue) {
 		// queue is full
 		// overwrite last node
 		to_fill = queue->last_filled_node;
+		fprintf(stderr, "queue is full\n");
 	} else {
 		// remove from free nodes pool
 		to_fill = queue->first_free_node;

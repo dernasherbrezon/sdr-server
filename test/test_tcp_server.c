@@ -8,6 +8,8 @@
 #include <stdio.h>
 
 extern void init_mock_librtlsdr();
+extern void wait_for_data_read();
+extern void setup_mock_data(uint8_t *buffer, int len);
 
 tcp_server *server = NULL;
 core *core_obj = NULL;
@@ -15,6 +17,23 @@ struct server_config *config = NULL;
 struct tcp_client *client0 = NULL;
 struct tcp_client *client1 = NULL;
 struct tcp_client *client2 = NULL;
+uint8_t *input = NULL;
+
+void assert_float_array(const float expected[], size_t expected_size, float *actual, size_t actual_size) {
+	ck_assert_int_eq(expected_size, actual_size);
+	for (size_t i = 0; i < expected_size; i++) {
+		ck_assert_int_eq((int32_t ) expected[i] * 10000, (int32_t ) actual[i] * 10000);
+	}
+}
+
+void create_input_data(size_t input_offset, size_t len) {
+	input = malloc(sizeof(uint8_t) * len);
+	ck_assert(input != NULL);
+	for (size_t i = 0; i < len; i++) {
+		// don't care about the loss of data
+		input[i] = (uint8_t) (input_offset + i);
+	}
+}
 
 void reconnect_client() {
 	destroy_client(client0);
@@ -33,7 +52,7 @@ void create_and_init_tcpserver() {
 	reconnect_client();
 }
 
-void send_message(struct tcp_client *client, uint8_t protocol, uint8_t type, uint32_t center_freq, uint32_t sampling_rate, uint32_t band_freq) {
+void send_message(struct tcp_client *client, uint8_t protocol, uint8_t type, uint32_t center_freq, uint32_t sampling_rate, uint32_t band_freq, uint8_t destination) {
 	struct message_header header;
 	header.protocol_version = protocol;
 	header.type = type;
@@ -41,6 +60,7 @@ void send_message(struct tcp_client *client, uint8_t protocol, uint8_t type, uin
 	req.band_freq = band_freq;
 	req.center_freq = center_freq;
 	req.sampling_rate = sampling_rate;
+	req.destination = destination;
 	int code = write_client_message(header, req, client);
 	ck_assert_int_eq(code, 0);
 }
@@ -48,7 +68,7 @@ void send_message(struct tcp_client *client, uint8_t protocol, uint8_t type, uin
 void assert_response(struct tcp_client *client, uint8_t type, uint8_t status, uint8_t details) {
 	struct message_header *response_header = NULL;
 	struct response *resp = NULL;
-	int code = read_data(&response_header, &resp, client);
+	int code = read_response(&response_header, &resp, client);
 	ck_assert_int_eq(code, 0);
 	ck_assert_int_eq(response_header->type, type);
 	ck_assert_int_eq(resp->status, status);
@@ -75,35 +95,39 @@ END_TEST
 START_TEST (test_invalid_request) {
 	create_and_init_tcpserver();
 
-	send_message(client0, PROTOCOL_VERSION, TYPE_REQUEST, 460700000, 48000, 0);
+	send_message(client0, PROTOCOL_VERSION, TYPE_REQUEST, 460700000, 48000, 0, REQUEST_DESTINATION_FILE);
 	assert_response(client0, TYPE_RESPONSE, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_INVALID_REQUEST);
 
 	reconnect_client();
-	send_message(client0, PROTOCOL_VERSION, TYPE_REQUEST, 460700000, 0, 460600000);
+	send_message(client0, PROTOCOL_VERSION, TYPE_REQUEST, 460700000, 0, 460600000, REQUEST_DESTINATION_FILE);
 	assert_response(client0, TYPE_RESPONSE, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_INVALID_REQUEST);
 
 	reconnect_client();
-	send_message(client0, PROTOCOL_VERSION, TYPE_REQUEST, 0, 48000, 460600000);
+	send_message(client0, PROTOCOL_VERSION, TYPE_REQUEST, 0, 48000, 460600000, REQUEST_DESTINATION_FILE);
 	assert_response(client0, TYPE_RESPONSE, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_INVALID_REQUEST);
 
 	reconnect_client();
-	send_message(client0, 0x99, TYPE_REQUEST, 460700000, 48000, 460600000);
+	send_message(client0, 0x99, TYPE_REQUEST, 460700000, 48000, 460600000, REQUEST_DESTINATION_FILE);
 	assert_response(client0, TYPE_RESPONSE, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_INVALID_REQUEST);
 
 	reconnect_client();
-	send_message(client0, PROTOCOL_VERSION, 0x99, 460700000, 48000, 460600000);
+	send_message(client0, PROTOCOL_VERSION, 0x99, 460700000, 48000, 460600000, REQUEST_DESTINATION_FILE);
 	assert_response(client0, TYPE_RESPONSE, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_INVALID_REQUEST);
 
 	reconnect_client();
-	send_message(client0, PROTOCOL_VERSION, TYPE_REQUEST, 460700000, 47000, 460600000);
+	send_message(client0, PROTOCOL_VERSION, TYPE_REQUEST, 460700000, 47000, 460600000, REQUEST_DESTINATION_FILE);
 	assert_response(client0, TYPE_RESPONSE, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_INVALID_REQUEST);
 
 	reconnect_client();
-	send_message(client0, PROTOCOL_VERSION, TYPE_REQUEST, 462400000, 48000, 460600000);
+	send_message(client0, PROTOCOL_VERSION, TYPE_REQUEST, 462400000, 48000, 460600000, REQUEST_DESTINATION_FILE);
 	assert_response(client0, TYPE_RESPONSE, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_INVALID_REQUEST);
 
 	reconnect_client();
-	send_message(client0, PROTOCOL_VERSION, TYPE_REQUEST, 458800000, 48000, 460600000);
+	send_message(client0, PROTOCOL_VERSION, TYPE_REQUEST, 458800000, 48000, 460600000, REQUEST_DESTINATION_FILE);
+	assert_response(client0, TYPE_RESPONSE, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_INVALID_REQUEST);
+
+	reconnect_client();
+	send_message(client0, PROTOCOL_VERSION, TYPE_REQUEST, 460700000, 48000, 460600000, 0x99);
 	assert_response(client0, TYPE_RESPONSE, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_INVALID_REQUEST);
 }
 END_TEST
@@ -111,22 +135,22 @@ END_TEST
 START_TEST (test_connect_disconnect) {
 	create_and_init_tcpserver();
 
-	send_message(client0, PROTOCOL_VERSION, TYPE_REQUEST, 460700000, 48000, 460600000);
+	send_message(client0, PROTOCOL_VERSION, TYPE_REQUEST, 460700000, 48000, 460600000, REQUEST_DESTINATION_FILE);
 	assert_response(client0, TYPE_RESPONSE, RESPONSE_STATUS_SUCCESS, 0);
 
 	int code = create_client(config->bind_address, config->port, &client1);
 	ck_assert_int_eq(code, 0);
-	send_message(client1, PROTOCOL_VERSION, TYPE_REQUEST, 460700000, 48000, 460600000);
+	send_message(client1, PROTOCOL_VERSION, TYPE_REQUEST, 460700000, 48000, 460600000, REQUEST_DESTINATION_FILE);
 	assert_response(client1, TYPE_RESPONSE, RESPONSE_STATUS_SUCCESS, 1);
 
 	code = create_client(config->bind_address, config->port, &client2);
 	ck_assert_int_eq(code, 0);
-	send_message(client2, PROTOCOL_VERSION, TYPE_REQUEST, 460700000, 48000, 460600000);
+	send_message(client2, PROTOCOL_VERSION, TYPE_REQUEST, 460700000, 48000, 460600000, REQUEST_DESTINATION_FILE);
 	assert_response(client2, TYPE_RESPONSE, RESPONSE_STATUS_SUCCESS, 2);
 
-	send_message(client1, PROTOCOL_VERSION, TYPE_SHUTDOWN, 0, 0, 0);
+	send_message(client1, PROTOCOL_VERSION, TYPE_SHUTDOWN, 0, 0, 0, 0);
 	// no response here is expected
-	send_message(client0, PROTOCOL_VERSION, TYPE_SHUTDOWN, 0, 0, 0);
+	send_message(client0, PROTOCOL_VERSION, TYPE_SHUTDOWN, 0, 0, 0, 0);
 	// no response here is expected
 }
 END_TEST
@@ -134,7 +158,7 @@ END_TEST
 START_TEST (test_connect_disconnect_single_client) {
 	create_and_init_tcpserver();
 
-	send_message(client0, PROTOCOL_VERSION, TYPE_REQUEST, 460700000, 48000, 460600000);
+	send_message(client0, PROTOCOL_VERSION, TYPE_REQUEST, 460700000, 48000, 460600000, REQUEST_DESTINATION_FILE);
 	assert_response(client0, TYPE_RESPONSE, RESPONSE_STATUS_SUCCESS, 0);
 }
 END_TEST
@@ -142,11 +166,41 @@ END_TEST
 START_TEST (test_disconnect_client) {
 	create_and_init_tcpserver();
 
-	send_message(client0, PROTOCOL_VERSION, TYPE_REQUEST, 460700000, 48000, 460600000);
+	send_message(client0, PROTOCOL_VERSION, TYPE_REQUEST, 460700000, 48000, 460600000, REQUEST_DESTINATION_FILE);
 	assert_response(client0, TYPE_RESPONSE, RESPONSE_STATUS_SUCCESS, 0);
 
 	destroy_client(client0);
 	client0 = NULL;
+}
+END_TEST
+
+START_TEST (test_destination_socket) {
+	// make input/output compatible with test_core
+	int code = create_server_config(&config, "tcp_server.config");
+	ck_assert_int_eq(code, 0);
+	config->band_sampling_rate = 48000;
+	code = create_core(config, &core_obj);
+	ck_assert_int_eq(code, 0);
+	code = start_tcp_server(config, core_obj, &server);
+	ck_assert_int_eq(code, 0);
+	reconnect_client();
+
+	send_message(client0, PROTOCOL_VERSION, TYPE_REQUEST, -12000 + 460100200, 9600, 460100200, REQUEST_DESTINATION_SOCKET);
+	assert_response(client0, TYPE_RESPONSE, RESPONSE_STATUS_SUCCESS, 0);
+
+	int length = 200;
+	create_input_data(0, length);
+	setup_mock_data(input, length);
+	wait_for_data_read();
+
+	const float expected[] = { 0.000863, 0.000856, -0.000321, -0.001891, 0.000503, 0.007740, -0.002556, -0.018693, 0.006283, 0.040774, -0.030721, -0.127291, 0.027252, -0.129404, -0.004634, 0.040908, 0.002169, -0.018314, -0.000892, 0.007892, 0.000249, -0.002613, -0.000070, 0.000939, -0.000113, 0.000749, -0.000698, -0.000163, 0.000214, -0.000648, 0.000597, 0.000264, -0.000315, 0.000547, -0.000496, -0.000365, 0.000415, -0.000446, 0.000395, 0.000466 };
+
+	float *actual = malloc(sizeof(expected));
+	ck_assert(actual != NULL);
+	code = read_data(actual, sizeof(expected), client0);
+	ck_assert_int_eq(code, 0);
+	assert_float_array(expected, sizeof(expected) / sizeof(float), actual, sizeof(expected) / sizeof(float));
+	free(actual);
 }
 END_TEST
 
@@ -163,6 +217,10 @@ void teardown() {
 	client1 = NULL;
 	destroy_client(client2);
 	client2 = NULL;
+	if (input != NULL) {
+		free(input);
+		input = NULL;
+	}
 }
 
 void setup() {
@@ -184,6 +242,7 @@ Suite* common_suite(void) {
 	tcase_add_test(tc_core, test_connect_and_keep_quiet);
 	tcase_add_test(tc_core, test_connect_disconnect_single_client);
 	tcase_add_test(tc_core, test_disconnect_client);
+	tcase_add_test(tc_core, test_destination_socket);
 
 	tcase_add_checked_fixture(tc_core, setup, teardown);
 	suite_add_tcase(s, tc_core);

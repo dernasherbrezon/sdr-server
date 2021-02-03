@@ -13,6 +13,7 @@
 #include "xlating.h"
 #include "queue.h"
 #include "core.h"
+#include "api.h"
 
 struct linked_list_node {
 	struct linked_list_node *next;
@@ -82,6 +83,37 @@ int create_core(struct server_config *server_config, core **result) {
 	return 0;
 }
 
+int write_to_file(struct linked_list_node *config_node, float complex *filter_output, size_t filter_output_len) {
+	size_t n_read;
+	if (config_node->file != NULL) {
+		n_read = fwrite(filter_output, sizeof(float complex), filter_output_len, config_node->file);
+	} else if (config_node->gz != NULL) {
+		n_read = gzwrite(config_node->gz, filter_output, sizeof(float complex) * filter_output_len);
+	} else {
+		fprintf(stderr, "unknown file output\n");
+		return -1;
+	}
+	// if disk is full, then terminate the client
+	if (n_read < filter_output_len) {
+		return -1;
+	} else {
+		return 0;
+	}
+}
+
+int write_to_socket(struct linked_list_node *config_node, float complex *filter_output, size_t filter_output_len) {
+	size_t total_len = filter_output_len * sizeof(float complex);
+	size_t left = total_len;
+	while (left > 0) {
+		int written = write(config_node->config->client_socket, (char*) filter_output + (total_len - left), left);
+		if (written < 0) {
+			return -1;
+		}
+		left -= written;
+	}
+	return 0;
+}
+
 static void* dsp_worker(void *arg) {
 	struct linked_list_node *config_node = (struct linked_list_node*) arg;
 	fprintf(stdout, "[dsp_worker %d] starting\n", config_node->config->id);
@@ -96,21 +128,22 @@ static void* dsp_worker(void *arg) {
 			break;
 		}
 		process(input, input_len, &filter_output, &filter_output_len, config_node->filter);
-		size_t n_read;
-		if (config_node->file != NULL) {
-			n_read = fwrite(filter_output, sizeof(float complex), filter_output_len, config_node->file);
-		} else if (config_node->gz != NULL) {
-			n_read = gzwrite(config_node->gz, filter_output, sizeof(float complex) * filter_output_len);
+		int code;
+		if (config_node->config->destination == REQUEST_DESTINATION_FILE) {
+			code = write_to_file(config_node, filter_output, filter_output_len);
+		} else if (config_node->config->destination == REQUEST_DESTINATION_SOCKET) {
+			code = write_to_socket(config_node, filter_output, filter_output_len);
 		} else {
-			fprintf(stderr, "unknown output\n");
-			break;
-		}
-		if (n_read < filter_output_len) {
-			// if disk is full, then terminate the client
-			break;
+			fprintf(stderr, "unknown destination: %d\n", config_node->config->destination);
+			code = -1;
 		}
 
 		complete_buffer_processing(config_node->queue);
+
+		if (code != 0) {
+			break;
+		}
+
 	}
 	destroy_queue(config_node->queue);
 	printf("[dsp_worker %d] stopped\n", config_node->config->id);
@@ -260,7 +293,6 @@ int add_client(struct client_config *config) {
 	}
 	config_node->filter = filter;
 
-	//TODO add optional stream back to client via socket
 	if (config->core->server_config->use_gzip) {
 		char file_path[4096];
 		snprintf(file_path, sizeof(file_path), "%s/%d.cf32.gz", config->core->server_config->base_path, config->id);

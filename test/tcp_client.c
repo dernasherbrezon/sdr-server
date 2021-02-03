@@ -69,10 +69,10 @@ int write_client_message(struct message_header header, struct request req, struc
 	return code;
 }
 
-int read_response_struct(int socket, void *result, size_t len) {
+int read_data(void *result, size_t len, struct tcp_client *tcp_client) {
 	size_t left = len;
 	while (left > 0) {
-		int received = recv(socket, (char*) result + (len - left), left, 0);
+		int received = recv(tcp_client->client_socket, (char*) result + (len - left), left, 0);
 		if (received <= 0) {
 			perror("unable to read the message");
 			return -1;
@@ -82,12 +82,12 @@ int read_response_struct(int socket, void *result, size_t len) {
 	return 0;
 }
 
-int read_data(struct message_header **response_header, struct response **resp, struct tcp_client *tcp_client) {
+int read_response(struct message_header **response_header, struct response **resp, struct tcp_client *tcp_client) {
 	struct message_header *header = malloc(sizeof(struct message_header));
 	if (header == NULL) {
 		return -ENOMEM;
 	}
-	int code = read_response_struct(tcp_client->client_socket, header, sizeof(struct message_header));
+	int code = read_data(header, sizeof(struct message_header), tcp_client);
 	if (code != 0) {
 		free(header);
 		return code;
@@ -97,7 +97,7 @@ int read_data(struct message_header **response_header, struct response **resp, s
 		free(header);
 		return -ENOMEM;
 	}
-	code = read_response_struct(tcp_client->client_socket, result, sizeof(struct response));
+	code = read_data(result, sizeof(struct response), tcp_client);
 	if (code != 0) {
 		free(header);
 		free(result);

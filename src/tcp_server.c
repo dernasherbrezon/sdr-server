@@ -89,6 +89,7 @@ int read_client_config(int client_socket, struct server_config *server_config, s
 	result->sampling_rate = ntohl(req.sampling_rate);
 	result->band_freq = ntohl(req.band_freq);
 	result->client_socket = client_socket;
+	result->destination = req.destination;
 	if (result->sampling_rate > 0 && server_config->band_sampling_rate % result->sampling_rate != 0) {
 		fprintf(stderr, "sampling frequency is not an integer factor of server sample rate: %u\n", server_config->band_sampling_rate);
 		free(result);
@@ -110,6 +111,10 @@ int validate_client_config(struct client_config *config, struct server_config *s
 	}
 	if (config->band_freq == 0) {
 		fprintf(stderr, "missing band_freq parameter\n");
+		return -1;
+	}
+	if (config->destination != REQUEST_DESTINATION_FILE && config->destination != REQUEST_DESTINATION_SOCKET) {
+		fprintf(stderr, "unknown destination: %d\n", config->destination);
 		return -1;
 	}
 	uint32_t requested_min_freq = config->center_freq - config->sampling_rate / 2;

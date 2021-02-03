@@ -13,6 +13,7 @@ struct client_config {
 	uint32_t center_freq;
 	uint32_t sampling_rate;
 	uint32_t band_freq;
+	uint8_t destination;
 	int client_socket;
 	uint8_t id;
 	volatile sig_atomic_t is_running;

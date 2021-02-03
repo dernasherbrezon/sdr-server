@@ -14,10 +14,14 @@ struct message_header {
 	uint8_t type;
 } __attribute__((packed));
 
+#define REQUEST_DESTINATION_FILE 0
+#define REQUEST_DESTINATION_SOCKET 1
+
 struct request {
 	uint32_t center_freq;
 	uint32_t sampling_rate;
 	uint32_t band_freq;
+	uint8_t destination;
 } __attribute__((packed));
 
 #define RESPONSE_STATUS_SUCCESS 0
@@ -29,7 +33,7 @@ struct request {
 
 struct response {
 	uint8_t status;
-	uint8_t details; // populated in case of error
+	uint8_t details; // on success contains file index, on error contains error code
 } __attribute__((packed));
 
 

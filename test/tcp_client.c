@@ -37,7 +37,7 @@ int create_client(const char *addr, int port, struct tcp_client **tcp_client) {
 	return 0;
 }
 
-int write_data(uint8_t *buffer, size_t total_len, struct tcp_client *tcp_client) {
+int write_data(void *buffer, size_t total_len, struct tcp_client *tcp_client) {
 	size_t left = total_len;
 	while (left > 0) {
 		int written = write(tcp_client->client_socket, buffer + (total_len - left), left);

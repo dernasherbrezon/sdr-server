@@ -6,6 +6,8 @@
 #include <complex.h>
 #include <zlib.h>
 
+#include "../src/api.h"
+
 extern void init_mock_librtlsdr();
 extern void wait_for_data_read();
 extern void setup_mock_data(uint8_t *buffer, int len);
@@ -35,6 +37,7 @@ void create_client_config(int id, struct client_config **client_config) {
 	result->band_freq = 460100200;
 	result->center_freq = -12000 + result->band_freq;
 	result->client_socket = 0;
+	result->destination = REQUEST_DESTINATION_FILE;
 	*client_config = result;
 }
 

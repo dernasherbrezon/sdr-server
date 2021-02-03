@@ -69,6 +69,18 @@ int write_request(struct message_header header, struct request req, struct tcp_c
 	return code;
 }
 
+int send_message(struct tcp_client *client, uint8_t protocol, uint8_t type, uint32_t center_freq, uint32_t sampling_rate, uint32_t band_freq, uint8_t destination) {
+	struct message_header header;
+	header.protocol_version = protocol;
+	header.type = type;
+	struct request req;
+	req.band_freq = band_freq;
+	req.center_freq = center_freq;
+	req.sampling_rate = sampling_rate;
+	req.destination = destination;
+	return write_request(header, req, client);
+}
+
 int read_data(void *result, size_t len, struct tcp_client *tcp_client) {
 	size_t left = len;
 	while (left > 0) {

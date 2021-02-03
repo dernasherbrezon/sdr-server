@@ -1,5 +1,7 @@
 #include <stdlib.h>
 #include <check.h>
+
+#include "utils.h"
 #include "mock_librtlsdr.c"
 #include "../src/tcp_server.h"
 #include "tcp_client.h"
@@ -26,15 +28,6 @@ void assert_float_array(const float expected[], size_t expected_size, float *act
 	}
 }
 
-void create_input_data(size_t input_offset, size_t len) {
-	input = malloc(sizeof(uint8_t) * len);
-	ck_assert(input != NULL);
-	for (size_t i = 0; i < len; i++) {
-		// don't care about the loss of data
-		input[i] = (uint8_t) (input_offset + i);
-	}
-}
-
 void reconnect_client() {
 	destroy_client(client0);
 	client0 = NULL;
@@ -50,19 +43,6 @@ void create_and_init_tcpserver() {
 	code = start_tcp_server(config, core_obj, &server);
 	ck_assert_int_eq(code, 0);
 	reconnect_client();
-}
-
-void send_message(struct tcp_client *client, uint8_t protocol, uint8_t type, uint32_t center_freq, uint32_t sampling_rate, uint32_t band_freq, uint8_t destination) {
-	struct message_header header;
-	header.protocol_version = protocol;
-	header.type = type;
-	struct request req;
-	req.band_freq = band_freq;
-	req.center_freq = center_freq;
-	req.sampling_rate = sampling_rate;
-	req.destination = destination;
-	int code = write_request(header, req, client);
-	ck_assert_int_eq(code, 0);
 }
 
 void assert_response(struct tcp_client *client, uint8_t type, uint8_t status, uint8_t details) {
@@ -189,7 +169,7 @@ START_TEST (test_destination_socket) {
 	assert_response(client0, TYPE_RESPONSE, RESPONSE_STATUS_SUCCESS, 0);
 
 	int length = 200;
-	create_input_data(0, length);
+	setup_input_data(&input, 0, length);
 	setup_mock_data(input, length);
 	wait_for_data_read();
 

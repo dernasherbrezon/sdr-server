@@ -6,6 +6,7 @@
 #include <complex.h>
 #include <zlib.h>
 
+#include "utils.h"
 #include "../src/api.h"
 
 extern void init_mock_librtlsdr();
@@ -17,15 +18,6 @@ struct server_config *config = NULL;
 struct client_config *client_config0 = NULL;
 struct client_config *client_config1 = NULL;
 uint8_t *input = NULL;
-
-void create_input_data(size_t input_offset, size_t len) {
-	input = malloc(sizeof(uint8_t) * len);
-	ck_assert(input != NULL);
-	for (size_t i = 0; i < len; i++) {
-		// don't care about the loss of data
-		input[i] = (uint8_t) (input_offset + i);
-	}
-}
 
 void create_client_config(int id, struct client_config **client_config) {
 	struct client_config *result = malloc(sizeof(struct client_config));
@@ -110,7 +102,7 @@ START_TEST (test_gzoutput) {
 	ck_assert_int_eq(code, 0);
 
 	int length = 200;
-	create_input_data(0, length);
+	setup_input_data(&input, 0, length);
 	setup_mock_data(input, length);
 	wait_for_data_read();
 
@@ -152,7 +144,7 @@ START_TEST (test_process_message) {
 	ck_assert_int_eq(code, 0);
 
 	int length = 200;
-	create_input_data(0, length);
+	setup_input_data(&input, 0, length);
 	setup_mock_data(input, length);
 	wait_for_data_read();
 

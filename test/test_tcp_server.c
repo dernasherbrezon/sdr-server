@@ -21,13 +21,6 @@ struct tcp_client *client1 = NULL;
 struct tcp_client *client2 = NULL;
 uint8_t *input = NULL;
 
-void assert_float_array(const float expected[], size_t expected_size, float *actual, size_t actual_size) {
-	ck_assert_int_eq(expected_size, actual_size);
-	for (size_t i = 0; i < expected_size; i++) {
-		ck_assert_int_eq((int32_t ) expected[i] * 10000, (int32_t ) actual[i] * 10000);
-	}
-}
-
 void reconnect_client() {
 	destroy_client(client0);
 	client0 = NULL;

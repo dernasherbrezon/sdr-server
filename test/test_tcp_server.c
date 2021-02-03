@@ -61,7 +61,7 @@ void send_message(struct tcp_client *client, uint8_t protocol, uint8_t type, uin
 	req.center_freq = center_freq;
 	req.sampling_rate = sampling_rate;
 	req.destination = destination;
-	int code = write_client_message(header, req, client);
+	int code = write_request(header, req, client);
 	ck_assert_int_eq(code, 0);
 }
 

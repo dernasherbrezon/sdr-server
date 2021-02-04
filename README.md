@@ -44,3 +44,35 @@ The data between rtl-sdr worker and the dsp workers is passed via queue. This is
  * If no free blocks (consumer is slow), then the last block will be overriden by the next one
  * there is a special detached block. It is used to minimize synchronization section. All potentially long operations on it are happening outside of synchronization section.
  * Consumer will block and wait until new data produced
+ 
+## Performance
+
+Is good. Some numbers in ```test/perf_xlating.c```
+ 
+## Dependencies
+
+sdr-server depends on several libraries:
+
+ * [libvolk](https://www.libvolk.org). It is recommended to use the latest version. After libvolk installed or built, it needs to detect optimal kernels. Run the command ```volk_profile``` to generate and save profile.
+ * [librtlsdr](https://github.com/steve-m/librtlsdr)
+ * [libconfig](https://hyperrealm.github.io/libconfig/libconfig_manual.html)
+ * libz. Should be installed in every operational system
+ * libm. Same
+ * [libcheck](https://libcheck.github.io/check/) for tests (Optional)
+ 
+All dependencies can be easily installed using the command:
+
+```
+sudo apt-get install libvolk2-dev librtlsdr-dev libconfig-dev check
+```
+
+## Build
+
+To build the project execute the following commands:
+
+```
+mkdir build
+cd build
+cmake ..
+make
+```

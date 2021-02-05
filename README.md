@@ -9,11 +9,11 @@
    * One client might request 48000 samples/sec at 436,700,000 hz
    * Another client might request 96000 samples/sec at 435,000,000 hz
  * Several clients can access the same band simultaneously
- * Output saved onto disk
+ * Output saved onto disk or streamed back via TCP socket
  * Output can be gzipped (by default = true)
  * Output will be decimated to the requested bandwidth
  * Clients can request overlapping RF spectrum
- * Rtl-sdr starts only after first client connects (i.e. save solar power &etc). Stops only when last client disconnects
+ * Rtl-sdr starts only after first client connects (i.e. saves solar power &etc). Stops only when the last client disconnects
  * MacOS and Linux (Debian Raspberrypi)
  
 ## Design
@@ -32,6 +32,7 @@
    * center_freq - this is required center frequency. For example, 436,700,000 hz
    * sampling_rate - required sampling rate. For example, 48000
    * band\_freq - first connected client can select the center of the band. All other clients should request center\_freq within the currently selected band
+   * destination - "0" - save into file on local disk, "1" - stream back via TCP socket
  * To stop listening, clients can send SHUTDOWN request or disconnect
  
 ## Queue
@@ -45,6 +46,12 @@ The data between rtl-sdr worker and the dsp workers is passed via queue. This is
  * there is a special detached block. It is used to minimize synchronization section. All potentially long operations on it are happening outside of synchronization section.
  * Consumer will block and wait until new data produced
  
+## Configuration
+
+Sample configuration can be found in tests:
+
+[https://github.com/dernasherbrezon/sdr-server/blob/main/test/resources/configuration.config](https://github.com/dernasherbrezon/sdr-server/blob/main/test/resources/configuration.config)
+
 ## Performance
 
 Is good. Some numbers in ```test/perf_xlating.c```

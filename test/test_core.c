@@ -154,6 +154,28 @@ START_TEST (test_process_message) {
 }
 END_TEST
 
+START_TEST (test_invalid_config) {
+	int code = create_server_config(&config, "invalid.basepath.config");
+	ck_assert_int_eq(code, 0);
+	code = create_core(config, &core_obj);
+	ck_assert_int_eq(code, 0);
+
+	code = add_client(NULL);
+	ck_assert_int_eq(code, -1);
+
+	create_client_config(0, &client_config0);
+	config->use_gzip = true;
+	code = add_client(client_config0);
+	ck_assert_int_eq(code, -1);
+
+	// check both types handled properly
+	config->use_gzip = false;
+	code = add_client(client_config0);
+	ck_assert_int_eq(code, -1);
+
+}
+END_TEST
+
 void teardown() {
 	destroy_core(core_obj);
 	core_obj = NULL;
@@ -190,6 +212,7 @@ Suite* common_suite(void) {
 	tcase_add_test(tc_core, test_process_message);
 	tcase_add_test(tc_core, test_invalid_lpf_config);
 	tcase_add_test(tc_core, test_gzoutput);
+	tcase_add_test(tc_core, test_invalid_config);
 
 	tcase_add_checked_fixture(tc_core, setup, teardown);
 	suite_add_tcase(s, tc_core);

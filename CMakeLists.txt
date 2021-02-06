@@ -25,11 +25,15 @@ find_package(Volk REQUIRED)
 include_directories(${VOLK_INCLUDE_DIRS})
 target_link_libraries(sdr_serverLib ${VOLK_LIBRARIES})
 
+find_package(ZLIB REQUIRED)
+include_directories(${ZLIB_INCLUDE_DIRS})
+target_link_libraries(sdr_serverLib ${ZLIB_LIBRARIES})
+
 find_library(LIBCONFIG config)
 find_path(LIBCONFIG_INCLUDE_DIR libconfig.h)
 include_directories(${LIBCONFIG_INCLUDE_DIR})
 target_link_libraries(sdr_serverLib ${LIBCONFIG})
-target_link_libraries(sdr_serverLib pthread m z)
+target_link_libraries(sdr_serverLib pthread m)
 
 enable_testing()
 

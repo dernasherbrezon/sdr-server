@@ -385,11 +385,14 @@ int start_tcp_server(struct server_config *config, core *core, tcp_server **serv
 		perror("setsockopt - SO_REUSEADDR");
 		return -1;
 	}
+
+#ifdef (SO_REUSEPORT)
 	if (setsockopt(server_socket, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt))) {
 		free(result);
 		perror("setsockopt - SO_REUSEPORT");
 		return -1;
 	}
+#endif
 
 	struct sockaddr_in address;
 	address.sin_family = AF_INET;

@@ -25,8 +25,6 @@ struct xlating_t {
 	size_t history_offset;
 	size_t working_len_total;
 
-	float *lookup_table;
-
 	float complex *volk_output;
 
 	float complex *output;
@@ -37,12 +35,8 @@ void process(const uint8_t *input, size_t input_len, float complex **output, siz
 	// input_len cannot be more than (working_len_total - history_offset)
 
 	// convert to [-1.0;1.0] working buffer
-	size_t input_processed = 0;
-	for (size_t i = filter->history_offset; i < filter->working_len_total && input_processed < input_len; i++, input_processed++) {
-		filter->working_buffer[i] = filter->lookup_table[input[input_processed]];
-	}
-
-	size_t working_len = filter->history_offset + input_processed;
+	volk_8i_s32f_convert_32f_u(filter->working_buffer + filter->history_offset, (const signed char *)input, 128.0F, input_len);
+	size_t working_len = filter->history_offset + input_len;
 	size_t produced = 0;
 	size_t current_index = 0;
 	// input might not have enough data to produce output sample
@@ -174,15 +168,6 @@ int create_frequency_xlating_filter(uint32_t decimation, float *taps, size_t tap
 		return -ENOMEM;
 	}
 
-	result->lookup_table = malloc(sizeof(float) * 256);
-	if (result->lookup_table == NULL) {
-		destroy_xlating(result);
-		return -ENOMEM;
-	}
-	for (int i = 0; i < 256; i++) {
-		result->lookup_table[i] = (i - 127.5F) / 128.0F;
-	}
-
 	result->volk_output = volk_malloc(1 * sizeof(float complex), alignment);
 	if (result->volk_output == NULL) {
 		destroy_xlating(result);
@@ -214,9 +199,6 @@ int destroy_xlating(xlating *filter) {
 	}
 	if (filter->volk_output != NULL) {
 		volk_free(filter->volk_output);
-	}
-	if (filter->lookup_table != NULL) {
-		free(filter->lookup_table);
 	}
 	destroy_rotator(filter->rot);
 	free(filter);

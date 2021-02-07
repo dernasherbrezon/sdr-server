@@ -44,6 +44,8 @@ int main(void) {
 	// completed in: 0.005615 seconds
 	// tuned kernel:
 	// completed in: 0.002649 seconds
+	// tuned cu8 -> cf32:
+	// completed in: 0.002038 seconds
 	//
 	// Raspberrypi 3
 	// VOLK_GENERIC=1:

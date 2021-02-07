@@ -60,7 +60,7 @@ Is good. Some numbers in ```test/perf_xlating.c```
 
 sdr-server depends on several libraries:
 
- * [libvolk](https://www.libvolk.org). It is recommended to use the latest version. After libvolk installed or built, it needs to detect optimal kernels. Run the command ```volk_profile``` to generate and save profile.
+ * [libvolk](https://www.libvolk.org). It is recommended to use the latest version (Currently it is 2.x). After libvolk [installed or built](https://github.com/gnuradio/volk#building-on-most-x86-32-bit-and-64-bit-platforms), it needs to detect optimal kernels. Run the command ```volk_profile``` to generate and save profile.
  * [librtlsdr](https://github.com/steve-m/librtlsdr)
  * [libconfig](https://hyperrealm.github.io/libconfig/libconfig_manual.html)
  * libz. Should be installed in every operational system
@@ -70,7 +70,7 @@ sdr-server depends on several libraries:
 All dependencies can be easily installed using the command:
 
 ```
-sudo apt-get install libvolk2-dev librtlsdr-dev libconfig-dev check
+sudo apt-get install libvolk1-dev librtlsdr-dev libconfig-dev check
 ```
 
 ## Build

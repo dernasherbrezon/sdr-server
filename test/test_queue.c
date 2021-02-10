@@ -7,7 +7,7 @@ queue *queue_obj = NULL;
 void assert_buffers(const float *expected, int expected_len, float *actual, int actual_len) {
 	ck_assert_int_eq(expected_len, actual_len);
 	for (int i = 0; i < expected_len; i++) {
-		ck_assert_int_eq((int32_t ) expected[i] * 10000, (int32_t ) actual[i] * 10000);
+		ck_assert_int_eq((int32_t ) (expected[i] * 10000), (int32_t ) (actual[i] * 10000));
 	}
 }
 
@@ -26,11 +26,11 @@ START_TEST (test_terminated_only_after_fully_processed) {
 	ck_assert_int_eq(code, 0);
 
 	const float buffer[10] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
-	queue_put(buffer, sizeof(buffer), queue_obj);
+	queue_put(buffer, 10, queue_obj);
 
 	interrupt_waiting_the_data(queue_obj);
 
-	assert_buffer(buffer, sizeof(buffer));
+	assert_buffer(buffer, 10);
 }
 END_TEST
 
@@ -39,13 +39,13 @@ START_TEST (test_put_take) {
 	ck_assert_int_eq(code, 0);
 
 	const float buffer[10] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
-	queue_put(buffer, sizeof(buffer), queue_obj);
+	queue_put(buffer, 10, queue_obj);
 
 	const float buffer2[2] = { 1, 2 };
-	queue_put(buffer2, sizeof(buffer2), queue_obj);
+	queue_put(buffer2, 2, queue_obj);
 
-	assert_buffer(buffer, sizeof(buffer));
-	assert_buffer(buffer2, sizeof(buffer2));
+	assert_buffer(buffer, 10);
+	assert_buffer(buffer2, 2);
 }
 END_TEST
 
@@ -54,11 +54,11 @@ START_TEST (test_overflow) {
 	ck_assert_int_eq(code, 0);
 
 	const float buffer[10] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
-	queue_put(buffer, sizeof(buffer), queue_obj);
+	queue_put(buffer, 10, queue_obj);
 	const float buffer2[9] = { 11, 12, 13, 14, 15, 16, 17, 18, 19 };
-	queue_put(buffer2, sizeof(buffer2), queue_obj);
+	queue_put(buffer2, 9, queue_obj);
 
-	assert_buffer(buffer2, sizeof(buffer2));
+	assert_buffer(buffer2, 9);
 }
 END_TEST
 

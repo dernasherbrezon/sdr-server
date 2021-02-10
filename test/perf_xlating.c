@@ -19,14 +19,13 @@ int main(void) {
 	if (code != 0) {
 		exit(EXIT_FAILURE);
 	}
-	uint8_t *input = NULL;
-	input = malloc(sizeof(uint8_t) * max_input);
+	float *input = NULL;
+	input = malloc(sizeof(float) * max_input);
 	if (input == NULL) {
 		exit(EXIT_FAILURE);
 	}
 	for (size_t i = 0; i < max_input; i++) {
-		// don't care about the loss of data
-		input[i] = (uint8_t) (i);
+		input[i] = i / 128.0F;
 	}
 
 	int total_executions = 1000;
@@ -41,17 +40,15 @@ int main(void) {
 	double time_spent = (double) (end - begin) / CLOCKS_PER_SEC;
 	// MacBook Air:
 	// VOLK_GENERIC=1:
-	// completed in: 0.005615 seconds
+	// completed in: 0.003935 seconds
 	// tuned kernel:
-	// completed in: 0.002649 seconds
-	// tuned cu8 -> cf32:
 	// completed in: 0.002038 seconds
 	//
 	// Raspberrypi 3
 	// VOLK_GENERIC=1:
-	// completed in: 0.082677 seconds
+	// completed in: 0.076204 seconds
 	// tuned kernel:
-	// completed in: 0.032759 seconds
+	// completed in: 0.026148 seconds
 	printf("completed in: %f seconds\n", time_spent / total_executions);
 	return 0;
 }

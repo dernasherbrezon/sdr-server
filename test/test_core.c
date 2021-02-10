@@ -94,7 +94,7 @@ START_TEST (test_gzoutput) {
 	ck_assert_int_eq(code, 0);
 
 	int length = 200;
-	setup_input_data(&input, 0, length);
+	setup_rtl_data(&input, 0, length);
 	setup_mock_data(input, length);
 	wait_for_data_read();
 
@@ -136,9 +136,12 @@ START_TEST (test_process_message) {
 	ck_assert_int_eq(code, 0);
 
 	int length = 200;
-	setup_input_data(&input, 0, length);
+	setup_rtl_data(&input, 0, length);
 	setup_mock_data(input, length);
 	wait_for_data_read();
+
+	// ensure data was passed to dsp threads
+	sleep(5);
 
 	// just to increase code coverage
 	remove_client(client_config1);

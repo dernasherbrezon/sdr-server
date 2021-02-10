@@ -37,3 +37,4 @@ void assert_float_array(const float expected[], size_t expected_size, float *act
 		ck_assert_int_eq((int32_t ) expected[i] * 10000, (int32_t ) actual[i] * 10000);
 	}
 }
+

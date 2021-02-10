@@ -164,7 +164,7 @@ START_TEST (test_disconnect_client) {
 	//	in that case I won't be able to gracefully terminate the server.
 	//	the server should wait until all client threads properly clean up and shutdown
 	//	so that's why I'm using sleep here
-	sleep(5);
+	sleep(10);
 }
 END_TEST
 

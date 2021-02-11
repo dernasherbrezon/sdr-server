@@ -116,14 +116,15 @@ START_TEST (test_connect_disconnect) {
 	send_message(client1, PROTOCOL_VERSION, TYPE_REQUEST, 460700000, 48000, 460600000, REQUEST_DESTINATION_FILE);
 	assert_response(client1, TYPE_RESPONSE, RESPONSE_STATUS_SUCCESS, 1);
 
+	send_message(client0, PROTOCOL_VERSION, TYPE_SHUTDOWN, 0, 0, 0, 0);
+	// no response here is expected
+
 	code = create_client(config->bind_address, config->port, &client2);
 	ck_assert_int_eq(code, 0);
 	send_message(client2, PROTOCOL_VERSION, TYPE_REQUEST, 460700000, 48000, 460600000, REQUEST_DESTINATION_FILE);
 	assert_response(client2, TYPE_RESPONSE, RESPONSE_STATUS_SUCCESS, 2);
 
 	send_message(client1, PROTOCOL_VERSION, TYPE_SHUTDOWN, 0, 0, 0, 0);
-	// no response here is expected
-	send_message(client0, PROTOCOL_VERSION, TYPE_SHUTDOWN, 0, 0, 0, 0);
 	// no response here is expected
 }
 END_TEST

@@ -178,27 +178,6 @@ START_TEST (test_destination_socket) {
 END_TEST
 
 void teardown() {
-	// Ok, this is very deliverate sleep call here:
-	//	during the test client can request disconnect
-	//	tcp_server will receive this requedst and gracefully terminate the thread
-	//	the test (another thread) can start shutting down tcp_server
-	//	and tcp_server won't be able join tcp_worker thread,
-	//  because it was removed from the list of known workers and exited "tcp_worker" function
-	//	however operation system might still hold some resources assotiated with the thread
-	//	so when the test completes, valgrind will report:
-	//		1 blocks are possibly lost in loss record 1 of 1
-	//		==7488==    at 0x4C33B25: calloc (in /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)
-	//		821==7488==    by 0x4013646: allocate_dtv (dl-tls.c:286)
-	//		822==7488==    by 0x4013646: _dl_allocate_tls (dl-tls.c:530)
-	//		823==7488==    by 0x4E46227: allocate_stack (allocatestack.c:627)
-	//		824==7488==    by 0x4E46227: pthread_create@@GLIBC_2.2.5 (pthread_create.c:644)
-	//		825==7488==    by 0x117022: acceptor_worker (tcp_server.c:347)
-	//  the solution to this is to use detached threads, but
-	//	in that case I won't be able to gracefully terminate the server.
-	//	the server should wait until all client threads properly clean up and shutdown
-	//	so that's why I'm using sleep here
-	sleep(5);
-
 	stop_tcp_server(server);
 	server = NULL;
 	destroy_core(core_obj);

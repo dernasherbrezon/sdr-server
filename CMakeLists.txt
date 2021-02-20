@@ -35,6 +35,7 @@ include_directories(${PC_LIBCONFIG_INCLUDE_DIRS})
 target_link_libraries(sdr_serverLib ${PC_LIBCONFIG_LINK_LIBRARIES})
 
 find_package(Threads REQUIRED)
+target_link_libraries(sdr_serverLib ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(sdr_serverLib m)
 
 enable_testing()

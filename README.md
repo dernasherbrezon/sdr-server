@@ -70,7 +70,7 @@ sdr-server depends on several libraries:
 All dependencies can be easily installed using the command:
 
 ```
-sudo apt-get install libvolk1-dev librtlsdr-dev libconfig-dev check
+sudo apt-get install libvolk2-dev librtlsdr-dev libconfig-dev check
 ```
 
 ## Build

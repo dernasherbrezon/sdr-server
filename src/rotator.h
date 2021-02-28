@@ -9,6 +9,8 @@ int create_rotator(float complex phase, float complex phase_incr, rotator **rota
 
 float complex rotator_increment(rotator *rotator, float complex input);
 
+void rotator_increment_batch(rotator *rotator, float complex* input, float complex* output, int batch_size);
+
 int destroy_rotator(rotator *rotator);
 
 #endif /* SRC_ROTATOR_H_ */

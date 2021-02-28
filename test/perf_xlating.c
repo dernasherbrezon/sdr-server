@@ -38,12 +38,18 @@ int main(void) {
 	}
 	clock_t end = clock();
 	double time_spent = (double) (end - begin) / CLOCKS_PER_SEC;
-	// MacBook Air:
+	// MacBook Air
 	// VOLK_GENERIC=1:
 	// completed in: 0.003935 seconds
 	// tuned kernel:
 	// completed in: 0.002038 seconds
-	//
+
+	// MacBook Air M1
+	// VOLK_GENERIC=1:
+	// completed in: 0.001693 seconds
+	// tuned kernel:
+	// completed in: 0.001477 seconds
+
 	// Raspberrypi 3
 	// VOLK_GENERIC=1:
 	// completed in: 0.076204 seconds

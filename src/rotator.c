@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <stdint.h>
+#include <volk/volk.h>
 
 #include "rotator.h"
 
@@ -35,6 +36,10 @@ float complex rotator_increment(rotator *rotator, float complex input) {
 	}
 
 	return result;
+}
+
+void rotator_increment_batch(rotator *rotator, float complex* input, float complex* output, int batch_size) {
+	volk_32fc_s32fc_x2_rotator_32fc(output, input, rotator->phase_incr, &rotator->phase, batch_size);
 }
 
 int destroy_rotator(rotator *rotator) {

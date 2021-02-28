@@ -48,8 +48,10 @@ void process(const float *input, size_t input_len, float complex **output, size_
 			unsigned align_index = buf - aligned_buffer;
 
 			volk_32fc_x2_dot_prod_32fc_a(filter->volk_output, aligned_buffer, (const lv_32fc_t*) filter->taps[align_index], filter->taps_len + align_index);
-			filter->output[produced] = rotator_increment(filter->rot, *filter->volk_output);
+			filter->output[produced] = *filter->volk_output;
 		}
+
+		rotator_increment_batch(filter->rot, filter->output, filter->output, produced);
 	}
 	// preserve history for the next execution
 	filter->history_offset = working_len - current_index;

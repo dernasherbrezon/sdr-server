@@ -52,9 +52,9 @@ int main(void) {
 
 	// Raspberrypi 3
 	// VOLK_GENERIC=1:
-	// completed in: 0.076204 seconds
+	// completed in: 0.073828 seconds
 	// tuned kernel:
-	// completed in: 0.026148 seconds
+	// completed in: 0.024855 seconds
 	printf("completed in: %f seconds\n", time_spent / total_executions);
 	return 0;
 }

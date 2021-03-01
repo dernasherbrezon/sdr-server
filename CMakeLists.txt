@@ -62,7 +62,6 @@ endforeach()
 
 foreach(curPerfTest ${PERF_SOURCES})
 	get_filename_component(curPerfTestName ${curPerfTest} NAME_WE)
-	add_test(NAME ${curPerfTestName} COMMAND ${curPerfTestName} ${curPerfTest})
 	add_executable(${curPerfTestName} ${curPerfTest})
 	target_link_libraries(${curPerfTestName} sdr_serverLib ${PC_CHECK_LINK_LIBRARIES})
 endforeach()

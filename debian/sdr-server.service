@@ -8,5 +8,5 @@ ExecStart=/usr/bin/sdr-server /etc/sdr-server/config.conf
 Restart=always
 
 [Install]
-Alias=sdr-server
+Alias=sdr-server.service
 WantedBy=multi-user.target

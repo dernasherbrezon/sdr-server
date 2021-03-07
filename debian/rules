@@ -2,9 +2,7 @@
 override_dh_shlibdeps:
 	dh_shlibdeps --dpkg-shlibdeps-params=--ignore-missing-info
 %:
-	dh $@ --with-systemd
+	dh $@ --with systemd
 	
-override_dh_auto_install:
-    dh_auto_install
-    dh_systemd_enable || true
-    dh_systemd_start || true
+override_dh_installinit:
+    dh_installinit --noscripts

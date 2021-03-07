@@ -1,0 +1,12 @@
+[Unit]
+Description=sdr-server Service
+
+[Service]
+WorkingDirectory=/etc/sdr-server
+Environment="VOLK_CONFIGPATH=/etc/sdr-server"
+ExecStart=/usr/bin/sdr-server /etc/sdr-server/config.conf
+Restart=always
+
+[Install]
+Alias=sdr-server
+WantedBy=multi-user.target

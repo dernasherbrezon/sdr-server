@@ -1,6 +1,6 @@
-sdr-server (1.0.2-1) unstable; urgency=medium
+sdr-server (1.0.2-1~buster) unstable; urgency=medium
 
   * Initial release. (Closes: #1)
   * improve rotator performance
 
- -- Andrey Rodionov <info@r2cloud.ru>  Mon, 1 Mar 2021 10:17:21 +0100
+ -- Andrey Rodionov <info@r2cloud.ru>  Sun, 7 Mar 2021 10:17:21 +0100

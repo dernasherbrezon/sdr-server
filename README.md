@@ -67,9 +67,13 @@ sdr-server depends on several libraries:
  * libm. Same
  * [libcheck](https://libcheck.github.io/check/) for tests (Optional)
  
-All dependencies can be easily installed using the command:
+All dependencies can be easily installed from [r2cloud APT repository](https://r2server.ru/apt.html):
 
 ```
+sudo apt-get install dirmngr lsb-release
+sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys A5A70917
+sudo bash -c "echo \"deb http://s3.amazonaws.com/r2cloud $(lsb_release --codename --short) main\" > /etc/apt/sources.list.d/r2cloud.list"
+sudo apt-get update
 sudo apt-get install libvolk2-dev librtlsdr-dev libconfig-dev check
 ```
 
@@ -83,3 +87,12 @@ cd build
 cmake ..
 make
 ```
+
+## Install
+
+sdr-server can be installed from [r2cloud APT repository](https://r2server.ru/apt.html):
+
+```
+sudo apt-get install sdr-server
+```
+

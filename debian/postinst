@@ -13,3 +13,4 @@ cat dot_prod/volk_config rotator/volk_config convert/volk_config > /etc/sdr-serv
 # remove unused dirs
 rm -r dot_prod rotator convert
 
+#DEBHELPER#

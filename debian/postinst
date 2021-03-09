@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -e
+
 # only these volk methods are being used
 volk_profile -R volk_32fc_x2_dot_prod_32fc --path dot_prod
 volk_profile -R volk_32fc_s32fc_rotatorpuppet_32fc --path rotator

@@ -17,6 +17,7 @@ int main(int argc, char **argv) {
 		fprintf(stderr, "parameter missing: configuration file\n");
 		exit(EXIT_FAILURE);
 	}
+	setlinebuf(stdout);
 	struct server_config *server_config = NULL;
 	int code = create_server_config(&server_config, argv[1]);
 	if (code != 0) {

@@ -1,4 +1,8 @@
-sdr-server (1.0.2-1~buster) unstable; urgency=medium
+sdr-server (1.0.3-1~buster) unstable; urgency=medium
+
+  * add systemd service
+
+sdr-server (1.0.2-1) unstable; urgency=medium
 
   * Initial release. (Closes: #1)
   * improve rotator performance

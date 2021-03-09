@@ -12,6 +12,7 @@ list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/main.c")
 add_executable(sdr_server src/main.c)
 
 install(TARGETS sdr_server DESTINATION /usr/bin/)
+install(FILES src/resources/config.conf DESTINATION /etc/sdr-server/)
 
 add_library(sdr_serverLib ${SOURCES})
 target_link_libraries(sdr_server sdr_serverLib)

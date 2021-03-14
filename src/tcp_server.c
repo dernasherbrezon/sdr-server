@@ -232,10 +232,10 @@ void cleanup_terminated_threads(tcp_server *server) {
 
 void add_tcp_node(struct linked_list_tcp_node *node) {
 	pthread_mutex_lock(&node->server->mutex);
+	cleanup_terminated_threads(node->server);
 	if (node->server->tcp_nodes == NULL) {
 		node->server->tcp_nodes = node;
 	} else {
-		cleanup_terminated_threads(node->server);
 		struct linked_list_tcp_node *cur_node = node->server->tcp_nodes;
 		while (cur_node->next != NULL) {
 			cur_node = cur_node->next;

@@ -118,6 +118,8 @@ int rtlsdr_close_mocked(rtlsdr_dev_t *dev) {
 }
 
 int rtlsdr_open_mocked(rtlsdr_dev_t **dev, uint32_t index) {
+	mock.stopped = false;
+	mock.data_was_read = false;
 	rtlsdr_dev_t *result = malloc(sizeof(rtlsdr_dev_t));
 	*dev = result;
 	return 0;

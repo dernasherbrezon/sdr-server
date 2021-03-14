@@ -18,5 +18,7 @@ int send_message(struct tcp_client *client, uint8_t protocol, uint8_t type, uint
 int read_response(struct message_header **header, struct response **resp, struct tcp_client *tcp_client);
 
 void destroy_client(struct tcp_client *tcp_client);
+// this will wait until server release all resources, stop all threads and closes connection
+void gracefully_destroy_client(struct tcp_client *tcp_client);
 
 #endif /* TCP_CLIENT_H_ */

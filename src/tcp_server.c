@@ -235,7 +235,6 @@ void add_tcp_node(struct linked_list_tcp_node *node) {
 	if (node->server->tcp_nodes == NULL) {
 		node->server->tcp_nodes = node;
 	} else {
-		cleanup_terminated_threads(node->server);
 		struct linked_list_tcp_node *cur_node = node->server->tcp_nodes;
 		while (cur_node->next != NULL) {
 			cur_node = cur_node->next;
@@ -297,6 +296,14 @@ static void* acceptor_worker(void *arg) {
 			free(config);
 			continue;
 		}
+
+		pthread_mutex_lock(&server->mutex);
+		cleanup_terminated_threads(server);
+		if( server->tcp_nodes == NULL ) {
+			current_band_freq = 0;
+		}
+		pthread_mutex_unlock(&server->mutex);
+
 		if (current_band_freq != 0 && current_band_freq != config->band_freq) {
 			respond_failure(client_socket, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_OUT_OF_BAND_FREQ);
 			free(config);

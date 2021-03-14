@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
+#include <stdbool.h>
 
 #include "tcp_client.h"
 
@@ -85,8 +86,14 @@ int read_data(void *result, size_t len, struct tcp_client *tcp_client) {
 	size_t left = len;
 	while (left > 0) {
 		int received = recv(tcp_client->client_socket, (char*) result + (len - left), left, 0);
-		if (received <= 0) {
-			perror("unable to read the message");
+		if (received < 0) {
+			if (errno == EWOULDBLOCK || errno == EAGAIN) {
+				return -errno;
+			}
+			return -1;
+		}
+		// client has closed the socket
+		if (received == 0) {
 			return -1;
 		}
 		left -= received;
@@ -126,5 +133,22 @@ void destroy_client(struct tcp_client *tcp_client) {
 	}
 	close(tcp_client->client_socket);
 	free(tcp_client);
+}
+
+void gracefully_destroy_client(struct tcp_client *tcp_client) {
+	while (true) {
+		struct message_header header;
+		int code = read_data(&header, sizeof(struct message_header), tcp_client);
+		if (code < -1) {
+			// read timeout happened. it's ok.
+			// client already sent all information we need
+			continue;
+		}
+		if (code == -1) {
+			break;
+		}
+	}
+	fprintf(stdout, "disconnected from the server..\n");
+	destroy_client(tcp_client);
 }
 

@@ -246,6 +246,7 @@ void stop_rtlsdr(core *core) {
 	core->is_rtlsdr_running = false;
 	// this will close reading from the sync
 	rtlsdr_close(core->dev);
+	core->dev = NULL;
 
 	// block access to core until rtlsdr fully stops and cleans the resources
 	pthread_join(core->rtlsdr_worker_thread, NULL);

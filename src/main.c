@@ -10,6 +10,7 @@ static tcp_server *server = NULL;
 
 void sdrserver_stop_async(int signum) {
 	stop_tcp_server(server);
+	server = NULL;
 }
 
 int main(int argc, char **argv) {
@@ -17,7 +18,7 @@ int main(int argc, char **argv) {
 		fprintf(stderr, "parameter missing: configuration file\n");
 		exit(EXIT_FAILURE);
 	}
-	setlinebuf(stdout);
+	setvbuf(stdout, NULL, _IOLBF, 0);
 	struct server_config *server_config = NULL;
 	int code = create_server_config(&server_config, argv[1]);
 	if (code != 0) {
@@ -33,7 +34,6 @@ int main(int argc, char **argv) {
 
 	signal(SIGINT, sdrserver_stop_async);
 	signal(SIGHUP, sdrserver_stop_async);
-	signal(SIGSEGV, sdrserver_stop_async);
 	signal(SIGTERM, sdrserver_stop_async);
 
 	code = start_tcp_server(server_config, core, &server);

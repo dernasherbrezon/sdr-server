@@ -326,7 +326,7 @@ int add_client(struct client_config *config) {
 
 	// setup queue
 	queue *client_queue = NULL;
-	code = create_queue(config->core->server_config->buffer_size, 16, &client_queue);
+	code = create_queue(config->core->server_config->buffer_size, config->core->server_config->queue_size, &client_queue);
 	if (code != 0) {
 		destroy_node(config_node);
 		return -1;

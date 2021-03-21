@@ -48,6 +48,7 @@ START_TEST (test_success) {
 	ck_assert_str_eq(config->base_path, "/tmp/");
 	ck_assert_int_eq(config->read_timeout_seconds, 10);
 	ck_assert_int_eq(config->use_gzip, 0);
+	ck_assert_int_eq(config->queue_size, 64);
 }
 END_TEST
 

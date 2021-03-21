@@ -39,7 +39,7 @@ void destroy_nodes(struct queue_node *nodes) {
 	}
 }
 
-int create_queue(uint32_t buffer_size, int capacity, queue **queue) {
+int create_queue(uint32_t buffer_size, int queue_size, queue **queue) {
 	struct queue_t *result = malloc(sizeof(struct queue_t));
 	if (result == NULL) {
 		return -ENOMEM;
@@ -47,7 +47,7 @@ int create_queue(uint32_t buffer_size, int capacity, queue **queue) {
 
 	struct queue_node *first_node = NULL;
 	struct queue_node *last_node = NULL;
-	for (int i = 0; i < capacity; i++) {
+	for (int i = 0; i < queue_size; i++) {
 		struct queue_node *cur = malloc(sizeof(struct queue_node));
 		if (cur == NULL) {
 			destroy_nodes(first_node);

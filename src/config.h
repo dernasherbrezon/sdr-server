@@ -18,6 +18,7 @@ struct server_config {
 	uint32_t buffer_size;
 	// 4GHz max
 	uint32_t band_sampling_rate;
+	int queue_size;
 
 	// output settings
 	char *base_path;

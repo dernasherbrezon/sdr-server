@@ -84,6 +84,16 @@ int create_server_config(struct server_config **config, const char *path) {
 	fprintf(stdout, "ppm: %d\n", ppm);
 	result->ppm = ppm;
 
+	setting = config_lookup(&libconfig, "queue_size");
+	int queue_size;
+	if (setting == NULL) {
+		queue_size = 64;
+	} else {
+		queue_size = config_setting_get_int(setting);
+	}
+	fprintf(stdout, "queue_size: %d\n", queue_size);
+	result->queue_size = queue_size;
+
 	setting = config_lookup(&libconfig, "band_sampling_rate");
 	if (setting == NULL) {
 		fprintf(stderr, "missing required configuration: band_sampling_rate\n");

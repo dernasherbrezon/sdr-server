@@ -7,7 +7,7 @@
 #include "queue.h"
 
 struct queue_node {
-	float *buffer;
+	uint8_t *buffer;
 	int len;
 	struct queue_node *next;
 };
@@ -54,7 +54,7 @@ int create_queue(uint32_t buffer_size, int queue_size, queue **queue) {
 			free(result);
 			return -ENOMEM;
 		}
-		cur->buffer = malloc(sizeof(float) * buffer_size);
+		cur->buffer = malloc(sizeof(uint8_t) * buffer_size);
 		cur->next = NULL;
 		cur->len = 0;
 		if (cur->buffer == NULL) {
@@ -84,7 +84,7 @@ int create_queue(uint32_t buffer_size, int queue_size, queue **queue) {
 	return 0;
 }
 
-void queue_put(const float *buffer, const int len, queue *queue) {
+void queue_put(const uint8_t *buffer, const int len, queue *queue) {
 	pthread_mutex_lock(&queue->mutex);
 	struct queue_node *to_fill;
 	if (queue->first_free_node == NULL) {
@@ -111,7 +111,7 @@ void queue_put(const float *buffer, const int len, queue *queue) {
 		queue->last_filled_node = to_fill;
 	}
 
-	memcpy(to_fill->buffer, buffer, sizeof(float) * len);
+	memcpy(to_fill->buffer, buffer, len);
 	to_fill->len = len;
 	pthread_cond_broadcast(&queue->condition);
 
@@ -130,7 +130,7 @@ void destroy_queue(queue *queue) {
 	free(queue);
 }
 
-void take_buffer_for_processing(float **buffer, int *len, queue *queue) {
+void take_buffer_for_processing(uint8_t **buffer, int *len, queue *queue) {
 	pthread_mutex_lock(&queue->mutex);
 	if (queue->poison_pill == 1 && queue->first_filled_node == NULL) {
 		pthread_mutex_unlock(&queue->mutex);

@@ -4,15 +4,15 @@
 
 queue *queue_obj = NULL;
 
-void assert_buffers(const float *expected, int expected_len, float *actual, int actual_len) {
+void assert_buffers(const uint8_t *expected, int expected_len, uint8_t *actual, int actual_len) {
 	ck_assert_int_eq(expected_len, actual_len);
 	for (int i = 0; i < expected_len; i++) {
-		ck_assert_int_eq((int32_t ) (expected[i] * 10000), (int32_t ) (actual[i] * 10000));
+		ck_assert_int_eq(expected[i], actual[i]);
 	}
 }
 
-void assert_buffer(const float *expected, int expected_len) {
-	float *result = NULL;
+void assert_buffer(const uint8_t *expected, int expected_len) {
+	uint8_t *result = NULL;
 	int len = 0;
 	take_buffer_for_processing(&result, &len, queue_obj);
 	// TODO doesn't work. segmentation fault if result is null
@@ -25,8 +25,8 @@ START_TEST (test_terminated_only_after_fully_processed) {
 	int code = create_queue(262144, 10, &queue_obj);
 	ck_assert_int_eq(code, 0);
 
-	const float buffer[10] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
-	queue_put(buffer, 10, queue_obj);
+	const uint8_t buffer[10] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+	queue_put(buffer, sizeof(buffer), queue_obj);
 
 	interrupt_waiting_the_data(queue_obj);
 
@@ -38,11 +38,11 @@ START_TEST (test_put_take) {
 	int code = create_queue(262144, 10, &queue_obj);
 	ck_assert_int_eq(code, 0);
 
-	const float buffer[10] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
-	queue_put(buffer, 10, queue_obj);
+	const uint8_t buffer[10] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+	queue_put(buffer, sizeof(buffer), queue_obj);
 
-	const float buffer2[2] = { 1, 2 };
-	queue_put(buffer2, 2, queue_obj);
+	const uint8_t buffer2[2] = { 1, 2 };
+	queue_put(buffer2, sizeof(buffer2), queue_obj);
 
 	assert_buffer(buffer, 10);
 	assert_buffer(buffer2, 2);
@@ -53,10 +53,10 @@ START_TEST (test_overflow) {
 	int code = create_queue(262144, 1, &queue_obj);
 	ck_assert_int_eq(code, 0);
 
-	const float buffer[10] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
-	queue_put(buffer, 10, queue_obj);
-	const float buffer2[9] = { 11, 12, 13, 14, 15, 16, 17, 18, 19 };
-	queue_put(buffer2, 9, queue_obj);
+	const uint8_t buffer[10] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+	queue_put(buffer, sizeof(buffer), queue_obj);
+	const uint8_t buffer2[9] = { 11, 12, 13, 14, 15, 16, 17, 18, 19 };
+	queue_put(buffer2, sizeof(buffer2), queue_obj);
 
 	assert_buffer(buffer2, 9);
 }

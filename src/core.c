@@ -280,7 +280,7 @@ int add_client(struct client_config *config) {
 	// setup taps
 	float *taps = NULL;
 	size_t len;
-	int code = create_low_pass_filter(1.0, config->core->server_config->band_sampling_rate, config->sampling_rate / 2, 2000, &taps, &len);
+	int code = create_low_pass_filter(1.0, config->core->server_config->band_sampling_rate, config->sampling_rate / 2, config->sampling_rate / config->core->server_config->lpf_cutoff_rate, &taps, &len);
 	if (code != 0) {
 		destroy_node(config_node);
 		return code;

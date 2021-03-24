@@ -8,7 +8,6 @@
 #include <complex.h>
 #include <unistd.h>
 #include <zlib.h>
-#include <volk/volk.h>
 
 #include "lpf.h"
 #include "xlating.h"
@@ -35,7 +34,6 @@ struct core_t {
 	volatile sig_atomic_t is_rtlsdr_running;
 	pthread_t rtlsdr_worker_thread;
 	uint8_t *buffer;
-	float *normalized_buffer;
 };
 
 int find_nearest_gain(rtlsdr_dev_t *dev, int target_gain, int *nearest) {
@@ -80,12 +78,6 @@ int create_core(struct server_config *server_config, core **result) {
 	}
 	memset(buffer, 0, server_config->buffer_size);
 	core->buffer = buffer;
-	float *normalized_buffer = malloc(sizeof(float) * server_config->buffer_size);
-	if (normalized_buffer == NULL) {
-		destroy_core(core);
-		return -ENOMEM;
-	}
-	core->normalized_buffer = normalized_buffer;
 	core->mutex = (pthread_mutex_t )PTHREAD_MUTEX_INITIALIZER;
 	*result = core;
 	return 0;
@@ -125,7 +117,7 @@ int write_to_socket(struct linked_list_node *config_node, float complex *filter_
 static void* dsp_worker(void *arg) {
 	struct linked_list_node *config_node = (struct linked_list_node*) arg;
 	fprintf(stdout, "[dsp_worker %d] starting\n", config_node->config->id);
-	float *input = NULL;
+	uint8_t *input = NULL;
 	int input_len = 0;
 	float complex *filter_output = NULL;
 	size_t filter_output_len = 0;
@@ -168,13 +160,11 @@ static void* rtlsdr_worker(void *arg) {
 			core->is_rtlsdr_running = false;
 			break;
 		}
-		// convert to [-1.0;1.0] working buffer
-		volk_8i_s32f_convert_32f_u(core->normalized_buffer, (const signed char *)core->buffer, 128.0F, n_read);
 		pthread_mutex_lock(&core->mutex);
 		struct linked_list_node *current_node = core->client_configs;
 		while (current_node != NULL) {
 			// copy to client's buffers and notify
-			queue_put(core->normalized_buffer, n_read, current_node->queue);
+			queue_put(core->buffer, n_read, current_node->queue);
 			current_node = current_node->next;
 		}
 		pthread_mutex_unlock(&core->mutex);
@@ -290,7 +280,7 @@ int add_client(struct client_config *config) {
 	// setup taps
 	float *taps = NULL;
 	size_t len;
-	int code = create_low_pass_filter(1.0, config->core->server_config->band_sampling_rate, config->sampling_rate / 2, 2000, &taps, &len);
+	int code = create_low_pass_filter(1.0, config->core->server_config->band_sampling_rate, config->sampling_rate / 2, config->sampling_rate / config->core->server_config->lpf_cutoff_rate, &taps, &len);
 	if (code != 0) {
 		destroy_node(config_node);
 		return code;
@@ -419,9 +409,6 @@ void destroy_core(core *core) {
 	pthread_mutex_lock(&core->mutex);
 	if (core->buffer != NULL) {
 		free(core->buffer);
-	}
-	if (core->normalized_buffer != NULL) {
-		free(core->normalized_buffer);
 	}
 	struct linked_list_node *cur_node = core->client_configs;
 	while (cur_node != NULL) {

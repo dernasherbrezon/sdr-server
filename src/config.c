@@ -115,6 +115,16 @@ int create_server_config(struct server_config **config, const char *path) {
 	fprintf(stdout, "buffer size: %d\n", buffer_size);
 	result->buffer_size = buffer_size;
 
+	setting = config_lookup(&libconfig, "lpf_cutoff_rate");
+	int lpf_cutoff_rate;
+	if (setting == NULL) {
+		lpf_cutoff_rate = 5;
+	} else {
+		lpf_cutoff_rate = (uint32_t) config_setting_get_int(setting);
+	}
+	fprintf(stdout, "lpf_cutoff_rate: %d\n", lpf_cutoff_rate);
+	result->lpf_cutoff_rate = lpf_cutoff_rate;
+
 	setting = config_lookup(&libconfig, "bind_address");
 	char *bind_address = read_and_copy_str(setting, "127.0.0.1");
 	if (bind_address == NULL) {

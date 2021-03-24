@@ -1,3 +1,9 @@
+sdr-server (1.0.6-1~stretch) unstable; urgency=medium
+
+  * add lpf cutoff frequency
+
+ -- Andrey Rodionov <info@r2cloud.ru>  Wen, 24 Mar 2021 10:17:21 +0100
+
 sdr-server (1.0.5-1~stretch) unstable; urgency=medium
 
   * add queue configuration

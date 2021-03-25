@@ -270,8 +270,8 @@ void handle_new_client(int client_socket, tcp_server *server) {
 
 	if (server->current_band_freq != 0 && server->current_band_freq != config->band_freq) {
 		respond_failure(client_socket, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_OUT_OF_BAND_FREQ);
-		free(config);
 		fprintf(stderr, "[%d] requested out of band frequency: %d\n", server->client_counter, config->band_freq);
+		free(config);
 		return;
 	}
 

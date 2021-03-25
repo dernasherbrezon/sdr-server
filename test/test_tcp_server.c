@@ -71,7 +71,7 @@ START_TEST (test_out_of_band_frequency_clients) {
 	code = create_client(config->bind_address, config->port, &client1);
 	ck_assert_int_eq(code, 0);
 	send_message(client1, PROTOCOL_VERSION, TYPE_REQUEST, 460700000, 48000, 461600000, REQUEST_DESTINATION_FILE);
-	assert_response(client1, TYPE_RESPONSE, RESPONSE_STATUS_SUCCESS, 1);
+	assert_response(client1, TYPE_RESPONSE, RESPONSE_STATUS_SUCCESS, 2);
 }
 END_TEST
 

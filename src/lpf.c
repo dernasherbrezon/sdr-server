@@ -57,7 +57,6 @@ int create_low_pass_filter(float gain, uint32_t sampling_freq, uint32_t cutoff_f
 	}
 
 	int ntaps = computeNtaps(sampling_freq, transition_width);
-	printf("ntaps: %d\n", ntaps);
 	float *taps = malloc(sizeof(float) * ntaps);
 	if (taps == NULL) {
 		return -ENOMEM;

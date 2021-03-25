@@ -6,6 +6,7 @@
 // client to server
 #define TYPE_REQUEST 0
 #define TYPE_SHUTDOWN 1
+#define TYPE_PING 3
 //server to client
 #define TYPE_RESPONSE 2
 

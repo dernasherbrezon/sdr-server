@@ -116,7 +116,7 @@ int write_to_socket(struct linked_list_node *config_node, float complex *filter_
 
 static void* dsp_worker(void *arg) {
 	struct linked_list_node *config_node = (struct linked_list_node*) arg;
-	fprintf(stdout, "[dsp_worker %d] starting\n", config_node->config->id);
+	fprintf(stdout, "[%d][dsp_worker] starting\n", config_node->config->id);
 	uint8_t *input = NULL;
 	int input_len = 0;
 	float complex *filter_output = NULL;
@@ -146,7 +146,7 @@ static void* dsp_worker(void *arg) {
 
 	}
 	destroy_queue(config_node->queue);
-	printf("[dsp_worker %d] stopped\n", config_node->config->id);
+	printf("[%d][dsp_worker] stopped\n", config_node->config->id);
 	return (void*) 0;
 }
 
@@ -246,7 +246,7 @@ void destroy_node(struct linked_list_node *node) {
 	if (node == NULL) {
 		return;
 	}
-	fprintf(stdout, "[dsp_worker %d] stopping\n", node->config->id);
+	fprintf(stdout, "[%d][dsp_worker] stopping\n", node->config->id);
 	if (node->queue != NULL) {
 		interrupt_waiting_the_data(node->queue);
 	}

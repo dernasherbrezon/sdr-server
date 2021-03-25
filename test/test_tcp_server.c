@@ -203,6 +203,14 @@ START_TEST (test_destination_socket) {
 }
 END_TEST
 
+START_TEST (test_ping) {
+	create_and_init_tcpserver();
+
+	send_message(client0, PROTOCOL_VERSION, TYPE_PING, 0, 0, 0, 0);
+	assert_response(client0, TYPE_RESPONSE, RESPONSE_STATUS_SUCCESS, 0);
+}
+END_TEST
+
 void teardown() {
 	stop_tcp_server(server);
 	server = NULL;
@@ -243,6 +251,7 @@ Suite* common_suite(void) {
 	tcase_add_test(tc_core, test_disconnect_client);
 	tcase_add_test(tc_core, test_destination_socket);
 	tcase_add_test(tc_core, test_out_of_band_frequency_clients);
+	tcase_add_test(tc_core, test_ping);
 
 	tcase_add_checked_fixture(tc_core, setup, teardown);
 	suite_add_tcase(s, tc_core);

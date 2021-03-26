@@ -15,7 +15,7 @@ void sdrserver_stop_async(int signum) {
 
 int main(int argc, char **argv) {
 	if (argc < 2) {
-		fprintf(stderr, "parameter missing: configuration file\n");
+		fprintf(stderr, "<3> parameter missing: configuration file\n");
 		exit(EXIT_FAILURE);
 	}
 	setvbuf(stdout, NULL, _IOLBF, 0);

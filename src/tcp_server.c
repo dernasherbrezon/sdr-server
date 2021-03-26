@@ -26,6 +26,8 @@ struct tcp_server_t {
 	pthread_t acceptor_thread;
 	core *core;
 	struct server_config *server_config;
+	int client_counter;
+	uint32_t current_band_freq;
 
 	struct linked_list_tcp_node *tcp_nodes;
 	pthread_mutex_t mutex;
@@ -34,7 +36,7 @@ struct tcp_server_t {
 void log_client(struct sockaddr_in *address, uint32_t id) {
 	char str[INET_ADDRSTRLEN];
 	const char *ptr = inet_ntop(AF_INET, &address->sin_addr, str, sizeof(str));
-	printf("accepted client from %s:%d (id: %u)\n", ptr, ntohs(address->sin_port), id);
+	printf("[%d] accepted new client from %s:%d\n", id, ptr, ntohs(address->sin_port));
 }
 
 int read_struct(int socket, void *result, size_t len) {
@@ -56,32 +58,16 @@ int read_struct(int socket, void *result, size_t len) {
 	return 0;
 }
 
-int read_client_config(int client_socket, struct server_config *server_config, struct client_config **config) {
+int read_client_config(int client_socket, int client_id, struct server_config *server_config, struct client_config **config) {
 	struct client_config *result = malloc(sizeof(struct client_config));
 	if (result == NULL) {
 		return -ENOMEM;
 	}
 	// init all fields with 0
 	*result = (struct client_config ) { 0 };
-	struct message_header header;
-	if (read_struct(client_socket, &header, sizeof(struct message_header)) < 0) {
-		fprintf(stderr, "unable to read request header fully\n");
-		free(result);
-		return -1;
-	}
-	if (header.protocol_version != PROTOCOL_VERSION) {
-		fprintf(stderr, "unsupported protocol: %d\n", header.protocol_version);
-		free(result);
-		return -1;
-	}
-	if (header.type != TYPE_REQUEST) {
-		fprintf(stderr, "unsupported request: %d\n", header.type);
-		free(result);
-		return -1;
-	}
 	struct request req;
 	if (read_struct(client_socket, &req, sizeof(struct request)) < 0) {
-		fprintf(stderr, "unable to read request fully\n");
+		fprintf(stderr, "<3>[%d] unable to read request fully\n", client_id);
 		free(result);
 		return -1;
 	}
@@ -91,7 +77,7 @@ int read_client_config(int client_socket, struct server_config *server_config, s
 	result->client_socket = client_socket;
 	result->destination = req.destination;
 	if (result->sampling_rate > 0 && server_config->band_sampling_rate % result->sampling_rate != 0) {
-		fprintf(stderr, "sampling frequency is not an integer factor of server sample rate: %u\n", server_config->band_sampling_rate);
+		fprintf(stderr, "<3>[%d] sampling frequency is not an integer factor of server sample rate: %u\n", client_id, server_config->band_sampling_rate);
 		free(result);
 		return -1;
 	}
@@ -100,33 +86,33 @@ int read_client_config(int client_socket, struct server_config *server_config, s
 	return 0;
 }
 
-int validate_client_config(struct client_config *config, struct server_config *server_config) {
+int validate_client_config(struct client_config *config, struct server_config *server_config, int client_id) {
 	if (config->center_freq == 0) {
-		fprintf(stderr, "missing center_freq parameter\n");
+		fprintf(stderr, "<3>[%d] missing center_freq parameter\n", client_id);
 		return -1;
 	}
 	if (config->sampling_rate == 0) {
-		fprintf(stderr, "missing sampling_rate parameter\n");
+		fprintf(stderr, "<3>[%d] missing sampling_rate parameter\n", client_id);
 		return -1;
 	}
 	if (config->band_freq == 0) {
-		fprintf(stderr, "missing band_freq parameter\n");
+		fprintf(stderr, "<3>[%d] missing band_freq parameter\n", client_id);
 		return -1;
 	}
 	if (config->destination != REQUEST_DESTINATION_FILE && config->destination != REQUEST_DESTINATION_SOCKET) {
-		fprintf(stderr, "unknown destination: %d\n", config->destination);
+		fprintf(stderr, "<3>[%d] unknown destination: %d\n", client_id, config->destination);
 		return -1;
 	}
 	uint32_t requested_min_freq = config->center_freq - config->sampling_rate / 2;
 	uint32_t server_min_freq = config->band_freq - server_config->band_sampling_rate / 2;
 	if (requested_min_freq < server_min_freq) {
-		fprintf(stderr, "requested center freq is out of the band: %u\n", config->center_freq);
+		fprintf(stderr, "<3>[%d] requested center freq is out of the band: %u\n", client_id, config->center_freq);
 		return -1;
 	}
 	uint32_t requested_max_freq = config->center_freq + config->sampling_rate / 2;
 	uint32_t server_max_freq = config->band_freq + server_config->band_sampling_rate / 2;
 	if (requested_max_freq > server_max_freq) {
-		fprintf(stderr, "requested center freq is out of the band: %u\n", config->center_freq);
+		fprintf(stderr, "<3>[%d] requested center freq is out of the band: %u\n", client_id, config->center_freq);
 		return -1;
 	}
 	return 0;
@@ -169,12 +155,13 @@ void respond_failure(int client_socket, uint8_t status, uint8_t details) {
 
 static void* tcp_worker(void *arg) {
 	struct linked_list_tcp_node *node = (struct linked_list_tcp_node*) arg;
-	fprintf(stdout, "[tcp_worker %d] starting\n", node->config->id);
+	fprintf(stdout, "[%d] tcp_worker is starting\n", node->config->id);
 	int code = add_client(node->config);
 	if (code != 0) {
 		respond_failure(node->config->client_socket, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_INTERNAL_ERROR);
 	} else {
 		write_message(node->config->client_socket, RESPONSE_STATUS_SUCCESS, node->config->id);
+		fprintf(stdout, "[%d] center_freq %d sampling_rate %d destination %d\n", node->config->id, node->config->center_freq, node->config->sampling_rate, node->config->destination);
 		while (node->config->is_running) {
 			struct message_header header;
 			code = read_struct(node->config->client_socket, &header, sizeof(struct message_header));
@@ -184,18 +171,18 @@ static void* tcp_worker(void *arg) {
 				continue;
 			}
 			if (code == -1) {
-				fprintf(stdout, "client disconnected: %u\n", node->config->id);
+				fprintf(stdout, "[%d] client disconnected\n", node->config->id);
 				break;
 			}
 			if (header.protocol_version != PROTOCOL_VERSION) {
-				fprintf(stderr, "unsupported protocol: %d\n", header.protocol_version);
+				fprintf(stderr, "<3>[%d] unsupported protocol: %d\n", node->config->id, header.protocol_version);
 				continue;
 			}
 			if (header.type != TYPE_SHUTDOWN) {
-				fprintf(stderr, "unsupported request: %d\n", header.type);
+				fprintf(stderr, "<3>[%d] unsupported request: %d\n", node->config->id, header.type);
 				continue;
 			}
-			fprintf(stdout, "client is disconnecting: %u\n", node->config->id);
+			fprintf(stdout, "[%d] client requested disconnect\n", node->config->id);
 			break;
 		}
 		remove_client(node->config);
@@ -221,7 +208,7 @@ void cleanup_terminated_threads(tcp_server *server) {
 			previous->next = next;
 		}
 
-		fprintf(stdout, "[tcp_worker %d] stopping\n", cur_node->config->id);
+		fprintf(stdout, "[%d] tcp_worker is stopping\n", cur_node->config->id);
 		pthread_join(cur_node->client_thread, NULL);
 		free(cur_node->config);
 		free(cur_node);
@@ -253,7 +240,7 @@ void remove_all_tcp_nodes(tcp_server *server) {
 		cur_node->config->is_running = false;
 		close(cur_node->config->client_socket);
 
-		fprintf(stdout, "[tcp_worker %d] stopping\n", cur_node->config->id);
+		fprintf(stdout, "[%d] tcp_worker is stopping\n", cur_node->config->id);
 		pthread_join(cur_node->client_thread, NULL);
 		free(cur_node->config);
 		free(cur_node);
@@ -263,19 +250,72 @@ void remove_all_tcp_nodes(tcp_server *server) {
 	pthread_mutex_unlock(&server->mutex);
 }
 
+void handle_new_client(int client_socket, tcp_server *server) {
+	struct client_config *config = NULL;
+	if (read_client_config(client_socket, server->client_counter, server->server_config, &config) < 0) {
+		respond_failure(client_socket, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_INVALID_REQUEST);
+		return;
+	}
+	if (validate_client_config(config, server->server_config, server->client_counter) < 0) {
+		respond_failure(client_socket, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_INVALID_REQUEST);
+		free(config);
+		return;
+	}
+
+	pthread_mutex_lock(&server->mutex);
+	cleanup_terminated_threads(server);
+	if (server->tcp_nodes == NULL) {
+		server->current_band_freq = 0;
+	}
+	pthread_mutex_unlock(&server->mutex);
+
+	if (server->current_band_freq != 0 && server->current_band_freq != config->band_freq) {
+		respond_failure(client_socket, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_OUT_OF_BAND_FREQ);
+		fprintf(stderr, "<3>[%d] requested out of band frequency: %d\n", server->client_counter, config->band_freq);
+		free(config);
+		return;
+	}
+
+	if (server->current_band_freq == 0) {
+		server->current_band_freq = config->band_freq;
+	}
+
+	config->is_running = true;
+	config->core = server->core;
+	config->id = server->client_counter;
+
+	struct linked_list_tcp_node *tcp_node = malloc(sizeof(struct linked_list_tcp_node));
+	if (tcp_node == NULL) {
+		respond_failure(client_socket, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_INTERNAL_ERROR);
+		free(config);
+		return;
+	}
+	tcp_node->config = config;
+	tcp_node->next = NULL;
+	tcp_node->server = server;
+
+	pthread_t client_thread;
+	int code = pthread_create(&client_thread, NULL, &tcp_worker, tcp_node);
+	if (code != 0) {
+		respond_failure(client_socket, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_INTERNAL_ERROR);
+		free(config);
+		free(tcp_node);
+		return;
+	}
+	tcp_node->client_thread = client_thread;
+
+	add_tcp_node(tcp_node);
+}
+
 static void* acceptor_worker(void *arg) {
 	tcp_server *server = (tcp_server*) arg;
-	uint32_t current_band_freq = 0;
 	struct sockaddr_in address;
-	uint8_t client_counter = 0;
 	while (server->is_running) {
 		int client_socket;
 		int addrlen = sizeof(address);
 		if ((client_socket = accept(server->server_socket, (struct sockaddr*) &address, (socklen_t*) &addrlen)) < 0) {
 			break;
 		}
-
-		log_client(&address, client_counter);
 
 		struct timeval tv;
 		tv.tv_sec = server->server_config->read_timeout_seconds;
@@ -286,65 +326,41 @@ static void* acceptor_worker(void *arg) {
 			continue;
 		}
 
-		struct client_config *config = NULL;
-		if (read_client_config(client_socket, server->server_config, &config) < 0) {
+		// always increment counter to make even error messages traceable
+		server->client_counter++;
+
+		struct message_header header;
+		if (read_struct(client_socket, &header, sizeof(struct message_header)) < 0) {
+			fprintf(stderr, "<3>[%d] unable to read request header fully\n", server->client_counter);
 			respond_failure(client_socket, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_INVALID_REQUEST);
 			continue;
 		}
-		if (validate_client_config(config, server->server_config) < 0) {
+		if (header.protocol_version != PROTOCOL_VERSION) {
+			fprintf(stderr, "<3>[%d] unsupported protocol: %d\n", server->client_counter, header.protocol_version);
 			respond_failure(client_socket, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_INVALID_REQUEST);
-			free(config);
 			continue;
 		}
 
-		pthread_mutex_lock(&server->mutex);
-		cleanup_terminated_threads(server);
-		if( server->tcp_nodes == NULL ) {
-			current_band_freq = 0;
-		}
-		pthread_mutex_unlock(&server->mutex);
-
-		if (current_band_freq != 0 && current_band_freq != config->band_freq) {
-			respond_failure(client_socket, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_OUT_OF_BAND_FREQ);
-			free(config);
-			continue;
-		}
-
-		if (current_band_freq == 0) {
-			current_band_freq = config->band_freq;
+		switch (header.type) {
+			case TYPE_REQUEST:
+				log_client(&address, server->client_counter);
+				handle_new_client(client_socket, server);
+				break;
+			case TYPE_PING:
+				write_message(client_socket, RESPONSE_STATUS_SUCCESS, 0);
+				close(client_socket);
+				break;
+			default:
+				fprintf(stderr, "<3>[%d] unsupported request: %d\n", server->client_counter, header.type);
+				respond_failure(client_socket, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_INVALID_REQUEST);
+				break;
 		}
 
-		config->is_running = true;
-		config->core = server->core;
-		config->id = client_counter;
-		client_counter++;
-
-		struct linked_list_tcp_node *tcp_node = malloc(sizeof(struct linked_list_tcp_node));
-		if (tcp_node == NULL) {
-			respond_failure(client_socket, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_INTERNAL_ERROR);
-			free(config);
-			continue;
-		}
-		tcp_node->config = config;
-		tcp_node->next = NULL;
-		tcp_node->server = server;
-
-		pthread_t client_thread;
-		int code = pthread_create(&client_thread, NULL, &tcp_worker, tcp_node);
-		if (code != 0) {
-			respond_failure(client_socket, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_INTERNAL_ERROR);
-			free(config);
-			free(tcp_node);
-			continue;
-		}
-		tcp_node->client_thread = client_thread;
-
-		add_tcp_node(tcp_node);
 	}
 
 	remove_all_tcp_nodes(server);
 
-	printf("[tcp server] stopped\n");
+	printf("tcp server stopped\n");
 	return (void*) 0;
 }
 
@@ -365,6 +381,9 @@ int start_tcp_server(struct server_config *config, core *core, tcp_server **serv
 	result->server_socket = server_socket;
 	result->is_running = true;
 	result->server_config = config;
+	// start counting from 0
+	result->client_counter = -1;
+	result->current_band_freq = 0;
 	int opt = 1;
 	if (setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt))) {
 		free(result);
@@ -421,7 +440,7 @@ void stop_tcp_server(tcp_server *server) {
 	if (server == NULL) {
 		return;
 	}
-	fprintf(stdout, "[tcp server] stopping\n");
+	fprintf(stdout, "tcp server is stopping\n");
 	server->is_running = false;
 	// close is not enough to exit from the blocking "accept" method
 	// execute shutdown first

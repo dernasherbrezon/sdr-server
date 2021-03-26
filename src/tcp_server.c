@@ -264,7 +264,7 @@ void handle_new_client(int client_socket, tcp_server *server) {
 
 	pthread_mutex_lock(&server->mutex);
 	cleanup_terminated_threads(server);
-	if( server->tcp_nodes == NULL ) {
+	if (server->tcp_nodes == NULL) {
 		server->current_band_freq = 0;
 	}
 	pthread_mutex_unlock(&server->mutex);

@@ -44,9 +44,19 @@ int read_struct(int socket, void *result, size_t len) {
 	while (left > 0) {
 		int received = recv(socket, (char*) result + (len - left), left, 0);
 		if (received < 0) {
+			// will happen on timeout
 			if (errno == EWOULDBLOCK || errno == EAGAIN) {
 				return -errno;
 			}
+			// SIGINT and SIGTERM handled in main
+			// all other signals should be ignored and syscall should be retried
+			// For example, EINTR happens when gdb disconnects
+			if (errno == EINTR) {
+				continue;
+			}
+			// other types of errors
+			// log and disconnect
+			perror("unable to read struct");
 			return -1;
 		}
 		// client has closed the socket

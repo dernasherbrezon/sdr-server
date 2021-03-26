@@ -90,6 +90,9 @@ int read_data(void *result, size_t len, struct tcp_client *tcp_client) {
 			if (errno == EWOULDBLOCK || errno == EAGAIN) {
 				return -errno;
 			}
+			if (errno == EINTR) {
+				continue;
+			}
 			return -1;
 		}
 		// client has closed the socket

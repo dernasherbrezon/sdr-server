@@ -1,3 +1,10 @@
+sdr-server (1.0.7-1~stretch) unstable; urgency=medium
+
+  * add support for ping command
+  * better logging
+
+ -- Andrey Rodionov <info@r2cloud.ru>  Fri, 26 Mar 2021 10:17:21 +0100
+
 sdr-server (1.0.6-1~stretch) unstable; urgency=medium
 
   * add lpf cutoff frequency

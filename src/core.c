@@ -116,7 +116,7 @@ int write_to_socket(struct linked_list_node *config_node, float complex *filter_
 
 static void* dsp_worker(void *arg) {
 	struct linked_list_node *config_node = (struct linked_list_node*) arg;
-	fprintf(stdout, "[%d][dsp_worker] starting\n", config_node->config->id);
+	fprintf(stdout, "[%d] dsp_worker is starting\n", config_node->config->id);
 	uint8_t *input = NULL;
 	int input_len = 0;
 	float complex *filter_output = NULL;
@@ -146,7 +146,7 @@ static void* dsp_worker(void *arg) {
 
 	}
 	destroy_queue(config_node->queue);
-	printf("[%d][dsp_worker] stopped\n", config_node->config->id);
+	printf("[%d] dsp_worker stopped\n", config_node->config->id);
 	return (void*) 0;
 }
 
@@ -170,13 +170,13 @@ static void* rtlsdr_worker(void *arg) {
 		pthread_mutex_unlock(&core->mutex);
 	}
 	core->dev = NULL;
-	printf("[rtl-sdr] stopped\n");
+	printf("rtl-sdr stopped\n");
 	return (void*) 0;
 }
 
 int start_rtlsdr(struct client_config *config) {
 	core *core = config->core;
-	fprintf(stdout, "[rtl-sdr] starting\n");
+	fprintf(stdout, "rtl-sdr is starting\n");
 	rtlsdr_dev_t *dev = NULL;
 	rtlsdr_open(&dev, 0);
 	if (dev == NULL) {
@@ -232,7 +232,7 @@ int start_rtlsdr(struct client_config *config) {
 }
 
 void stop_rtlsdr(core *core) {
-	fprintf(stdout, "[rtl-sdr] stopping\n");
+	fprintf(stdout, "rtl-sdr is stopping\n");
 	core->is_rtlsdr_running = false;
 	// this will close reading from the sync
 	rtlsdr_close(core->dev);
@@ -246,7 +246,7 @@ void destroy_node(struct linked_list_node *node) {
 	if (node == NULL) {
 		return;
 	}
-	fprintf(stdout, "[%d][dsp_worker] stopping\n", node->config->id);
+	fprintf(stdout, "[%d] dsp_worker is stopping\n", node->config->id);
 	if (node->queue != NULL) {
 		interrupt_waiting_the_data(node->queue);
 	}

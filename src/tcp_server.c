@@ -155,12 +155,13 @@ void respond_failure(int client_socket, uint8_t status, uint8_t details) {
 
 static void* tcp_worker(void *arg) {
 	struct linked_list_tcp_node *node = (struct linked_list_tcp_node*) arg;
-	fprintf(stdout, "[%d][tcp_worker] starting\n", node->config->id);
+	fprintf(stdout, "[%d] tcp_worker is starting\n", node->config->id);
 	int code = add_client(node->config);
 	if (code != 0) {
 		respond_failure(node->config->client_socket, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_INTERNAL_ERROR);
 	} else {
 		write_message(node->config->client_socket, RESPONSE_STATUS_SUCCESS, node->config->id);
+		fprintf(stdout, "[%d] center_freq %d sampling_rate %d destination %d\n", node->config->id, node->config->center_freq, node->config->sampling_rate, node->config->destination);
 		while (node->config->is_running) {
 			struct message_header header;
 			code = read_struct(node->config->client_socket, &header, sizeof(struct message_header));
@@ -207,7 +208,7 @@ void cleanup_terminated_threads(tcp_server *server) {
 			previous->next = next;
 		}
 
-		fprintf(stdout, "[%d][tcp_worker] stopping\n", cur_node->config->id);
+		fprintf(stdout, "[%d] tcp_worker is stopping\n", cur_node->config->id);
 		pthread_join(cur_node->client_thread, NULL);
 		free(cur_node->config);
 		free(cur_node);
@@ -239,7 +240,7 @@ void remove_all_tcp_nodes(tcp_server *server) {
 		cur_node->config->is_running = false;
 		close(cur_node->config->client_socket);
 
-		fprintf(stdout, "[%d][tcp_worker] stopping\n", cur_node->config->id);
+		fprintf(stdout, "[%d] tcp_worker is stopping\n", cur_node->config->id);
 		pthread_join(cur_node->client_thread, NULL);
 		free(cur_node->config);
 		free(cur_node);
@@ -359,7 +360,7 @@ static void* acceptor_worker(void *arg) {
 
 	remove_all_tcp_nodes(server);
 
-	printf("[tcp server] stopped\n");
+	printf("tcp server stopped\n");
 	return (void*) 0;
 }
 
@@ -439,7 +440,7 @@ void stop_tcp_server(tcp_server *server) {
 	if (server == NULL) {
 		return;
 	}
-	fprintf(stdout, "[tcp server] stopping\n");
+	fprintf(stdout, "tcp server is stopping\n");
 	server->is_running = false;
 	// close is not enough to exit from the blocking "accept" method
 	// execute shutdown first

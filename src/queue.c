@@ -91,7 +91,7 @@ void queue_put(const uint8_t *buffer, const int len, queue *queue) {
 		// queue is full
 		// overwrite last node
 		to_fill = queue->last_filled_node;
-		fprintf(stderr, "queue is full\n");
+		fprintf(stderr, "<3> queue is full\n");
 	} else {
 		// remove from free nodes pool
 		to_fill = queue->first_free_node;

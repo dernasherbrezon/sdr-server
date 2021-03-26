@@ -67,7 +67,7 @@ int read_client_config(int client_socket, int client_id, struct server_config *s
 	*result = (struct client_config ) { 0 };
 	struct request req;
 	if (read_struct(client_socket, &req, sizeof(struct request)) < 0) {
-		fprintf(stderr, "[%d] unable to read request fully\n", client_id);
+		fprintf(stderr, "<3>[%d] unable to read request fully\n", client_id);
 		free(result);
 		return -1;
 	}
@@ -77,7 +77,7 @@ int read_client_config(int client_socket, int client_id, struct server_config *s
 	result->client_socket = client_socket;
 	result->destination = req.destination;
 	if (result->sampling_rate > 0 && server_config->band_sampling_rate % result->sampling_rate != 0) {
-		fprintf(stderr, "[%d] sampling frequency is not an integer factor of server sample rate: %u\n", client_id, server_config->band_sampling_rate);
+		fprintf(stderr, "<3>[%d] sampling frequency is not an integer factor of server sample rate: %u\n", client_id, server_config->band_sampling_rate);
 		free(result);
 		return -1;
 	}
@@ -88,31 +88,31 @@ int read_client_config(int client_socket, int client_id, struct server_config *s
 
 int validate_client_config(struct client_config *config, struct server_config *server_config, int client_id) {
 	if (config->center_freq == 0) {
-		fprintf(stderr, "[%d] missing center_freq parameter\n", client_id);
+		fprintf(stderr, "<3>[%d] missing center_freq parameter\n", client_id);
 		return -1;
 	}
 	if (config->sampling_rate == 0) {
-		fprintf(stderr, "[%d] missing sampling_rate parameter\n", client_id);
+		fprintf(stderr, "<3>[%d] missing sampling_rate parameter\n", client_id);
 		return -1;
 	}
 	if (config->band_freq == 0) {
-		fprintf(stderr, "[%d] missing band_freq parameter\n", client_id);
+		fprintf(stderr, "<3>[%d] missing band_freq parameter\n", client_id);
 		return -1;
 	}
 	if (config->destination != REQUEST_DESTINATION_FILE && config->destination != REQUEST_DESTINATION_SOCKET) {
-		fprintf(stderr, "[%d] unknown destination: %d\n", client_id, config->destination);
+		fprintf(stderr, "<3>[%d] unknown destination: %d\n", client_id, config->destination);
 		return -1;
 	}
 	uint32_t requested_min_freq = config->center_freq - config->sampling_rate / 2;
 	uint32_t server_min_freq = config->band_freq - server_config->band_sampling_rate / 2;
 	if (requested_min_freq < server_min_freq) {
-		fprintf(stderr, "[%d] requested center freq is out of the band: %u\n", client_id, config->center_freq);
+		fprintf(stderr, "<3>[%d] requested center freq is out of the band: %u\n", client_id, config->center_freq);
 		return -1;
 	}
 	uint32_t requested_max_freq = config->center_freq + config->sampling_rate / 2;
 	uint32_t server_max_freq = config->band_freq + server_config->band_sampling_rate / 2;
 	if (requested_max_freq > server_max_freq) {
-		fprintf(stderr, "[%d] requested center freq is out of the band: %u\n", client_id, config->center_freq);
+		fprintf(stderr, "<3>[%d] requested center freq is out of the band: %u\n", client_id, config->center_freq);
 		return -1;
 	}
 	return 0;
@@ -175,11 +175,11 @@ static void* tcp_worker(void *arg) {
 				break;
 			}
 			if (header.protocol_version != PROTOCOL_VERSION) {
-				fprintf(stderr, "[%d] unsupported protocol: %d\n", node->config->id, header.protocol_version);
+				fprintf(stderr, "<3>[%d] unsupported protocol: %d\n", node->config->id, header.protocol_version);
 				continue;
 			}
 			if (header.type != TYPE_SHUTDOWN) {
-				fprintf(stderr, "[%d] unsupported request: %d\n", node->config->id, header.type);
+				fprintf(stderr, "<3>[%d] unsupported request: %d\n", node->config->id, header.type);
 				continue;
 			}
 			fprintf(stdout, "[%d] client requested disconnect\n", node->config->id);
@@ -271,7 +271,7 @@ void handle_new_client(int client_socket, tcp_server *server) {
 
 	if (server->current_band_freq != 0 && server->current_band_freq != config->band_freq) {
 		respond_failure(client_socket, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_OUT_OF_BAND_FREQ);
-		fprintf(stderr, "[%d] requested out of band frequency: %d\n", server->client_counter, config->band_freq);
+		fprintf(stderr, "<3>[%d] requested out of band frequency: %d\n", server->client_counter, config->band_freq);
 		free(config);
 		return;
 	}
@@ -331,12 +331,12 @@ static void* acceptor_worker(void *arg) {
 
 		struct message_header header;
 		if (read_struct(client_socket, &header, sizeof(struct message_header)) < 0) {
-			fprintf(stderr, "[%d] unable to read request header fully\n", server->client_counter);
+			fprintf(stderr, "<3>[%d] unable to read request header fully\n", server->client_counter);
 			respond_failure(client_socket, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_INVALID_REQUEST);
 			continue;
 		}
 		if (header.protocol_version != PROTOCOL_VERSION) {
-			fprintf(stderr, "[%d] unsupported protocol: %d\n", server->client_counter, header.protocol_version);
+			fprintf(stderr, "<3>[%d] unsupported protocol: %d\n", server->client_counter, header.protocol_version);
 			respond_failure(client_socket, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_INVALID_REQUEST);
 			continue;
 		}
@@ -351,7 +351,7 @@ static void* acceptor_worker(void *arg) {
 				close(client_socket);
 				break;
 			default:
-				fprintf(stderr, "[%d] unsupported request: %d\n", server->client_counter, header.type);
+				fprintf(stderr, "<3>[%d] unsupported request: %d\n", server->client_counter, header.type);
 				respond_failure(client_socket, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_INVALID_REQUEST);
 				break;
 		}

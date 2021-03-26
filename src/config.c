@@ -38,7 +38,7 @@ int create_server_config(struct server_config **config, const char *path) {
 
 	int code = config_read_file(&libconfig, path);
 	if (code == CONFIG_FALSE) {
-		fprintf(stderr, "unable to read configuration: %s\n", config_error_text(&libconfig));
+		fprintf(stderr, "<3> unable to read configuration: %s\n", config_error_text(&libconfig));
 		config_destroy(&libconfig);
 		free(result);
 		return -1;
@@ -96,7 +96,7 @@ int create_server_config(struct server_config **config, const char *path) {
 
 	setting = config_lookup(&libconfig, "band_sampling_rate");
 	if (setting == NULL) {
-		fprintf(stderr, "missing required configuration: band_sampling_rate\n");
+		fprintf(stderr, "<3> missing required configuration: band_sampling_rate\n");
 		config_destroy(&libconfig);
 		free(result);
 		return -1;
@@ -152,7 +152,7 @@ int create_server_config(struct server_config **config, const char *path) {
 		if (read_timeout_seconds <= 0) {
 			config_destroy(&libconfig);
 			destroy_server_config(result);
-			fprintf(stderr, "read timeout should be positive: %d\n", read_timeout_seconds);
+			fprintf(stderr, "<3> read timeout should be positive: %d\n", read_timeout_seconds);
 			return -1;
 		}
 	}

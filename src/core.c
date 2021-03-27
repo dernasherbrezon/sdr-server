@@ -32,7 +32,7 @@ struct core_t {
 
 	struct linked_list_node *client_configs;
 	rtlsdr_dev_t *dev;
-	volatile sig_atomic_t is_rtlsdr_running;
+	atomic_bool is_rtlsdr_running;
 	pthread_t rtlsdr_worker_thread;
 	uint8_t *buffer;
 };
@@ -159,7 +159,6 @@ static void* rtlsdr_worker(void *arg) {
 	while (core->is_rtlsdr_running) {
 		int code = rtlsdr_read_sync(core->dev, core->buffer, buffer_size, &n_read);
 		if (code < 0) {
-			core->is_rtlsdr_running = false;
 			break;
 		}
 		pthread_mutex_lock(&core->mutex);
@@ -171,11 +170,12 @@ static void* rtlsdr_worker(void *arg) {
 		}
 		pthread_mutex_unlock(&core->mutex);
 	}
-	core->dev = NULL;
-	printf("rtl-sdr stopped\n");
 	pthread_mutex_lock(&core->mutex);
+	core->dev = NULL;
+	core->is_rtlsdr_running = false;
 	pthread_cond_broadcast(&core->rtl_thread_stopped_condition);
 	pthread_mutex_unlock(&core->mutex);
+	printf("rtl-sdr stopped\n");
 	return (void*) 0;
 }
 

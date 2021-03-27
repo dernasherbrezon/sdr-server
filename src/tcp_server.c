@@ -203,6 +203,7 @@ static void* tcp_worker(void *arg) {
 }
 
 void cleanup_terminated_threads(tcp_server *server) {
+	pthread_mutex_lock(&server->mutex);
 	struct linked_list_tcp_node *cur_node = server->tcp_nodes;
 	struct linked_list_tcp_node *previous = NULL;
 	while (cur_node != NULL) {
@@ -225,6 +226,10 @@ void cleanup_terminated_threads(tcp_server *server) {
 
 		cur_node = next;
 	}
+	if (server->tcp_nodes == NULL) {
+		server->current_band_freq = 0;
+	}
+	pthread_mutex_unlock(&server->mutex);
 }
 
 void add_tcp_node(struct linked_list_tcp_node *node) {
@@ -272,12 +277,7 @@ void handle_new_client(int client_socket, tcp_server *server) {
 		return;
 	}
 
-	pthread_mutex_lock(&server->mutex);
 	cleanup_terminated_threads(server);
-	if (server->tcp_nodes == NULL) {
-		server->current_band_freq = 0;
-	}
-	pthread_mutex_unlock(&server->mutex);
 
 	if (server->current_band_freq != 0 && server->current_band_freq != config->band_freq) {
 		respond_failure(client_socket, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_OUT_OF_BAND_FREQ);

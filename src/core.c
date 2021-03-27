@@ -28,6 +28,7 @@ struct linked_list_node {
 struct core_t {
 	struct server_config *server_config;
 	pthread_mutex_t mutex;
+	pthread_cond_t rtl_thread_stopped_condition;
 
 	struct linked_list_node *client_configs;
 	rtlsdr_dev_t *dev;
@@ -79,6 +80,7 @@ int create_core(struct server_config *server_config, core **result) {
 	memset(buffer, 0, server_config->buffer_size);
 	core->buffer = buffer;
 	core->mutex = (pthread_mutex_t )PTHREAD_MUTEX_INITIALIZER;
+	core->rtl_thread_stopped_condition = (pthread_cond_t )PTHREAD_COND_INITIALIZER;
 	*result = core;
 	return 0;
 }
@@ -171,6 +173,9 @@ static void* rtlsdr_worker(void *arg) {
 	}
 	core->dev = NULL;
 	printf("rtl-sdr stopped\n");
+	pthread_mutex_lock(&core->mutex);
+	pthread_cond_broadcast(&core->rtl_thread_stopped_condition);
+	pthread_mutex_unlock(&core->mutex);
 	return (void*) 0;
 }
 
@@ -233,12 +238,17 @@ int start_rtlsdr(struct client_config *config) {
 
 void stop_rtlsdr(core *core) {
 	fprintf(stdout, "rtl-sdr is stopping\n");
-	core->is_rtlsdr_running = false;
 	// this will close reading from the sync
 	rtlsdr_close(core->dev);
 	core->dev = NULL;
 
-	// block access to core until rtlsdr fully stops and cleans the resources
+	// release the mutex here for rtlsdr thread to send last updates
+	// and cleans up
+	while (core->is_rtlsdr_running == true) {
+		pthread_cond_wait(&core->rtl_thread_stopped_condition, &core->mutex);
+	}
+
+	// additionally wait until rtlsdr thread terminates by OS
 	pthread_join(core->rtlsdr_worker_thread, NULL);
 }
 
@@ -384,14 +394,10 @@ void remove_client(struct client_config *config) {
 		previous_node = cur_node;
 		cur_node = cur_node->next;
 	}
-	pthread_mutex_unlock(&config->core->mutex);
-	// all access to stop_rtlsdr should be out of mutex,
-	// otherwise deadlock can happen:
-	//	- stop lock the mutex
-	//	- rtlsdr thread cannot acquire mutex to notify clients and shutdown
 	if (should_stop_rtlsdr) {
 		stop_rtlsdr(config->core);
 	}
+	pthread_mutex_unlock(&config->core->mutex);
 	// stopping the thread can take some time
 	// do it outside of synch block
 	if (node_to_destroy != NULL) {
@@ -403,10 +409,10 @@ void destroy_core(core *core) {
 	if (core == NULL) {
 		return;
 	}
+	pthread_mutex_lock(&core->mutex);
 	if (core->is_rtlsdr_running) {
 		stop_rtlsdr(core);
 	}
-	pthread_mutex_lock(&core->mutex);
 	if (core->buffer != NULL) {
 		free(core->buffer);
 	}

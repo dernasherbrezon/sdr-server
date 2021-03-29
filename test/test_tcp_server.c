@@ -12,6 +12,7 @@
 extern void init_mock_librtlsdr();
 extern void wait_for_data_read();
 extern void setup_mock_data(uint8_t *buffer, int len);
+extern void stop_rtlsdr_mock();
 
 tcp_server *server = NULL;
 core *core_obj = NULL;
@@ -61,6 +62,7 @@ START_TEST (test_out_of_band_frequency_clients) {
 	send_message(client1, PROTOCOL_VERSION, TYPE_REQUEST, 460700000, 48000, 461600000, REQUEST_DESTINATION_FILE);
 	assert_response(client1, TYPE_RESPONSE, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_OUT_OF_BAND_FREQ);
 	destroy_client(client1);
+	stop_rtlsdr_mock();
 
 	// then the first client disconnects
 	send_message(client0, PROTOCOL_VERSION, TYPE_SHUTDOWN, 0, 0, 0, 0);
@@ -212,6 +214,7 @@ START_TEST (test_ping) {
 END_TEST
 
 void teardown() {
+	stop_rtlsdr_mock();
 	stop_tcp_server(server);
 	server = NULL;
 	destroy_core(core_obj);

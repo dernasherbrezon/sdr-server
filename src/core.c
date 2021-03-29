@@ -171,8 +171,10 @@ static void* rtlsdr_worker(void *arg) {
 		pthread_mutex_unlock(&core->mutex);
 	}
 	pthread_mutex_lock(&core->mutex);
+	// run close on the same thread
+	// otherwise it might produce race condition somewhere in libusb code
+	rtlsdr_close(core->dev);
 	core->dev = NULL;
-	core->is_rtlsdr_running = false;
 	pthread_cond_broadcast(&core->rtl_thread_stopped_condition);
 	pthread_mutex_unlock(&core->mutex);
 	printf("rtl-sdr stopped\n");
@@ -238,13 +240,15 @@ int start_rtlsdr(struct client_config *config) {
 
 void stop_rtlsdr(core *core) {
 	fprintf(stdout, "rtl-sdr is stopping\n");
-	// this will close reading from the sync
-	rtlsdr_close(core->dev);
-	core->dev = NULL;
+	// this will assume rtlsdr_read_sync is always returning some data
+	// if rtlsdr_worker hang there, then shutdown will delay
+	// previously I used rtlsdr_close to exit from the sync call
+	// but that caused race condition somewhere in libusb and 100% CPU usage
+	core->is_rtlsdr_running = false;
 
 	// release the mutex here for rtlsdr thread to send last updates
 	// and cleans up
-	while (core->is_rtlsdr_running == true) {
+	while (core->dev != NULL) {
 		pthread_cond_wait(&core->rtl_thread_stopped_condition, &core->mutex);
 	}
 

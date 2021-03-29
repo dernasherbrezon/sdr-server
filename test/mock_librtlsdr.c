@@ -71,6 +71,8 @@ void wait_for_data_read() {
 	while (!mock.data_was_read) {
 		pthread_cond_wait(&mock.data_was_read_condition, &mock.mutex);
 	}
+	mock.stopped = true;
+	pthread_cond_broadcast(&mock.condition);
 	pthread_mutex_unlock(&mock.mutex);
 }
 
@@ -78,6 +80,14 @@ void setup_mock_data(uint8_t *buffer, int len) {
 	pthread_mutex_lock(&mock.mutex);
 	mock.buffer = buffer;
 	mock.len = len;
+	pthread_cond_broadcast(&mock.condition);
+	pthread_mutex_unlock(&mock.mutex);
+}
+
+void stop_rtlsdr_mock() {
+	pthread_mutex_lock(&mock.mutex);
+	mock.stopped = true;
+	mock.buffer = NULL;
 	pthread_cond_broadcast(&mock.condition);
 	pthread_mutex_unlock(&mock.mutex);
 }
@@ -110,10 +120,6 @@ int rtlsdr_close_mocked(rtlsdr_dev_t *dev) {
 	if (dev != NULL) {
 		free(dev);
 	}
-	pthread_mutex_lock(&mock.mutex);
-	mock.stopped = true;
-	pthread_cond_broadcast(&mock.condition);
-	pthread_mutex_unlock(&mock.mutex);
 	return 0;
 }
 

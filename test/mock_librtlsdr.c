@@ -103,9 +103,9 @@ int rtlsdr_read_async_mocked(rtlsdr_dev_t *dev, rtlsdr_read_async_cb_t cb, void 
 		}
 		if( mock.buffer != NULL ) {
 			cb(mock.buffer, mock.len, ctx);
-			pthread_cond_broadcast(&mock.data_was_read_condition);
 			mock.buffer = NULL;
 			mock.data_was_read = true;
+			pthread_cond_broadcast(&mock.data_was_read_condition);
 		}
 	}
 	pthread_mutex_unlock(&mock.mutex);

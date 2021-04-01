@@ -45,7 +45,6 @@ struct mock_status {
 	pthread_mutex_t mutex;
 	pthread_cond_t condition;
 	int stopped;
-	pthread_cond_t data_was_read_condition;
 	int data_was_read;
 };
 
@@ -58,9 +57,9 @@ struct mock_status mock;
 void init_mock_librtlsdr() {
 	mock.mutex = (pthread_mutex_t )PTHREAD_MUTEX_INITIALIZER;
 	mock.condition = (pthread_cond_t )PTHREAD_COND_INITIALIZER;
-	mock.data_was_read_condition = (pthread_cond_t )PTHREAD_COND_INITIALIZER;
 	mock.stopped = false;
 	mock.data_was_read = false;
+	mock.buffer = NULL;
 }
 
 // make sure data was read
@@ -69,7 +68,7 @@ void init_mock_librtlsdr() {
 void wait_for_data_read() {
 	pthread_mutex_lock(&mock.mutex);
 	while (!mock.data_was_read) {
-		pthread_cond_wait(&mock.data_was_read_condition, &mock.mutex);
+		pthread_cond_wait(&mock.condition, &mock.mutex);
 	}
 	mock.stopped = true;
 	pthread_cond_broadcast(&mock.condition);
@@ -94,18 +93,16 @@ void stop_rtlsdr_mock() {
 
 
 int rtlsdr_read_async_mocked(rtlsdr_dev_t *dev, rtlsdr_read_async_cb_t cb, void *ctx, uint32_t buf_num, uint32_t buf_len) {
-	int result;
 	pthread_mutex_lock(&mock.mutex);
-	while (mock.buffer == NULL) {
-		pthread_cond_wait(&mock.condition, &mock.mutex);
-		if (mock.stopped) {
-			break;
+	while (!mock.stopped) {
+		if (mock.buffer == NULL) {
+			pthread_cond_wait(&mock.condition, &mock.mutex);
 		}
-		if( mock.buffer != NULL ) {
+		if (mock.buffer != NULL) {
 			cb(mock.buffer, mock.len, ctx);
 			mock.buffer = NULL;
 			mock.data_was_read = true;
-			pthread_cond_broadcast(&mock.data_was_read_condition);
+			pthread_cond_broadcast(&mock.condition);
 		}
 	}
 	pthread_mutex_unlock(&mock.mutex);

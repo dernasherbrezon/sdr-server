@@ -1,3 +1,9 @@
+sdr-server (1.0.11-1~stretch) unstable; urgency=medium
+
+  * graceful shutdown on full disk
+
+ -- Andrey Rodionov <info@r2cloud.ru>  Thu, 01 Apr 2021 10:18:21 +0100
+
 sdr-server (1.0.10-1~stretch) unstable; urgency=medium
 
   * stop rtlsdr on the reading thread

@@ -32,7 +32,6 @@ struct core_t {
 
 	struct linked_list_node *client_configs;
 	rtlsdr_dev_t *dev;
-	atomic_bool is_rtlsdr_running;
 	pthread_t rtlsdr_worker_thread;
 	uint8_t *buffer;
 };
@@ -92,10 +91,9 @@ int write_to_file(struct linked_list_node *config_node, float complex *filter_ou
 	} else if (config_node->gz != NULL) {
 		n_written = gzwrite(config_node->gz, filter_output, sizeof(float complex) * filter_output_len);
 	} else {
-		fprintf(stderr, "<3> unknown file output\n");
+		fprintf(stderr, "<3>unknown file output\n");
 		return -1;
 	}
-	printf("code is %zu\n", n_written);
 	// if disk is full, then terminate the client
 	if (n_written < filter_output_len) {
 		return -1;
@@ -137,7 +135,7 @@ static void* dsp_worker(void *arg) {
 		} else if (config_node->config->destination == REQUEST_DESTINATION_SOCKET) {
 			code = write_to_socket(config_node, filter_output, filter_output_len);
 		} else {
-			fprintf(stderr, "<3> unknown destination: %d\n", config_node->config->destination);
+			fprintf(stderr, "<3>unknown destination: %d\n", config_node->config->destination);
 			code = -1;
 		}
 
@@ -159,24 +157,22 @@ static void* dsp_worker(void *arg) {
 	return (void*) 0;
 }
 
+static void rtlsdr_callback(unsigned char *buf, uint32_t len, void *ctx) {
+	core *core = (struct core_t*) ctx;
+	pthread_mutex_lock(&core->mutex);
+	struct linked_list_node *current_node = core->client_configs;
+	while (current_node != NULL) {
+		// copy to client's buffers and notify
+		queue_put(buf, len, current_node->queue);
+		current_node = current_node->next;
+	}
+	pthread_mutex_unlock(&core->mutex);
+}
+
 static void* rtlsdr_worker(void *arg) {
 	core *core = (struct core_t*) arg;
 	uint32_t buffer_size = core->server_config->buffer_size;
-	int n_read = 0;
-	while (core->is_rtlsdr_running) {
-		int code = rtlsdr_read_sync(core->dev, core->buffer, buffer_size, &n_read);
-		if (code < 0) {
-			break;
-		}
-		pthread_mutex_lock(&core->mutex);
-		struct linked_list_node *current_node = core->client_configs;
-		while (current_node != NULL) {
-			// copy to client's buffers and notify
-			queue_put(core->buffer, n_read, current_node->queue);
-			current_node = current_node->next;
-		}
-		pthread_mutex_unlock(&core->mutex);
-	}
+	rtlsdr_read_async(core->dev, rtlsdr_callback, core, 0, buffer_size);
 	pthread_mutex_lock(&core->mutex);
 	// run close on the same thread
 	// otherwise it might produce race condition somewhere in libusb code
@@ -194,47 +190,46 @@ int start_rtlsdr(struct client_config *config) {
 	rtlsdr_dev_t *dev = NULL;
 	rtlsdr_open(&dev, 0);
 	if (dev == NULL) {
-		fprintf(stderr, "<3> unable to open rtl-sdr device\n");
+		fprintf(stderr, "<3>unable to open rtl-sdr device\n");
 		return 0x04;
 	}
 
 	int code = rtlsdr_set_sample_rate(dev, core->server_config->band_sampling_rate);
 	if (code < 0) {
-		fprintf(stderr, "<3> unable to set sampling rate: %d\n", code);
+		fprintf(stderr, "<3>unable to set sampling rate: %d\n", code);
 	}
 	code = rtlsdr_set_center_freq(dev, config->band_freq);
 	if (code < 0) {
-		fprintf(stderr, "<3> unable to set center freq: %d\n", code);
+		fprintf(stderr, "<3>unable to set center freq: %d\n", code);
 	}
 	code = rtlsdr_set_tuner_gain_mode(dev, core->server_config->gain_mode);
 	if (code < 0) {
-		fprintf(stderr, "<3> unable to set gain mode: %d\n", code);
+		fprintf(stderr, "<3>unable to set gain mode: %d\n", code);
 	}
 	if (core->server_config->gain_mode == 1) {
 		int nearest_gain = 0;
 		code = find_nearest_gain(dev, core->server_config->gain, &nearest_gain);
 		if (code < 0) {
-			fprintf(stderr, "<3> unable to find nearest gain for: %d\n", core->server_config->gain);
+			fprintf(stderr, "<3>unable to find nearest gain for: %d\n", core->server_config->gain);
 		} else {
 			if (nearest_gain != core->server_config->gain) {
 				fprintf(stdout, "the actual nearest supported gain is: %f\n", (float) nearest_gain / 10);
 			}
 			code = rtlsdr_set_tuner_gain(dev, nearest_gain);
 			if (code < 0) {
-				fprintf(stderr, "<3> unable to set tuner gain: %d\n", code);
+				fprintf(stderr, "<3>unable to set tuner gain: %d\n", code);
 			}
 		}
 	}
 	code = rtlsdr_set_bias_tee(dev, core->server_config->bias_t);
 	if (code < 0) {
-		fprintf(stderr, "<3> unable to set bias_t: %d\n", code);
+		fprintf(stderr, "<3>unable to set bias_t: %d\n", code);
 	}
 	code = rtlsdr_reset_buffer(dev);
 	if (code < 0) {
-		fprintf(stderr, "<3> unable to reset buffer: %d\n", code);
+		fprintf(stderr, "<3>unable to reset buffer: %d\n", code);
 	}
 	core->dev = dev;
-	core->is_rtlsdr_running = true;
 
 	pthread_t rtlsdr_worker_thread;
 	code = pthread_create(&rtlsdr_worker_thread, NULL, &rtlsdr_worker, core);
@@ -247,11 +242,8 @@ int start_rtlsdr(struct client_config *config) {
 
 void stop_rtlsdr(core *core) {
 	fprintf(stdout, "rtl-sdr is stopping\n");
-	// this will assume rtlsdr_read_sync is always returning some data
-	// if rtlsdr_worker hang there, then shutdown will delay
-	// previously I used rtlsdr_close to exit from the sync call
-	// but that caused race condition somewhere in libusb and 100% CPU usage
-	core->is_rtlsdr_running = false;
+
+	rtlsdr_cancel_async(core->dev);
 
 	// release the mutex here for rtlsdr thread to send last updates
 	// and cleans up
@@ -320,7 +312,7 @@ int add_client(struct client_config *config) {
 		snprintf(file_path, sizeof(file_path), "%s/%d.cf32.gz", config->core->server_config->base_path, config->id);
 		config_node->gz = gzopen(file_path, "wb");
 		if (config_node->gz == NULL) {
-			fprintf(stderr, "<3> unable to open gz file for output: %s\n", file_path);
+			fprintf(stderr, "<3>unable to open gz file for output: %s\n", file_path);
 			destroy_node(config_node);
 			return -1;
 		}
@@ -329,7 +321,7 @@ int add_client(struct client_config *config) {
 		snprintf(file_path, sizeof(file_path), "%s/%d.cf32", config->core->server_config->base_path, config->id);
 		config_node->file = fopen(file_path, "wb");
 		if (config_node->file == NULL) {
-			fprintf(stderr, "<3> unable to open file for output: %s\n", file_path);
+			fprintf(stderr, "<3>unable to open file for output: %s\n", file_path);
 			destroy_node(config_node);
 			return -1;
 		}
@@ -421,7 +413,7 @@ void destroy_core(core *core) {
 		return;
 	}
 	pthread_mutex_lock(&core->mutex);
-	if (core->is_rtlsdr_running) {
+	if (core->dev != NULL) {
 		stop_rtlsdr(core);
 	}
 	if (core->buffer != NULL) {

@@ -13,7 +13,9 @@
 #define rtlsdr_set_bias_tee rtlsdr_set_bias_tee_mocked
 #define rtlsdr_reset_buffer rtlsdr_reset_buffer_mocked
 #define rtlsdr_get_tuner_gains rtlsdr_get_tuner_gains_mocked
+#define rtlsdr_cancel_async rtlsdr_cancel_async_mocked
 
+int rtlsdr_cancel_async_mocked(rtlsdr_dev_t *dev);
 int rtlsdr_read_async_mocked(rtlsdr_dev_t *dev, rtlsdr_read_async_cb_t cb, void *ctx, uint32_t buf_num, uint32_t buf_len);
 int rtlsdr_close_mocked(rtlsdr_dev_t *dev);
 int rtlsdr_open_mocked(rtlsdr_dev_t **dev, uint32_t index);
@@ -27,6 +29,7 @@ int rtlsdr_get_tuner_gains(rtlsdr_dev_t *dev, int *gains);
 
 #include "../src/core.c"
 
+#undef rtlsdr_cancel_async
 #undef rtlsdr_read_async
 #undef rtlsdr_close
 #undef rtlsdr_open
@@ -113,6 +116,11 @@ int rtlsdr_close_mocked(rtlsdr_dev_t *dev) {
 	if (dev != NULL) {
 		free(dev);
 	}
+	return 0;
+}
+
+int rtlsdr_cancel_async_mocked(rtlsdr_dev_t *dev) {
+	stop_rtlsdr_mock();
 	return 0;
 }
 

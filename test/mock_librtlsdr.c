@@ -73,7 +73,6 @@ void wait_for_data_read() {
 	while (!mock.data_was_read) {
 		pthread_cond_wait(&mock.condition, &mock.mutex);
 	}
-	mock.stopped = true;
 	pthread_cond_broadcast(&mock.condition);
 	pthread_mutex_unlock(&mock.mutex);
 }

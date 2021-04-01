@@ -86,17 +86,18 @@ int create_core(struct server_config *server_config, core **result) {
 }
 
 int write_to_file(struct linked_list_node *config_node, float complex *filter_output, size_t filter_output_len) {
-	size_t n_read;
+	size_t n_written;
 	if (config_node->file != NULL) {
-		n_read = fwrite(filter_output, sizeof(float complex), filter_output_len, config_node->file);
+		n_written = fwrite(filter_output, sizeof(float complex), filter_output_len, config_node->file);
 	} else if (config_node->gz != NULL) {
-		n_read = gzwrite(config_node->gz, filter_output, sizeof(float complex) * filter_output_len);
+		n_written = gzwrite(config_node->gz, filter_output, sizeof(float complex) * filter_output_len);
 	} else {
 		fprintf(stderr, "<3> unknown file output\n");
 		return -1;
 	}
+	printf("code is %zu\n", n_written);
 	// if disk is full, then terminate the client
-	if (n_read < filter_output_len) {
+	if (n_written < filter_output_len) {
 		return -1;
 	} else {
 		return 0;
@@ -143,7 +144,13 @@ static void* dsp_worker(void *arg) {
 		complete_buffer_processing(config_node->queue);
 
 		if (code != 0) {
-			break;
+			// this would trigger client disconnect
+			// I could use "break" here, but "continue" is a bit better:
+			//   - single route for abnormal termination (i.e. disk space issue) and normal (i.e. client disconnected)
+			//   - all shutdown sequences have: stop tcp thread, then dsp thread, then rtlsdr thread
+			//   - processing the queue and writing to the already full disk is OK (I hope)
+			//   - calling "close" socket multiple times is OK (I hope)
+			close(config_node->config->client_socket);
 		}
 
 	}

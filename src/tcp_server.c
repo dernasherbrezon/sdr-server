@@ -26,7 +26,7 @@ struct tcp_server_t {
 	pthread_t acceptor_thread;
 	core *core;
 	struct server_config *server_config;
-	int client_counter;
+    uint32_t client_counter;
 	uint32_t current_band_freq;
 
 	struct linked_list_tcp_node *tcp_nodes;
@@ -68,7 +68,7 @@ int read_struct(int socket, void *result, size_t len) {
 	return 0;
 }
 
-int read_client_config(int client_socket, int client_id, struct server_config *server_config, struct client_config **config) {
+int read_client_config(int client_socket, uint32_t client_id, struct server_config *server_config, struct client_config **config) {
 	struct client_config *result = malloc(sizeof(struct client_config));
 	if (result == NULL) {
 		return -ENOMEM;
@@ -96,7 +96,7 @@ int read_client_config(int client_socket, int client_id, struct server_config *s
 	return 0;
 }
 
-int validate_client_config(struct client_config *config, struct server_config *server_config, int client_id) {
+int validate_client_config(struct client_config *config, struct server_config *server_config, uint32_t client_id) {
 	if (config->center_freq == 0) {
 		fprintf(stderr, "<3>[%d] missing center_freq parameter\n", client_id);
 		return -1;

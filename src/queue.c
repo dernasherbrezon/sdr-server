@@ -8,7 +8,7 @@
 
 struct queue_node {
 	uint8_t *buffer;
-	int len;
+    size_t len;
 	struct queue_node *next;
 };
 
@@ -84,7 +84,7 @@ int create_queue(uint32_t buffer_size, int queue_size, queue **queue) {
 	return 0;
 }
 
-void queue_put(const uint8_t *buffer, const int len, queue *queue) {
+void queue_put(const uint8_t *buffer, const size_t len, queue *queue) {
 	pthread_mutex_lock(&queue->mutex);
 	struct queue_node *to_fill;
 	if (queue->first_free_node == NULL) {
@@ -130,7 +130,7 @@ void destroy_queue(queue *queue) {
 	free(queue);
 }
 
-void take_buffer_for_processing(uint8_t **buffer, int *len, queue *queue) {
+void take_buffer_for_processing(uint8_t **buffer, size_t *len, queue *queue) {
 	pthread_mutex_lock(&queue->mutex);
 	if (queue->poison_pill == 1 && queue->first_filled_node == NULL) {
 		pthread_mutex_unlock(&queue->mutex);

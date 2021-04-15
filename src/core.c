@@ -119,7 +119,7 @@ static void* dsp_worker(void *arg) {
 	struct linked_list_node *config_node = (struct linked_list_node*) arg;
 	fprintf(stdout, "[%d] dsp_worker is starting\n", config_node->config->id);
 	uint8_t *input = NULL;
-	int input_len = 0;
+    size_t input_len = 0;
 	float complex *filter_output = NULL;
 	size_t filter_output_len = 0;
 	while (true) {

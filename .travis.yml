@@ -12,16 +12,9 @@ addons:
     token:
       secure: "QbtxtHYZAiBk5N6ayrVVCFn5oCZz24sfgNjZMXhLKsvuYa30aZWlnQMdWuKXIRbpBxsO2wqjHkW2xTxlGXpYtAF/Pe47XYT+ItN4M78CwxUIgJLqQmGFR2r0jssxerPb4DWn1+TxaQ5voXXixw4ij35MX/JzYqCTyaIiLFi+gOYtdrdqegiFJk+Jzl+3XhBdfU635MwGO4VrAxC12/cEwxFQy8y13h9BV5NmI6FvUZ0mTtp5/VNT/HXmb0z2YPEvs2GTYkTYbXEztCsgsaYq4pI4F3MoesXQIJK0FFdI3GH9AoJ8r9X09XGd1Nf5pHsfwXoSUt03l4UYq685u86v6HBCarPmQYCZwwk3pcJLCEr1XTL86X8eMHmcYPZsXen3pgiAYk9MCONrKjQe+JQqnXXJgxbE/oRwvaPeh2xSyEgKI7GP0kX44PxZp94B97YplBIkxLnSrjWvIdYZ8lwtFaJoDCbli+V+ybFM/w4HwFTompQzW7idzC9qB6dA8R9XTvSq0hlct1qnM2S3oC/6QimRlRrYHmA5Ul48DYihQLrvLLzbvBLej977fTzXObksSKqsWVeTuUxep0xatyzOSRMuw5mMvJJwNz0mYE947DFswS01o1oQDkj/kVaIeTouoZlI22nUnkefYxe5p6E2fIMgODp+00XAFCz+KFhEcKI="
 
-  apt:
-    packages:
-    - librtlsdr-dev
-    - libvolk2-dev
-    - libconfig-dev
-    - valgrind
-    - check
-    - make
-    - cmake
-    - pkg-config
+before_install:
+  - sudo apt-get install -yq --allow-downgrades libc6=2.31-0ubuntu9.2 libc6-dev=2.31-0ubuntu9.2
+  - sudo -E apt-get -yq --no-install-suggests --no-install-recommends --allow-downgrades --allow-remove-essential --allow-change-held-packages install libconfig-dev valgrind check cmake pkg-config libvolk2-dev librtlsdr-dev -o Debug::pkgProblemResolver=yes
 
 script:
   - set -e

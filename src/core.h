@@ -4,6 +4,7 @@
 
 #include <stdint.h>
 #include <signal.h>
+#include <stdatomic.h>
 
 #include "config.h"
 
@@ -15,8 +16,8 @@ struct client_config {
 	uint32_t band_freq;
 	uint8_t destination;
 	int client_socket;
-	uint8_t id;
-	volatile sig_atomic_t is_running;
+    uint32_t id;
+	atomic_bool is_running;
 	core *core;
 };
 

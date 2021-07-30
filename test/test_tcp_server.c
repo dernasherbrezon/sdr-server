@@ -12,6 +12,7 @@
 extern void init_mock_librtlsdr();
 extern void wait_for_data_read();
 extern void setup_mock_data(uint8_t *buffer, int len);
+extern void stop_rtlsdr_mock();
 
 tcp_server *server = NULL;
 core *core_obj = NULL;
@@ -61,6 +62,7 @@ START_TEST (test_out_of_band_frequency_clients) {
 	send_message(client1, PROTOCOL_VERSION, TYPE_REQUEST, 460700000, 48000, 461600000, REQUEST_DESTINATION_FILE);
 	assert_response(client1, TYPE_RESPONSE, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_OUT_OF_BAND_FREQ);
 	destroy_client(client1);
+	stop_rtlsdr_mock();
 
 	// then the first client disconnects
 	send_message(client0, PROTOCOL_VERSION, TYPE_SHUTDOWN, 0, 0, 0, 0);
@@ -71,7 +73,7 @@ START_TEST (test_out_of_band_frequency_clients) {
 	code = create_client(config->bind_address, config->port, &client1);
 	ck_assert_int_eq(code, 0);
 	send_message(client1, PROTOCOL_VERSION, TYPE_REQUEST, 460700000, 48000, 461600000, REQUEST_DESTINATION_FILE);
-	assert_response(client1, TYPE_RESPONSE, RESPONSE_STATUS_SUCCESS, 1);
+	assert_response(client1, TYPE_RESPONSE, RESPONSE_STATUS_SUCCESS, 2);
 }
 END_TEST
 
@@ -188,7 +190,7 @@ START_TEST (test_destination_socket) {
 	assert_response(client0, TYPE_RESPONSE, RESPONSE_STATUS_SUCCESS, 0);
 
 	int length = 200;
-	setup_rtl_data(&input, 0, length);
+	setup_input_data(&input, 0, length);
 	setup_mock_data(input, length);
 	wait_for_data_read();
 
@@ -203,7 +205,16 @@ START_TEST (test_destination_socket) {
 }
 END_TEST
 
+START_TEST (test_ping) {
+	create_and_init_tcpserver();
+
+	send_message(client0, PROTOCOL_VERSION, TYPE_PING, 0, 0, 0, 0);
+	assert_response(client0, TYPE_RESPONSE, RESPONSE_STATUS_SUCCESS, 0);
+}
+END_TEST
+
 void teardown() {
+	stop_rtlsdr_mock();
 	stop_tcp_server(server);
 	server = NULL;
 	destroy_core(core_obj);
@@ -243,6 +254,7 @@ Suite* common_suite(void) {
 	tcase_add_test(tc_core, test_disconnect_client);
 	tcase_add_test(tc_core, test_destination_socket);
 	tcase_add_test(tc_core, test_out_of_band_frequency_clients);
+	tcase_add_test(tc_core, test_ping);
 
 	tcase_add_checked_fixture(tc_core, setup, teardown);
 	suite_add_tcase(s, tc_core);

@@ -11,17 +11,17 @@
 
 int sanity_check_1f(uint32_t sampling_freq, uint32_t cutoff_freq, uint32_t transition_width) {
 	if (sampling_freq <= 0) {
-		fprintf(stderr, "sampling frequency should be positive\n");
+		fprintf(stderr, "<3>sampling frequency should be positive\n");
 		return -1;
 	}
 
 	if (cutoff_freq <= 0 || cutoff_freq > (float) sampling_freq / 2) {
-		fprintf(stderr, "cutoff frequency should be positive and less than sampling freq / 2. got: %u\n", cutoff_freq);
+		fprintf(stderr, "<3>cutoff frequency should be positive and less than sampling freq / 2. got: %u\n", cutoff_freq);
 		return -1;
 	}
 
 	if (transition_width <= 0) {
-		fprintf(stderr, "transition width should be positive\n");
+		fprintf(stderr, "<3>transition width should be positive\n");
 		return -1;
 	}
 

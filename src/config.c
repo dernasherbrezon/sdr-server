@@ -38,7 +38,7 @@ int create_server_config(struct server_config **config, const char *path) {
 
 	int code = config_read_file(&libconfig, path);
 	if (code == CONFIG_FALSE) {
-		fprintf(stderr, "unable to read configuration: %s\n", config_error_text(&libconfig));
+		fprintf(stderr, "<3>unable to read configuration: %s\n", config_error_text(&libconfig));
 		config_destroy(&libconfig);
 		free(result);
 		return -1;
@@ -84,9 +84,19 @@ int create_server_config(struct server_config **config, const char *path) {
 	fprintf(stdout, "ppm: %d\n", ppm);
 	result->ppm = ppm;
 
+	setting = config_lookup(&libconfig, "queue_size");
+	int queue_size;
+	if (setting == NULL) {
+		queue_size = 64;
+	} else {
+		queue_size = config_setting_get_int(setting);
+	}
+	fprintf(stdout, "queue_size: %d\n", queue_size);
+	result->queue_size = queue_size;
+
 	setting = config_lookup(&libconfig, "band_sampling_rate");
 	if (setting == NULL) {
-		fprintf(stderr, "missing required configuration: band_sampling_rate\n");
+		fprintf(stderr, "<3>missing required configuration: band_sampling_rate\n");
 		config_destroy(&libconfig);
 		free(result);
 		return -1;
@@ -105,6 +115,16 @@ int create_server_config(struct server_config **config, const char *path) {
 	fprintf(stdout, "buffer size: %d\n", buffer_size);
 	result->buffer_size = buffer_size;
 
+	setting = config_lookup(&libconfig, "lpf_cutoff_rate");
+	int lpf_cutoff_rate;
+	if (setting == NULL) {
+		lpf_cutoff_rate = 5;
+	} else {
+		lpf_cutoff_rate = (uint32_t) config_setting_get_int(setting);
+	}
+	fprintf(stdout, "lpf_cutoff_rate: %d\n", lpf_cutoff_rate);
+	result->lpf_cutoff_rate = lpf_cutoff_rate;
+
 	setting = config_lookup(&libconfig, "bind_address");
 	char *bind_address = read_and_copy_str(setting, "127.0.0.1");
 	if (bind_address == NULL) {
@@ -116,7 +136,7 @@ int create_server_config(struct server_config **config, const char *path) {
 	setting = config_lookup(&libconfig, "port");
 	int port;
 	if (setting == NULL) {
-		port = 8081;
+		port = 8090;
 	} else {
 		port = config_setting_get_int(setting);
 	}
@@ -132,7 +152,7 @@ int create_server_config(struct server_config **config, const char *path) {
 		if (read_timeout_seconds <= 0) {
 			config_destroy(&libconfig);
 			destroy_server_config(result);
-			fprintf(stderr, "read timeout should be positive: %d\n", read_timeout_seconds);
+			fprintf(stderr, "<3>read timeout should be positive: %d\n", read_timeout_seconds);
 			return -1;
 		}
 	}

@@ -4,7 +4,7 @@
 
 queue *queue_obj = NULL;
 
-void assert_buffers(const uint8_t *expected, int expected_len, uint8_t *actual, int actual_len) {
+void assert_buffers(const uint8_t *expected, size_t expected_len, uint8_t *actual, size_t actual_len) {
 	ck_assert_int_eq(expected_len, actual_len);
 	for (int i = 0; i < expected_len; i++) {
 		ck_assert_int_eq(expected[i], actual[i]);
@@ -13,7 +13,7 @@ void assert_buffers(const uint8_t *expected, int expected_len, uint8_t *actual, 
 
 void assert_buffer(const uint8_t *expected, int expected_len) {
 	uint8_t *result = NULL;
-	int len = 0;
+    size_t len = 0;
 	take_buffer_for_processing(&result, &len, queue_obj);
 	// TODO doesn't work. segmentation fault if result is null
 	ck_assert(result != NULL);

@@ -16,7 +16,7 @@ struct client_config {
 	uint32_t band_freq;
 	uint8_t destination;
 	int client_socket;
-	uint8_t id;
+    uint32_t id;
 	atomic_bool is_running;
 	core *core;
 };

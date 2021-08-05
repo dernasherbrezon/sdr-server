@@ -136,7 +136,7 @@ int create_server_config(struct server_config **config, const char *path) {
 	setting = config_lookup(&libconfig, "port");
 	int port;
 	if (setting == NULL) {
-		port = 8081;
+		port = 8090;
 	} else {
 		port = config_setting_get_int(setting);
 	}

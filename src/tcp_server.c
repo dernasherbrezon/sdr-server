@@ -26,7 +26,7 @@ struct tcp_server_t {
 	pthread_t acceptor_thread;
 	core *core;
 	struct server_config *server_config;
-	int client_counter;
+    uint32_t client_counter;
 	uint32_t current_band_freq;
 
 	struct linked_list_tcp_node *tcp_nodes;
@@ -68,7 +68,7 @@ int read_struct(int socket, void *result, size_t len) {
 	return 0;
 }
 
-int read_client_config(int client_socket, int client_id, struct server_config *server_config, struct client_config **config) {
+int read_client_config(int client_socket, uint32_t client_id, struct server_config *server_config, struct client_config **config) {
 	struct client_config *result = malloc(sizeof(struct client_config));
 	if (result == NULL) {
 		return -ENOMEM;
@@ -96,7 +96,7 @@ int read_client_config(int client_socket, int client_id, struct server_config *s
 	return 0;
 }
 
-int validate_client_config(struct client_config *config, struct server_config *server_config, int client_id) {
+int validate_client_config(struct client_config *config, struct server_config *server_config, uint32_t client_id) {
 	if (config->center_freq == 0) {
 		fprintf(stderr, "<3>[%d] missing center_freq parameter\n", client_id);
 		return -1;
@@ -128,13 +128,13 @@ int validate_client_config(struct client_config *config, struct server_config *s
 	return 0;
 }
 
-int write_message(int socket, uint8_t status, uint8_t details) {
+int write_message(int socket, uint8_t status, uint32_t details) {
 	struct message_header header;
 	header.protocol_version = PROTOCOL_VERSION;
 	header.type = TYPE_RESPONSE;
 	struct response resp;
 	resp.status = status;
-	resp.details = details;
+	resp.details = htonl(details);
 
 	// it is possible to directly populate *buffer with the fields,
 	// however populating structs and then serializing them into byte array
@@ -146,7 +146,7 @@ int write_message(int socket, uint8_t status, uint8_t details) {
 
 	size_t left = total_len;
 	while (left > 0) {
-		int written = write(socket, buffer + (total_len - left), left);
+		ssize_t written = write(socket, buffer + (total_len - left), left);
 		if (written < 0) {
 			perror("unable to write the message");
 			free(buffer);
@@ -158,7 +158,7 @@ int write_message(int socket, uint8_t status, uint8_t details) {
 	return 0;
 }
 
-void respond_failure(int client_socket, uint8_t status, uint8_t details) {
+void respond_failure(int client_socket, uint8_t status, uint32_t details) {
 	write_message(client_socket, status, details); // unable to start device
 	close(client_socket);
 }

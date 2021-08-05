@@ -34,7 +34,7 @@ struct request {
 
 struct response {
 	uint8_t status;
-	uint8_t details; // on success contains file index, on error contains error code
+    uint32_t details; // on success contains file index, on error contains error code
 } __attribute__((packed));
 
 

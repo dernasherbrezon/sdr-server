@@ -125,6 +125,7 @@ int read_response(struct message_header **response_header, struct response **res
 		free(result);
 		return code;
 	}
+    result->details = ntohl(result->details);
 	*response_header = header;
 	*resp = result;
 	return 0;

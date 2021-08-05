@@ -1,3 +1,9 @@
+sdr-server (1.1.0-1~stretch) unstable; urgency=medium
+
+  * backward incompatible change: "details" field is uint32_t now
+
+ -- Andrey Rodionov <info@r2cloud.ru>  Thu, 01 Apr 2021 10:18:21 +0100
+
 sdr-server (1.0.11-1~stretch) unstable; urgency=medium
 
   * graceful shutdown on full disk

@@ -128,13 +128,13 @@ int validate_client_config(struct client_config *config, struct server_config *s
 	return 0;
 }
 
-int write_message(int socket, uint8_t status, uint8_t details) {
+int write_message(int socket, uint8_t status, uint32_t details) {
 	struct message_header header;
 	header.protocol_version = PROTOCOL_VERSION;
 	header.type = TYPE_RESPONSE;
 	struct response resp;
 	resp.status = status;
-	resp.details = details;
+	resp.details = htonl(details);
 
 	// it is possible to directly populate *buffer with the fields,
 	// however populating structs and then serializing them into byte array
@@ -146,7 +146,7 @@ int write_message(int socket, uint8_t status, uint8_t details) {
 
 	size_t left = total_len;
 	while (left > 0) {
-		int written = write(socket, buffer + (total_len - left), left);
+		ssize_t written = write(socket, buffer + (total_len - left), left);
 		if (written < 0) {
 			perror("unable to write the message");
 			free(buffer);
@@ -158,7 +158,7 @@ int write_message(int socket, uint8_t status, uint8_t details) {
 	return 0;
 }
 
-void respond_failure(int client_socket, uint8_t status, uint8_t details) {
+void respond_failure(int client_socket, uint8_t status, uint32_t details) {
 	write_message(client_socket, status, details); // unable to start device
 	close(client_socket);
 }

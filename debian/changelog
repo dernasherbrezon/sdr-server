@@ -1,3 +1,9 @@
+sdr-server (1.1.0-2~buster) unstable; urgency=medium
+
+  * bump version
+
+ -- Andrey Rodionov <info@r2cloud.ru>  Thu, 5 Aug 2021 10:17:21 +0100
+
 sdr-server (1.1.0-1~buster) unstable; urgency=medium
 
   * non-backward compatible change: "details" field extended to uint32

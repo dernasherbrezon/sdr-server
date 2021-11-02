@@ -56,3 +56,5 @@ Debug
 .cproject
 /build/
 /dbg/
+/cmake-build-debug/
+/.idea/

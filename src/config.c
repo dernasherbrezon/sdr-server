@@ -96,7 +96,13 @@ int create_server_config(struct server_config **config, const char *path) {
     result->gain_mode = config_read_int(&libconfig, "gain_mode", 0);
     result->gain = (int) (config_read_float(&libconfig, "gain", 0) * 10);
     result->ppm = config_read_int(&libconfig, "ppm", 0);
-    result->queue_size = config_read_int(&libconfig, "queue_size", 0);
+    result->queue_size = config_read_int(&libconfig, "queue_size", 64);
+    if (result->queue_size <= 0) {
+        fprintf(stderr, "<3>queue size should be positive: %d\n", result->queue_size);
+        config_destroy(&libconfig);
+        free(result);
+        return -1;
+    }
 
     const config_setting_t *setting = config_lookup(&libconfig, "band_sampling_rate");
     if (setting == NULL) {

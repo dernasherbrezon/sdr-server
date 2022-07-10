@@ -100,7 +100,7 @@ jobs:
           sudo bash -c "echo \"deb http://apt.leosatdata.com $(lsb_release --codename --short) main\" > /etc/apt/sources.list.d/r2cloud.list"
           sudo bash -c "echo \"deb http://apt.leosatdata.com/cpu-generic $(lsb_release --codename --short) main\" > /etc/apt/sources.list.d/r2cloud-generic.list"
           sudo apt-get update
-          sudo apt-get install -y debhelper git-buildpackage libconfig-dev valgrind check cmake pkg-config libvolk2-dev librtlsdr-dev
+          sudo apt-get install -y debhelper git-buildpackage libconfig-dev zlib1g-dev valgrind check cmake pkg-config libvolk2-dev librtlsdr-dev
       - name: Import GPG key
         uses: crazy-max/ghaction-import-gpg@v5
         with:

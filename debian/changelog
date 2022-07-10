@@ -1,3 +1,25 @@
+sdr-server (1.1.6-6~stretch) unstable; urgency=medium
+
+  [ dernasherbrezon ]
+  * add raspberrypi 1 measurements
+  * add more ignore
+  * add raspberrypi 1 perf results
+  * fix segfault on archlinux. fix #8
+  * fix code smells
+  * add some tests and validations
+  * graceful shutdown
+  * migrate to github actions
+  * fix memory leak in unit test
+  * fix the build
+  * fix the build
+  * fix the build
+  * fix the build for old ubuntu
+  * fix the build for old ubuntu
+
+  [ r2cloud ]
+
+ -- r2cloud <gpg@r2cloud.ru>  Mon, 11 Jul 2022 00:14:48 +0100
+
 sdr-server (1.1.0-1~stretch) unstable; urgency=medium
 
   * backward incompatible change: "details" field is uint32_t now

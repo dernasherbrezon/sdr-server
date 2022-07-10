@@ -15,19 +15,23 @@ find_package(PkgConfig REQUIRED)
 
 pkg_check_modules(PC_RTLSDR REQUIRED librtlsdr>=0.5.4)
 include_directories(${PC_RTLSDR_INCLUDE_DIRS})
-target_link_libraries(sdr_serverLib ${PC_RTLSDR_LINK_LIBRARIES})
+link_directories(${PC_RTLSDR_LIBRARY_DIRS})
+target_link_libraries(sdr_serverLib ${PC_RTLSDR_LIBRARIES})
 
 pkg_check_modules(PC_VOLK REQUIRED volk)
 include_directories(${PC_VOLK_INCLUDE_DIRS})
-target_link_libraries(sdr_serverLib ${PC_VOLK_LINK_LIBRARIES})
+link_directories(${PC_VOLK_LIBRARY_DIRS})
+target_link_libraries(sdr_serverLib ${PC_VOLK_LIBRARIES})
 
 pkg_check_modules(PC_ZLIB REQUIRED zlib)
 include_directories(${PC_ZLIB_INCLUDE_DIRS})
-target_link_libraries(sdr_serverLib ${PC_ZLIB_LINK_LIBRARIES})
+link_directories(${PC_ZLIB_LIBRARY_DIRS})
+target_link_libraries(sdr_serverLib ${PC_ZLIB_LIBRARIES})
 
 pkg_check_modules(PC_LIBCONFIG REQUIRED libconfig)
 include_directories(${PC_LIBCONFIG_INCLUDE_DIRS})
-target_link_libraries(sdr_serverLib ${PC_LIBCONFIG_LINK_LIBRARIES})
+link_directories(${PC_LIBCONFIG_LIBRARY_DIRS})
+target_link_libraries(sdr_serverLib ${PC_LIBCONFIG_LIBRARIES})
 
 find_package(Threads REQUIRED)
 target_link_libraries(sdr_serverLib ${CMAKE_THREAD_LIBS_INIT})

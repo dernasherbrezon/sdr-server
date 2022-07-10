@@ -1,3 +1,10 @@
+sdr-server (1.1.6-6~bionic) unstable; urgency=medium
+
+  [ dernasherbrezon ]
+  * fix the build for old ubuntu
+
+ -- r2cloud <gpg@r2cloud.ru>  Sun, 10 Jul 2022 23:11:03 +0000
+
 sdr-server (1.1.5-5~bionic) unstable; urgency=medium
 
   [ dernasherbrezon ]

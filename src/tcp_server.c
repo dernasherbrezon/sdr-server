@@ -444,6 +444,7 @@ int start_tcp_server(struct server_config *config, core *core, tcp_server **serv
 
 void join_tcp_server_thread(tcp_server *server) {
 	pthread_join(server->acceptor_thread, NULL);
+    free(server);
 }
 
 void stop_tcp_server(tcp_server *server) {
@@ -458,7 +459,4 @@ void stop_tcp_server(tcp_server *server) {
 	if (code != 0) {
 		close(server->server_socket);
 	}
-	pthread_join(server->acceptor_thread, NULL);
-
-	free(server);
 }

@@ -1,3 +1,10 @@
+sdr-server (1.1.5-5~bullseye) unstable; urgency=medium
+
+  [ dernasherbrezon ]
+  * fix the build for old ubuntu
+
+ -- r2cloud <gpg@r2cloud.ru>  Sun, 10 Jul 2022 19:40:36 +0100
+
 sdr-server (1.1.4-4~bullseye) unstable; urgency=medium
 
   [ dernasherbrezon ]

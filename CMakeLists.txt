@@ -2,20 +2,14 @@ cmake_minimum_required(VERSION 2.8)
 project(sdr-server)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
-set(CMAKE_C_FLAGS "-std=c99")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99")
 if(CMAKE_BUILD_TYPE MATCHES Debug)
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --coverage")
 endif()
 file(GLOB SOURCES src/*.c)
 list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/main.c")
 
-add_executable(sdr_server src/main.c)
-
-install(TARGETS sdr_server DESTINATION /usr/bin/)
-install(FILES src/resources/config.conf DESTINATION /etc/sdr-server/)
-
 add_library(sdr_serverLib ${SOURCES})
-target_link_libraries(sdr_server sdr_serverLib)
 
 find_package(PkgConfig REQUIRED)
 
@@ -38,6 +32,12 @@ target_link_libraries(sdr_serverLib ${PC_LIBCONFIG_LINK_LIBRARIES})
 find_package(Threads REQUIRED)
 target_link_libraries(sdr_serverLib ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(sdr_serverLib m)
+
+add_executable(sdr_server src/main.c)
+target_link_libraries(sdr_server sdr_serverLib)
+
+install(TARGETS sdr_server DESTINATION /usr/bin/)
+install(FILES src/resources/config.conf DESTINATION /etc/sdr-server/)
 
 enable_testing()
 

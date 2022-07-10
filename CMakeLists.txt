@@ -53,18 +53,19 @@ list(FILTER AUX_TEST_SOURCES EXCLUDE REGEX "mock_.*\\.c")
 
 pkg_check_modules(PC_CHECK REQUIRED check)
 include_directories(${PC_CHECK_INCLUDE_DIRS})
+link_directories(${PC_CHECK_LIBRARY_DIRS})
 
 foreach(curTest ${TEST_SOURCES})
 	get_filename_component(curTestName ${curTest} NAME_WE)
 	add_test(NAME ${curTestName} COMMAND ${curTestName} ${curTest})
 	add_executable(${curTestName} ${curTest} ${AUX_TEST_SOURCES})
-	target_link_libraries(${curTestName} sdr_serverLib ${PC_CHECK_LINK_LIBRARIES})
+	target_link_libraries(${curTestName} sdr_serverLib ${PC_CHECK_LIBRARIES})
 endforeach()
 
 foreach(curPerfTest ${PERF_SOURCES})
 	get_filename_component(curPerfTestName ${curPerfTest} NAME_WE)
 	add_executable(${curPerfTestName} ${curPerfTest})
-	target_link_libraries(${curPerfTestName} sdr_serverLib ${PC_CHECK_LINK_LIBRARIES})
+	target_link_libraries(${curPerfTestName} sdr_serverLib ${PC_CHECK_LIBRARIES})
 endforeach()
 
 if(CMAKE_BUILD_TYPE MATCHES Debug)

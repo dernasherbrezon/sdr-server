@@ -3,7 +3,7 @@ Maintainer: Andrey Rodionov <info@r2cloud.ru>
 Section: comm
 Priority: optional
 Standards-Version: 3.9.7
-Build-Depends: debhelper (>= 9.0.0), dh-systemd, cmake, libvolk2-dev, librtlsdr-dev (>= 0.5.4), libconfig-dev, zlib1g-dev, check, pkg-config
+Build-Depends: debhelper (>= 9.0.0), cmake, libvolk2-dev, librtlsdr-dev (>= 0.5.4), libconfig-dev, zlib1g-dev, check, pkg-config
 Homepage: https://github.com/dernasherbrezon/sdr-server
 
 Package: sdr-server

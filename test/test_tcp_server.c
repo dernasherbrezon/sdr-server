@@ -216,6 +216,7 @@ END_TEST
 void teardown() {
 	stop_rtlsdr_mock();
 	stop_tcp_server(server);
+    join_tcp_server_thread(server);
 	server = NULL;
 	destroy_core(core_obj);
 	core_obj = NULL;

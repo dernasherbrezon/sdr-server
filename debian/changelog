@@ -1,5 +1,14 @@
 sdr-server (1.1.6-6~stretch) unstable; urgency=medium
 
+  [ dernasherbrezon ]
+  * fix the build for old ubuntu
+
+  [ r2cloud ]
+
+ -- r2cloud <gpg@r2cloud.ru>  Mon, 11 Jul 2022 15:13:02 +0100
+
+sdr-server (1.1.6-6~stretch) unstable; urgency=medium
+
   [ pi@rasp-stretch ]
   * UNRELEASED
 

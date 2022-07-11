@@ -29,7 +29,7 @@ int main(void) {
 		input[i] = (uint8_t) (i);
 	}
 
-	int total_executions = 1;
+	int total_executions = 1000;
 
 	clock_t begin = clock();
 	for (int i = 0; i < total_executions; i++) {

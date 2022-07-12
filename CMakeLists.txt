@@ -11,6 +11,13 @@ list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/main.c")
 
 add_library(sdr_serverLib ${SOURCES})
 
+# at some point homebrew changed default location
+# so all libraries need an explicit path
+if (APPLE)
+	include_directories("/opt/homebrew/include")
+	link_directories("/opt/homebrew/lib")
+endif ()
+
 find_package(PkgConfig REQUIRED)
 
 pkg_check_modules(PC_RTLSDR REQUIRED librtlsdr>=0.5.4)

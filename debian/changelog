@@ -1,5 +1,12 @@
 sdr-server (1.1.7-7~buster) unstable; urgency=medium
 
+  [ pi@rasp-buster ]
+  * UNRELEASED
+
+ -- r2cloud <gpg@r2cloud.ru>  Sat, 16 Jul 2022 10:49:26 +0100
+
+sdr-server (1.1.7-7~buster) unstable; urgency=medium
+
   [ dernasherbrezon ]
   * fix the build under macos
   * speed up the upgrade

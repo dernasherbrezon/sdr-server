@@ -48,6 +48,7 @@
 .tmp_versions/
 modules.order
 Module.symvers
+/.idea/
 Mkfile.old
 dkms.conf
 Debug
@@ -56,3 +57,4 @@ Debug
 .cproject
 /build/
 /dbg/
+/cmake-build-debug/

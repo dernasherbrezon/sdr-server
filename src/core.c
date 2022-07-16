@@ -180,8 +180,8 @@ static void *rtlsdr_worker(void *arg) {
     rtlsdr_close(core->dev);
     core->dev = NULL;
     pthread_cond_broadcast(&core->rtl_thread_stopped_condition);
-    pthread_mutex_unlock(&core->mutex);
     printf("rtl-sdr stopped\n");
+    pthread_mutex_unlock(&core->mutex);
     return (void *) 0;
 }
 
@@ -367,6 +367,9 @@ int add_client(struct client_config *config) {
     pthread_mutex_lock(&config->core->mutex);
     if (config->core->client_configs == NULL) {
         // init rtl-sdr only for the first client
+        while (config->core->dev != NULL) {
+            pthread_cond_wait(&config->core->rtl_thread_stopped_condition, &config->core->mutex);
+        }
         result = start_rtlsdr(config);
         if (result == 0) {
             config->core->client_configs = config_node;

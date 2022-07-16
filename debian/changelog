@@ -1,5 +1,12 @@
 sdr-server (1.1.7-7~bullseye) unstable; urgency=medium
 
+  [ pi@rasp-bullseye ]
+  * UNRELEASED
+
+ -- r2cloud <gpg@r2cloud.ru>  Sat, 16 Jul 2022 10:48:42 +0100
+
+sdr-server (1.1.7-7~bullseye) unstable; urgency=medium
+
   [ dernasherbrezon ]
   * fix the build under macos
   * speed up the upgrade

@@ -2,6 +2,8 @@
 
 set -e
 
-rm -rf /etc/sdr-server/volk/
+if [ "$1" = purge ]; then
+  rm -rf /etc/sdr-server/volk/
+fi
 
 #DEBHELPER#

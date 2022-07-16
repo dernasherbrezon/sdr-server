@@ -1,3 +1,12 @@
+sdr-server (1.1.7-7~buster) unstable; urgency=medium
+
+  [ dernasherbrezon ]
+  * fix the build under macos
+  * speed up the upgrade
+  * fix async
+
+ -- r2cloud <gpg@r2cloud.ru>  Sat, 16 Jul 2022 09:47:16 +0100
+
 sdr-server (1.1.6-6~buster) unstable; urgency=medium
 
   [ dernasherbrezon ]

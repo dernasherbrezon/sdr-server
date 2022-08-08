@@ -1,3 +1,10 @@
+sdr-server (1.1.8-8~bullseye) unstable; urgency=medium
+
+  [ dernasherbrezon ]
+  * fix async
+
+ -- r2cloud <gpg@r2cloud.ru>  Mon, 08 Aug 2022 19:59:25 +0100
+
 sdr-server (1.1.7-7~bullseye) unstable; urgency=medium
 
   [ pi@rasp-bullseye ]

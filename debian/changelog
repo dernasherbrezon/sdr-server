@@ -1,3 +1,12 @@
+sdr-server (1.1.8-8~stretch) unstable; urgency=medium
+
+  [ dernasherbrezon ]
+  * fix async
+
+  [ r2cloud ]
+
+ -- r2cloud <gpg@r2cloud.ru>  Mon, 08 Aug 2022 20:00:31 +0100
+
 sdr-server (1.1.7-7~stretch) unstable; urgency=medium
 
   [ dernasherbrezon ]

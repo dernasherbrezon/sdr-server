@@ -4,13 +4,20 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+typedef enum {
+	SDR_TYPE_RTL = 0,
+	SDR_TYPE_AIRSPY = 1
+} sdr_type_t;
+
 struct server_config {
 	// socket settings
 	char* bind_address;
 	int port;
 	int read_timeout_seconds;
 
-	// rf settings
+	sdr_type_t sdr_type;
+
+	// rtl-sdr settings
 	int gain_mode;
 	int gain;
 	int ppm;

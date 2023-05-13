@@ -92,6 +92,7 @@ int create_server_config(struct server_config **config, const char *path) {
         return -1;
     }
 
+    result->sdr_type = config_read_int(&libconfig, "sdr_type", 0);
     result->bias_t = config_read_int(&libconfig, "bias_t", 0);
     result->gain_mode = config_read_int(&libconfig, "gain_mode", 0);
     result->gain = (int) (config_read_float(&libconfig, "gain", 0) * 10);

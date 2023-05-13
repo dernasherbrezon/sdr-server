@@ -121,6 +121,10 @@ int rtlsdr_reset_buffer_mocked(rtlsdr_dev_t *dev) {
   return 0;
 }
 
+int rtlsdr_set_freq_correction_mocked(rtlsdr_dev_t *dev, int ppm) {
+  return 0;
+}
+
 int rtlsdr_get_tuner_gains_mocked(rtlsdr_dev_t *dev, int *gains) {
   if (gains == NULL) {
     return 1;
@@ -145,6 +149,7 @@ int rtlsdr_lib_create(rtlsdr_lib **lib) {
   result->rtlsdr_set_tuner_gain = rtlsdr_set_tuner_gain_mocked;
   result->rtlsdr_set_tuner_gain_mode = rtlsdr_set_tuner_gain_mode_mocked;
   result->rtlsdr_read_sync = rtlsdr_read_sync_mocked;
+  result->rtlsdr_set_freq_correction = rtlsdr_set_freq_correction_mocked;
 
   *lib = result;
   return 0;

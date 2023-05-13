@@ -27,6 +27,8 @@ struct rtlsdr_lib_t {
   int (*rtlsdr_reset_buffer)(rtlsdr_dev_t *dev);
 
   int (*rtlsdr_read_sync)(rtlsdr_dev_t *dev, void *buf, int len, int *n_read);
+
+  int (*rtlsdr_set_freq_correction)(rtlsdr_dev_t *dev, int ppm);
 };
 
 int rtlsdr_lib_create(rtlsdr_lib **lib);

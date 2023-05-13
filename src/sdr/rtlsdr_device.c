@@ -73,6 +73,7 @@ int rtlsdr_device_create(uint32_t id, struct server_config *server_config, rtlsd
   ERROR_CHECK(lib->rtlsdr_open(&device->dev, 0));
   ERROR_CHECK(lib->rtlsdr_set_sample_rate(device->dev, server_config->band_sampling_rate));
   ERROR_CHECK(lib->rtlsdr_set_tuner_gain_mode(device->dev, server_config->gain_mode));
+  ERROR_CHECK(lib->rtlsdr_set_freq_correction(device->dev, server_config->ppm));
   if (server_config->gain_mode == 1) {
     int nearest_gain = 0;
     ERROR_CHECK(find_nearest_gain(device, server_config->gain, &nearest_gain));

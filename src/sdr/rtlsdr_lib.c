@@ -49,6 +49,7 @@ int rtlsdr_lib_create(rtlsdr_lib **lib) {
   SETUP_FUNCTION(result, rtlsdr_set_bias_tee);
   SETUP_FUNCTION(result, rtlsdr_reset_buffer);
   SETUP_FUNCTION(result, rtlsdr_read_sync);
+  SETUP_FUNCTION(result, rtlsdr_set_freq_correction);
   *lib = result;
   return 0;
 }

@@ -78,6 +78,7 @@ link_directories(${PC_CHECK_LIBRARY_DIRS})
 # speed up test compilation.
 add_library(sdr_serverTestLib
 		${CMAKE_CURRENT_SOURCE_DIR}/test/rtlsdr_lib_mock.c
+		${CMAKE_CURRENT_SOURCE_DIR}/test/airspy_lib_mock.c
 		${CMAKE_CURRENT_SOURCE_DIR}/test/tcp_client.c
 		${CMAKE_CURRENT_SOURCE_DIR}/test/utils.c
 )

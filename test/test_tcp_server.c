@@ -2,17 +2,9 @@
 #include <check.h>
 
 #include "utils.h"
-#include "mock_librtlsdr.c"
 #include "../src/tcp_server.h"
 #include "tcp_client.h"
-#include "../src/api.h"
-
-#include <stdio.h>
-
-extern void init_mock_librtlsdr();
-extern void wait_for_data_read();
-extern void setup_mock_data(uint8_t *buffer, int len);
-extern void stop_rtlsdr_mock();
+#include "rtlsdr_lib_mock.h"
 
 tcp_server *server = NULL;
 core *core_obj = NULL;
@@ -216,7 +208,7 @@ END_TEST
 void teardown() {
 	stop_rtlsdr_mock();
 	stop_tcp_server(server);
-    join_tcp_server_thread(server);
+	join_tcp_server_thread(server);
 	server = NULL;
 	destroy_core(core_obj);
 	core_obj = NULL;

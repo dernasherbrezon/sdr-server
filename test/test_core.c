@@ -1,17 +1,14 @@
 #include <stdlib.h>
 #include <check.h>
 #include <stdbool.h>
-#include "mock_librtlsdr.c"
 #include <stdio.h>
 #include <complex.h>
 #include <zlib.h>
 
-#include "utils.h"
 #include "../src/api.h"
-
-extern void init_mock_librtlsdr();
-extern void wait_for_data_read();
-extern void setup_mock_data(uint8_t *buffer, int len);
+#include "../src/core.h"
+#include "utils.h"
+#include "rtlsdr_lib_mock.h"
 
 core *core_obj = NULL;
 struct server_config *config = NULL;

@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include <rtl-sdr.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -9,6 +8,8 @@
 #include <unistd.h>
 #include <zlib.h>
 
+#include "sdr/sdr_device.h"
+#include "sdr/rtlsdr_device.h"
 #include "lpf.h"
 #include "xlating.h"
 #include "queue.h"
@@ -29,40 +30,11 @@ struct linked_list_node {
 struct core_t {
     struct server_config *server_config;
     pthread_mutex_t mutex;
-    pthread_cond_t rtl_thread_stopped_condition;
-    pthread_cond_t sdr_stopped_condition;
 
     struct linked_list_node *client_configs;
-    rtlsdr_dev_t *dev;
-    pthread_t *rtlsdr_worker_thread;
-    uint8_t *buffer;
+    sdr_device *dev;
+    rtlsdr_lib *rtllib;
 };
-
-int find_nearest_gain(rtlsdr_dev_t *dev, int target_gain, int *nearest) {
-    int count = rtlsdr_get_tuner_gains(dev, NULL);
-    if (count <= 0) {
-        return -1;
-    }
-    int *gains = malloc(sizeof(int) * count);
-    if (gains == NULL) {
-        return -ENOMEM;
-    }
-    int code = rtlsdr_get_tuner_gains(dev, gains);
-    if (code <= 0) {
-        free(gains);
-        return -1;
-    }
-    *nearest = gains[0];
-    for (int i = 0; i < count; i++) {
-        int err1 = abs(target_gain - *nearest);
-        int err2 = abs(target_gain - gains[i]);
-        if (err2 < err1) {
-            *nearest = gains[i];
-        }
-    }
-    free(gains);
-    return 0;
-}
 
 int create_core(struct server_config *server_config, core **result) {
     core *core = malloc(sizeof(struct core_t));
@@ -73,16 +45,18 @@ int create_core(struct server_config *server_config, core **result) {
     *core = (struct core_t) {0};
 
     core->server_config = server_config;
-    uint8_t *buffer = malloc(server_config->buffer_size * sizeof(uint8_t));
-    if (buffer == NULL) {
-        destroy_core(core);
-        return -ENOMEM;
-    }
-    memset(buffer, 0, server_config->buffer_size);
-    core->buffer = buffer;
     core->mutex = (pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER;
-    core->rtl_thread_stopped_condition = (pthread_cond_t) PTHREAD_COND_INITIALIZER;
-    core->sdr_stopped_condition = (pthread_cond_t) PTHREAD_COND_INITIALIZER;
+    //FIXME if server config == rtl_sdr
+    int code = rtlsdr_lib_create(&core->rtllib);
+    if( code != 0 ) {
+      destroy_core(core);
+      return code;
+    }
+    code = rtlsdr_device_create(1, server_config, core->rtllib, &core->dev);
+    if (code != 0 ) {
+      destroy_core(core);
+      return code;
+    }
     *result = core;
     return 0;
 }
@@ -160,111 +134,31 @@ static void *dsp_worker(void *arg) {
     return (void *) 0;
 }
 
-static void rtlsdr_callback(unsigned char *buf, uint32_t len, void *ctx) {
+static void rtlsdr_callback(uint8_t *buf, uint32_t buf_len, void *ctx) {
     core *core = (struct core_t *) ctx;
     pthread_mutex_lock(&core->mutex);
     struct linked_list_node *current_node = core->client_configs;
     while (current_node != NULL) {
         // copy to client's buffers and notify
-        queue_put(buf, len, current_node->queue);
+        queue_put(buf, buf_len, current_node->queue);
         current_node = current_node->next;
     }
     pthread_mutex_unlock(&core->mutex);
 }
 
-static void *rtlsdr_worker(void *arg) {
-    core *core = (struct core_t *) arg;
-    uint32_t buffer_size = core->server_config->buffer_size;
-    rtlsdr_read_async(core->dev, rtlsdr_callback, core, 0, buffer_size);
-    pthread_mutex_lock(&core->mutex);
-    // run close on the same thread
-    // otherwise it might produce race condition somewhere in libusb code
-    rtlsdr_close(core->dev);
-    core->dev = NULL;
-    pthread_cond_broadcast(&core->rtl_thread_stopped_condition);
-    printf("rtl-sdr stopped\n");
-    pthread_mutex_unlock(&core->mutex);
-    return (void *) 0;
-}
-
 int start_rtlsdr(struct client_config *config) {
     core *core = config->core;
-    fprintf(stdout, "rtl-sdr is starting\n");
-    rtlsdr_dev_t *dev = NULL;
-    rtlsdr_open(&dev, 0);
-    if (dev == NULL) {
-        fprintf(stderr, "<3>unable to open rtl-sdr device\n");
-        return 0x04;
-    }
-
-    int code = rtlsdr_set_sample_rate(dev, core->server_config->band_sampling_rate);
-    if (code < 0) {
-        fprintf(stderr, "<3>unable to set sampling rate: %d\n", code);
-    }
-    code = rtlsdr_set_center_freq(dev, config->band_freq);
-    if (code < 0) {
-        fprintf(stderr, "<3>unable to set center freq: %d\n", code);
-    }
-    code = rtlsdr_set_tuner_gain_mode(dev, core->server_config->gain_mode);
-    if (code < 0) {
-        fprintf(stderr, "<3>unable to set gain mode: %d\n", code);
-    }
-    if (core->server_config->gain_mode == 1) {
-        int nearest_gain = 0;
-        code = find_nearest_gain(dev, core->server_config->gain, &nearest_gain);
-        if (code < 0) {
-            fprintf(stderr, "<3>unable to find nearest gain for: %d\n", core->server_config->gain);
-        } else {
-            if (nearest_gain != core->server_config->gain) {
-                fprintf(stdout, "the actual nearest supported gain is: %f\n", (float) nearest_gain / 10);
-            }
-            code = rtlsdr_set_tuner_gain(dev, nearest_gain);
-            if (code < 0) {
-                fprintf(stderr, "<3>unable to set tuner gain: %d\n", code);
-            }
-        }
-    }
-    code = rtlsdr_set_bias_tee(dev, core->server_config->bias_t);
-    if (code < 0) {
-        fprintf(stderr, "<3>unable to set bias_t: %d\n", code);
-    }
-    code = rtlsdr_reset_buffer(dev);
-    if (code < 0) {
-        fprintf(stderr, "<3>unable to reset buffer: %d\n", code);
-    }
-    core->dev = dev;
-
-    pthread_t *rtlsdr_worker_thread = malloc(sizeof(pthread_t));
-    if (rtlsdr_worker_thread == NULL) {
-        return 0x04;
-    }
-    code = pthread_create(rtlsdr_worker_thread, NULL, &rtlsdr_worker, core);
+    int code = core->dev->start_rx(config->band_freq, rtlsdr_callback, core, core->dev->plugin);
     if (code != 0) {
-        free(rtlsdr_worker_thread);
-        return 0x04;
+      return 0x04;
     }
-    core->rtlsdr_worker_thread = rtlsdr_worker_thread;
     return 0x0;
 }
 
 void stop_rtlsdr(core *core) {
-    fprintf(stdout, "rtl-sdr is stopping\n");
-
-    rtlsdr_cancel_async(core->dev);
-
-    // release the mutex here for rtlsdr thread to send last updates
-    // and cleans up
-    while (core->dev != NULL) {
-        pthread_cond_wait(&core->rtl_thread_stopped_condition, &core->mutex);
-    }
-
-    // additionally wait until rtlsdr thread terminates by OS
-    if (core->rtlsdr_worker_thread != NULL) {
-        pthread_join(*core->rtlsdr_worker_thread, NULL);
-        free(core->rtlsdr_worker_thread);
-        core->rtlsdr_worker_thread = NULL;
-    }
-    pthread_cond_broadcast(&core->sdr_stopped_condition);
+    fprintf(stdout, "sdr is stopping\n");
+    core->dev->stop_rx(core->dev->plugin);
+    fprintf(stdout, "sdr stopped\n");
 }
 
 void destroy_node(struct linked_list_node *node) {
@@ -371,9 +265,6 @@ int add_client(struct client_config *config) {
     pthread_mutex_lock(&config->core->mutex);
     if (config->core->client_configs == NULL) {
         // init rtl-sdr only for the first client
-        while (config->core->rtlsdr_worker_thread != NULL) {
-            pthread_cond_wait(&config->core->sdr_stopped_condition, &config->core->mutex);
-        }
         result = start_rtlsdr(config);
         if (result == 0) {
             config->core->client_configs = config_node;
@@ -439,10 +330,11 @@ void destroy_core(core *core) {
     }
     pthread_mutex_lock(&core->mutex);
     if (core->dev != NULL) {
-        stop_rtlsdr(core);
+      core->dev->destroy(core->dev->plugin);
+      free(core->dev);
     }
-    if (core->buffer != NULL) {
-        free(core->buffer);
+    if (core->rtllib != NULL) {
+      rtlsdr_lib_destroy(core->rtllib);
     }
     struct linked_list_node *cur_node = core->client_configs;
     while (cur_node != NULL) {

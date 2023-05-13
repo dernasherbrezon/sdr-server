@@ -6,10 +6,18 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99")
 if(CMAKE_BUILD_TYPE MATCHES Debug)
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --coverage")
 endif()
-file(GLOB SOURCES src/*.c)
-list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/main.c")
 
-add_library(sdr_serverLib ${SOURCES})
+add_library(sdr_serverLib
+		${CMAKE_CURRENT_SOURCE_DIR}/src/config.c
+		${CMAKE_CURRENT_SOURCE_DIR}/src/core.c
+		${CMAKE_CURRENT_SOURCE_DIR}/src/lpf.c
+		${CMAKE_CURRENT_SOURCE_DIR}/src/queue.c
+		${CMAKE_CURRENT_SOURCE_DIR}/src/rotator.c
+		${CMAKE_CURRENT_SOURCE_DIR}/src/tcp_server.c
+		${CMAKE_CURRENT_SOURCE_DIR}/src/xlating.c
+		${CMAKE_CURRENT_SOURCE_DIR}/src/sdr/airspy_device.c
+		${CMAKE_CURRENT_SOURCE_DIR}/src/sdr/rtlsdr_device.c
+)
 
 # at some point homebrew changed default location
 # so all libraries need an explicit path
@@ -24,6 +32,9 @@ pkg_check_modules(PC_RTLSDR REQUIRED librtlsdr>=0.5.4)
 include_directories(${PC_RTLSDR_INCLUDE_DIRS})
 link_directories(${PC_RTLSDR_LIBRARY_DIRS})
 target_link_libraries(sdr_serverLib ${PC_RTLSDR_LIBRARIES})
+
+pkg_check_modules(PC_LIBAIRSPY REQUIRED libairspy)
+include_directories(${PC_LIBAIRSPY_INCLUDE_DIRS})
 
 pkg_check_modules(PC_VOLK REQUIRED volk)
 include_directories(${PC_VOLK_INCLUDE_DIRS})
@@ -44,7 +55,12 @@ find_package(Threads REQUIRED)
 target_link_libraries(sdr_serverLib ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(sdr_serverLib m)
 
-add_executable(sdr_server src/main.c)
+# link real libraries into final executable so that tests can use mocks
+add_executable(sdr_server
+		${CMAKE_CURRENT_SOURCE_DIR}/src/main.c
+		${CMAKE_CURRENT_SOURCE_DIR}/src/sdr/rtlsdr_lib.c
+		${CMAKE_CURRENT_SOURCE_DIR}/src/sdr/airspy_lib.c
+)
 target_link_libraries(sdr_server sdr_serverLib)
 
 install(TARGETS sdr_server DESTINATION /usr/bin/)
@@ -52,27 +68,28 @@ install(FILES src/resources/config.conf DESTINATION /etc/sdr-server/)
 
 enable_testing()
 
-file(GLOB TEST_SOURCES test/test_*.c)
 file(GLOB TEST_RESOURCES test/resources/*)
 file(COPY ${TEST_RESOURCES} DESTINATION "${CMAKE_BINARY_DIR}")
-file(GLOB PERF_SOURCES test/perf_*.c)
-
-file(GLOB AUX_TEST_SOURCES test/*.c)
-list(FILTER AUX_TEST_SOURCES EXCLUDE REGEX "test_.*\\.c")
-list(FILTER AUX_TEST_SOURCES EXCLUDE REGEX "perf_.*\\.c")
-list(FILTER AUX_TEST_SOURCES EXCLUDE REGEX "mock_.*\\.c")
 
 pkg_check_modules(PC_CHECK REQUIRED check)
 include_directories(${PC_CHECK_INCLUDE_DIRS})
 link_directories(${PC_CHECK_LIBRARY_DIRS})
 
+# speed up test compilation.
+add_library(sdr_serverTestLib
+		${CMAKE_CURRENT_SOURCE_DIR}/test/rtlsdr_lib_mock.c
+		${CMAKE_CURRENT_SOURCE_DIR}/test/tcp_client.c
+		${CMAKE_CURRENT_SOURCE_DIR}/test/utils.c
+)
+file(GLOB TEST_SOURCES test/test_*.c)
 foreach(curTest ${TEST_SOURCES})
 	get_filename_component(curTestName ${curTest} NAME_WE)
-	add_test(NAME ${curTestName} COMMAND ${curTestName} ${curTest})
-	add_executable(${curTestName} ${curTest} ${AUX_TEST_SOURCES})
-	target_link_libraries(${curTestName} sdr_serverLib ${PC_CHECK_LIBRARIES})
+	add_executable(${curTestName} ${CMAKE_CURRENT_SOURCE_DIR}/test/${curTestName}.c)
+	target_link_libraries(${curTestName} sdr_serverLib sdr_serverTestLib ${PC_CHECK_LIBRARIES})
+	add_test(NAME ${curTestName} COMMAND ${curTestName})
 endforeach()
 
+file(GLOB PERF_SOURCES test/perf_*.c)
 foreach(curPerfTest ${PERF_SOURCES})
 	get_filename_component(curPerfTestName ${curPerfTest} NAME_WE)
 	add_executable(${curPerfTestName} ${curPerfTest})

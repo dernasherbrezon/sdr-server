@@ -19,14 +19,14 @@ int main(void) {
 	if (code != 0) {
 		exit(EXIT_FAILURE);
 	}
-	uint8_t *input = NULL;
-	input = malloc(sizeof(uint8_t) * max_input);
+	float *input = NULL;
+	input = malloc(sizeof(float) * max_input);
 	if (input == NULL) {
 		exit(EXIT_FAILURE);
 	}
 	for (size_t i = 0; i < max_input; i++) {
 		// don't care about the loss of data
-		input[i] = (uint8_t) (i);
+		input[i] = ((float) (i)) / 128.0f;
 	}
 
 	int total_executions = 1000;

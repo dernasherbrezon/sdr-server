@@ -5,18 +5,18 @@
 #include "../src/lpf.h"
 
 xlating *filter = NULL;
-uint8_t *input = NULL;
+float *input = NULL;
 
 void setup_filter(size_t input_offset, size_t input_len, size_t max_input) {
 	uint32_t sampling_freq = 48000;
 	uint32_t target_freq = 9600;
 	float *taps = NULL;
 	size_t len;
-	int code = create_low_pass_filter(1.0, sampling_freq, target_freq / 2, 2000, &taps, &len);
+	int code = create_low_pass_filter(1.0f, sampling_freq, target_freq / 2, 2000, &taps, &len);
 	ck_assert_int_eq(code, 0);
 	code = create_frequency_xlating_filter((int) (sampling_freq / target_freq), taps, len, -12000, sampling_freq, max_input, &filter);
 	ck_assert_int_eq(code, 0);
-	setup_input_data(&input, input_offset, input_len);
+  setup_float_input_data(&input, input_offset, input_len);
 }
 
 START_TEST (test_max_input_buffer_size) {
@@ -47,7 +47,7 @@ START_TEST (test_parital_input_buffer_size) {
 	assert_complex(expected, 20, output, output_len);
 	free(input);
 	// another 200 inputs
-	setup_input_data(&input, 200, 200);
+  setup_float_input_data(&input, 200, 200);
 	process(input, input_len, &output, &output_len, filter);
 	const float expectedNextBatch[] = { -0.000516, 0.000345, -0.000294, -0.000567, 0.000617, -0.000244, 0.000193, 0.000668, -0.000718, 0.000143, -0.000092, -0.000769, -0.001456, 0.001407, 0.001689, -0.004280, -0.005006, 0.008439, 0.013632, -0.019043, -0.029660, 0.049481, -0.016030, -0.416640, 0.049491, -0.029649, -0.019055, 0.013641, 0.008430, -0.005017, -0.004269, 0.001679, 0.001417, -0.001445, -0.000779, -0.000082, 0.000133, -0.000729, 0.000678, 0.000183 };
 	assert_complex(expectedNextBatch, 20, output, output_len);
@@ -63,7 +63,7 @@ START_TEST (test_small_input_data) {
 	free(input);
 	// add only 1 complex sample
 	// shouldn't be enough for 1 output
-	setup_input_data(&input, 200, 2);
+  setup_float_input_data(&input, 200, 2);
 	process(input, 2, &output, &output_len, filter);
 	const float expectedNextBatch[] = { 0 };
 	assert_complex(expectedNextBatch, 0, output, output_len);

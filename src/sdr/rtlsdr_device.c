@@ -55,7 +55,7 @@ int find_nearest_gain(struct rtlsdr_device_t *dev, int target_gain, int *nearest
   return 0;
 }
 
-int rtlsdr_device_create(uint32_t id, struct server_config *server_config, rtlsdr_lib *lib, sdr_device **output) {
+int rtlsdr_device_create(uint32_t id, struct server_config *server_config, rtlsdr_lib *lib, void (*rtlsdr_callback)(uint8_t *buf, uint32_t len, void *ctx), void *ctx, sdr_device **output) {
   fprintf(stdout, "rtl-sdr is starting\n");
   struct rtlsdr_device_t *device = malloc(sizeof(struct rtlsdr_device_t));
   if (device == NULL) {
@@ -63,6 +63,8 @@ int rtlsdr_device_create(uint32_t id, struct server_config *server_config, rtlsd
   }
   *device = (struct rtlsdr_device_t) {0};
   device->lib = lib;
+  device->rtlsdr_callback = rtlsdr_callback;
+  device->ctx = ctx;
   device->output_len = server_config->buffer_size;
   device->output = malloc(server_config->buffer_size * sizeof(uint8_t));
   if (device->output == NULL) {
@@ -113,10 +115,8 @@ static void *rtlsdr_worker(void *arg) {
   return (void *) 0;
 }
 
-int rtlsdr_device_start_rx(uint32_t band_freq, void (*rtlsdr_callback)(uint8_t *buf, uint32_t len, void *ctx), void *ctx, void *plugin) {
+int rtlsdr_device_start_rx(uint32_t band_freq, void *plugin) {
   struct rtlsdr_device_t *device = (struct rtlsdr_device_t *) plugin;
-  device->rtlsdr_callback = rtlsdr_callback;
-  device->ctx = ctx;
   ERROR_CHECK(device->lib->rtlsdr_set_center_freq(device->dev, band_freq));
   int code = pthread_create(&device->rtlsdr_worker_thread, NULL, &rtlsdr_worker, device);
   if (code != 0) {

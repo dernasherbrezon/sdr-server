@@ -13,6 +13,17 @@ void setup_input_data(uint8_t **input, size_t input_offset, size_t len) {
 	*input = result;
 }
 
+void setup_float_input_data(float **input, size_t input_offset, size_t len) {
+  float *result = malloc(sizeof(float) * len);
+  ck_assert(result != NULL);
+  for (size_t i = 0; i < len; i++) {
+    // don't care about the loss of data
+    result[i] = ((float) (input_offset + i)) / 128.0f;
+  }
+  *input = result;
+}
+
+
 void assert_complex(const float expected[], size_t expected_size, float complex *actual, size_t actual_size) {
 	ck_assert_int_eq(expected_size, actual_size);
 	for (size_t i = 0, j = 0; i < expected_size * 2; i += 2, j++) {

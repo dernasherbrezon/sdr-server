@@ -14,7 +14,9 @@ struct airspy_lib_t {
 
   int (*airspy_close)(struct airspy_device *device);
 
-  int (*airspy_get_samplerates)(struct airspy_device *device, uint32_t *buffer, const uint32_t len);
+  int (*airspy_set_lna_agc)(struct airspy_device *device, uint8_t value);
+
+  int (*airspy_set_mixer_agc)(struct airspy_device *device, uint8_t value);
 
   int (*airspy_set_samplerate)(struct airspy_device *device, uint32_t samplerate);
 

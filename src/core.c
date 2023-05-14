@@ -68,7 +68,7 @@ int create_core(struct server_config *server_config, core **result) {
         destroy_core(core);
         return code;
       }
-      code = airspy_device_create(1, 1, core->airspy, &core->dev);
+      code = airspy_device_create(1, server_config, core->airspy, &core->dev);
       if (code != 0) {
         destroy_core(core);
         return code;

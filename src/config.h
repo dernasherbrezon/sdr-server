@@ -9,6 +9,13 @@ typedef enum {
 	SDR_TYPE_AIRSPY = 1
 } sdr_type_t;
 
+typedef enum {
+  AIRSPY_GAIN_AUTO = 0,
+  AIRSPY_GAIN_SENSITIVITY = 1,
+  AIRSPY_GAIN_LINEARITY = 2,
+  AIRSPY_GAIN_MANUAL = 3
+} airspy_gain_mode_t;
+
 struct server_config {
 	// socket settings
 	char* bind_address;
@@ -27,6 +34,14 @@ struct server_config {
 	uint32_t band_sampling_rate;
 	int queue_size;
 	int lpf_cutoff_rate;
+
+	//airspy settings
+  airspy_gain_mode_t airspy_gain_mode;
+  int airspy_vga_gain;
+  int airspy_mixer_gain;
+  int airspy_lna_gain;
+  int airspy_linearity_gain;
+  int airspy_sensitivity_gain;
 
 	// output settings
 	char *base_path;

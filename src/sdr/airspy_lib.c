@@ -43,11 +43,12 @@ int airspy_lib_create(airspy_lib **lib) {
   SETUP_FUNCTION(result, airspy_open);
   SETUP_FUNCTION(result, airspy_set_sample_type);
   SETUP_FUNCTION(result, airspy_close);
-  SETUP_FUNCTION(result, airspy_get_samplerates);
+  SETUP_FUNCTION(result, airspy_set_lna_agc);
   SETUP_FUNCTION(result, airspy_set_samplerate);
   SETUP_FUNCTION(result, airspy_set_packing);
   SETUP_FUNCTION(result, airspy_set_rf_bias);
   SETUP_FUNCTION(result, airspy_set_lna_gain);
+  SETUP_FUNCTION(result, airspy_set_mixer_agc);
   SETUP_FUNCTION(result, airspy_set_vga_gain);
   SETUP_FUNCTION(result, airspy_set_mixer_gain);
   SETUP_FUNCTION(result, airspy_set_linearity_gain);

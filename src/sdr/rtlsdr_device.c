@@ -5,10 +5,11 @@
 #include <string.h>
 #include "rtlsdr_device.h"
 
-#define ERROR_CHECK(x)           \
+#define ERROR_CHECK(x, y)           \
   do {                           \
     int __err_rc = (x);          \
     if (__err_rc != 0) {         \
+      fprintf(stderr, "%s code: %d\n", y, __err_rc);                           \
       rtlsdr_device_destroy(device);                           \
       return __err_rc;           \
     }                            \
@@ -72,20 +73,20 @@ int rtlsdr_device_create(uint32_t id, struct server_config *server_config, rtlsd
     return -ENOMEM;
   }
   memset(device->output, 0, server_config->buffer_size);
-  ERROR_CHECK(lib->rtlsdr_open(&device->dev, 0));
-  ERROR_CHECK(lib->rtlsdr_set_sample_rate(device->dev, server_config->band_sampling_rate));
-  ERROR_CHECK(lib->rtlsdr_set_tuner_gain_mode(device->dev, server_config->gain_mode));
-  ERROR_CHECK(lib->rtlsdr_set_freq_correction(device->dev, server_config->ppm));
+  ERROR_CHECK(lib->rtlsdr_open(&device->dev, 0), "<3>unable to open device");
+  ERROR_CHECK(lib->rtlsdr_set_sample_rate(device->dev, server_config->band_sampling_rate), "<3>unable to set sample rate");
+  ERROR_CHECK(lib->rtlsdr_set_tuner_gain_mode(device->dev, server_config->gain_mode), "<3>unable to set gain mode");
+  ERROR_CHECK(lib->rtlsdr_set_freq_correction(device->dev, server_config->ppm), "<3>unable to set freq correction");
   if (server_config->gain_mode == 1) {
     int nearest_gain = 0;
-    ERROR_CHECK(find_nearest_gain(device, server_config->gain, &nearest_gain));
+    ERROR_CHECK(find_nearest_gain(device, server_config->gain, &nearest_gain), "<3>unable to find nearest gain");
     if (nearest_gain != server_config->gain) {
       fprintf(stdout, "the actual nearest supported gain is: %f\n", (float) nearest_gain / 10);
     }
-    ERROR_CHECK(lib->rtlsdr_set_tuner_gain(device->dev, nearest_gain));
+    ERROR_CHECK(lib->rtlsdr_set_tuner_gain(device->dev, nearest_gain), "<3>unable to set gain");
   }
-  ERROR_CHECK(lib->rtlsdr_set_bias_tee(device->dev, server_config->bias_t));
-  ERROR_CHECK(lib->rtlsdr_reset_buffer(device->dev));
+  ERROR_CHECK(lib->rtlsdr_set_bias_tee(device->dev, server_config->bias_t), "<3>unable to set bias tee");
+  ERROR_CHECK(lib->rtlsdr_reset_buffer(device->dev), "<3>unable to reset buffers");
 
   struct sdr_device_t *result = malloc(sizeof(struct sdr_device_t));
   if (result == NULL) {
@@ -117,7 +118,7 @@ static void *rtlsdr_worker(void *arg) {
 
 int rtlsdr_device_start_rx(uint32_t band_freq, void *plugin) {
   struct rtlsdr_device_t *device = (struct rtlsdr_device_t *) plugin;
-  ERROR_CHECK(device->lib->rtlsdr_set_center_freq(device->dev, band_freq));
+  ERROR_CHECK(device->lib->rtlsdr_set_center_freq(device->dev, band_freq), "<3>unable to set freq");
   int code = pthread_create(&device->rtlsdr_worker_thread, NULL, &rtlsdr_worker, device);
   if (code != 0) {
     return 0x04;

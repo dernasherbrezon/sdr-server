@@ -35,7 +35,7 @@ int airspy_lib_create(airspy_lib **lib) {
   result->handle = dlopen("libairspy.so", RTLD_LAZY);
 #endif
   if (!result->handle) {
-    fprintf(stderr, "unable to load arispy lib: %s\n", dlerror());
+    fprintf(stderr, "<3>unable to load arispy lib: %s\n", dlerror());
     airspy_lib_destroy(result);
     return -1;
   }
@@ -59,7 +59,7 @@ int airspy_lib_create(airspy_lib **lib) {
 
   airspy_lib_version_t version;
   result->airspy_lib_version(&version);
-  fprintf(stdout, "airspy library initialized: %"PRIu32" %"PRIu32, version.major_version, version.minor_version);
+  fprintf(stdout, "airspy library initialized: %"PRIu32".%"PRIu32"\n", version.major_version, version.minor_version);
 
   *lib = result;
   return 0;

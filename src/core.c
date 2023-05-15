@@ -198,11 +198,13 @@ int start_rtlsdr(struct client_config *config) {
   if (core->dev == NULL) {
     int code = core_create_sdr_device(core->server_config, core);
     if (code != 0) {
+      fprintf(stderr, "<3>unable to create device\n");
       return 0x04;
     }
   }
   int code = core->dev->start_rx(config->band_freq, core->dev->plugin);
   if (code != 0) {
+    fprintf(stderr, "<3>unable to start rx\n");
     return 0x04;
   }
   return 0;

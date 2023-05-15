@@ -3,10 +3,11 @@
 #include <errno.h>
 #include "airspy_device.h"
 
-#define ERROR_CHECK(x)           \
+#define ERROR_CHECK(x, y)           \
   do {                           \
     int __err_rc = (x);          \
-    if (__err_rc != 0) {         \
+    if (__err_rc != 0) {            \
+      fprintf(stderr, "%s code: %d\n", y, __err_rc);                              \
       airspy_device_destroy(device);                           \
       return __err_rc;           \
     }                            \
@@ -31,33 +32,33 @@ int airspy_device_create(uint32_t id,  struct server_config *server_config,  air
   device->lib = lib;
   device->sdr_callback = sdr_callback;
   device->ctx = ctx;
-  ERROR_CHECK(lib->airspy_open(&device->dev));
-  ERROR_CHECK(lib->airspy_set_sample_type(device->dev, AIRSPY_SAMPLE_FLOAT32_IQ));
-  ERROR_CHECK(lib->airspy_set_samplerate(device->dev, server_config->band_sampling_rate));
-  ERROR_CHECK(lib->airspy_set_packing(device->dev, 1));
-  ERROR_CHECK(lib->airspy_set_rf_bias(device->dev, server_config->bias_t));
+  ERROR_CHECK(lib->airspy_open(&device->dev), "<3>unable to init airspy device");
+  ERROR_CHECK(lib->airspy_set_sample_type(device->dev, AIRSPY_SAMPLE_FLOAT32_IQ), "<3>unable to set sample type float32 iq");
+  ERROR_CHECK(lib->airspy_set_samplerate(device->dev, server_config->band_sampling_rate), "<3>unable to set sample rate");
+  ERROR_CHECK(lib->airspy_set_packing(device->dev, 1), "<3>unable to set packing");
+  ERROR_CHECK(lib->airspy_set_rf_bias(device->dev, server_config->bias_t), "<3>unable to set bias_t");
   //FIXME configure output buffer size
   switch (server_config->airspy_gain_mode) {
     case AIRSPY_GAIN_SENSITIVITY: {
-      ERROR_CHECK(lib->airspy_set_sensitivity_gain(device->dev, server_config->airspy_sensitivity_gain));
+      ERROR_CHECK(lib->airspy_set_sensitivity_gain(device->dev, server_config->airspy_sensitivity_gain), "<3>unable to set sensitivity gain");
       fprintf(stdout, "sensitivity gain is configured: %d\n", server_config->airspy_sensitivity_gain);
       break;
     }
     case AIRSPY_GAIN_LINEARITY: {
-      ERROR_CHECK(lib->airspy_set_linearity_gain(device->dev, server_config->airspy_linearity_gain));
+      ERROR_CHECK(lib->airspy_set_linearity_gain(device->dev, server_config->airspy_linearity_gain), "<3>unable to set linearity gain");
       fprintf(stdout, "linearity gain is configured: %d\n", server_config->airspy_linearity_gain);
       break;
     }
     case AIRSPY_GAIN_AUTO: {
-      ERROR_CHECK(lib->airspy_set_lna_agc(device->dev, 1));
-      ERROR_CHECK(lib->airspy_set_mixer_agc(device->dev, 1));
+      ERROR_CHECK(lib->airspy_set_lna_agc(device->dev, 1), "<3>unable to set lna agc");
+      ERROR_CHECK(lib->airspy_set_mixer_agc(device->dev, 1), "<3>unable to set mixer agc");
       fprintf(stdout, "auto gain is configured\n");
       break;
     }
     case AIRSPY_GAIN_MANUAL: {
-      ERROR_CHECK(lib->airspy_set_vga_gain(device->dev, server_config->airspy_vga_gain));
-      ERROR_CHECK(lib->airspy_set_mixer_gain(device->dev, server_config->airspy_mixer_gain));
-      ERROR_CHECK(lib->airspy_set_lna_gain(device->dev, server_config->airspy_lna_gain));
+      ERROR_CHECK(lib->airspy_set_vga_gain(device->dev, server_config->airspy_vga_gain), "<3>unable to set vga gain");
+      ERROR_CHECK(lib->airspy_set_mixer_gain(device->dev, server_config->airspy_mixer_gain), "<3>unable to set mixer gain");
+      ERROR_CHECK(lib->airspy_set_lna_gain(device->dev, server_config->airspy_lna_gain), "<3>unable to set lna gain");
       fprintf(stdout, "manual gain is configured: %d %d %d\n", server_config->airspy_vga_gain, server_config->airspy_mixer_gain, server_config->airspy_lna_gain);
       break;
     }
@@ -101,7 +102,7 @@ int airspy_device_callback(airspy_transfer* transfer) {
 
 int airspy_device_start_rx(uint32_t band_freq, void *plugin) {
   struct airspy_device_t *device = (struct airspy_device_t *) plugin;
-  ERROR_CHECK(device->lib->airspy_set_freq(device->dev, band_freq));
+  ERROR_CHECK(device->lib->airspy_set_freq(device->dev, band_freq), "<3>unable to set freq");
   return device->lib->airspy_start_rx(device->dev, airspy_device_callback, device);
 }
 

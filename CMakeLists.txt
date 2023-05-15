@@ -52,8 +52,7 @@ link_directories(${PC_LIBCONFIG_LIBRARY_DIRS})
 target_link_libraries(sdr_serverLib ${PC_LIBCONFIG_LIBRARIES})
 
 find_package(Threads REQUIRED)
-target_link_libraries(sdr_serverLib ${CMAKE_THREAD_LIBS_INIT})
-target_link_libraries(sdr_serverLib m)
+target_link_libraries(sdr_serverLib m ${CMAKE_DL_LIBS} ${CMAKE_THREAD_LIBS_INIT})
 
 # link real libraries into final executable so that tests can use mocks
 add_executable(sdr_server

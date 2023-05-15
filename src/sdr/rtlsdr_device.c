@@ -132,7 +132,6 @@ void rtlsdr_device_stop_rx(void *plugin) {
   struct rtlsdr_device_t *device = (struct rtlsdr_device_t *) plugin;
   device->running = false;
   pthread_join(device->rtlsdr_worker_thread, NULL);
-  device->rtlsdr_worker_thread = NULL;
 }
 
 void rtlsdr_device_destroy(void *plugin) {

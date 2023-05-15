@@ -67,6 +67,36 @@ static void airspy_callback(float *buf, uint32_t buf_len, void *ctx) {
   pthread_mutex_unlock(&core->mutex);
 }
 
+int core_create_sdr_device(struct server_config *server_config, core *core) {
+  switch (server_config->sdr_type) {
+    case SDR_TYPE_RTL: {
+      return rtlsdr_device_create(1, server_config, core->rtllib, rtlsdr_callback, core, &core->dev);
+    }
+    case SDR_TYPE_AIRSPY: {
+      return airspy_device_create(1, server_config, core->airspy, airspy_callback, core, &core->dev);
+    }
+    default: {
+      fprintf(stderr, "<3>unsupported sdr type: %d\n", server_config->sdr_type);
+      return -1;
+    }
+  }
+}
+
+int core_create_sdr_library(struct server_config *server_config, core *core) {
+  switch (server_config->sdr_type) {
+    case SDR_TYPE_RTL: {
+      return rtlsdr_lib_create(&core->rtllib);
+    }
+    case SDR_TYPE_AIRSPY: {
+      return airspy_lib_create(&core->airspy);
+    }
+    default: {
+      fprintf(stderr, "<3>unsupported sdr type: %d\n", server_config->sdr_type);
+      return -1;
+    }
+  }
+}
+
 int create_core(struct server_config *server_config, core **result) {
   core *core = malloc(sizeof(struct core_t));
   if (core == NULL) {
@@ -81,37 +111,10 @@ int create_core(struct server_config *server_config, core **result) {
   }
   core->server_config = server_config;
   core->mutex = (pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER;
-  switch (server_config->sdr_type) {
-    case SDR_TYPE_RTL: {
-      int code = rtlsdr_lib_create(&core->rtllib);
-      if (code != 0) {
-        destroy_core(core);
-        return code;
-      }
-      code = rtlsdr_device_create(1, server_config, core->rtllib, rtlsdr_callback, core, &core->dev);
-      if (code != 0) {
-        destroy_core(core);
-        return code;
-      }
-      break;
-    }
-    case SDR_TYPE_AIRSPY: {
-      int code = airspy_lib_create(&core->airspy);
-      if (code != 0) {
-        destroy_core(core);
-        return code;
-      }
-      code = airspy_device_create(1, server_config, core->airspy, airspy_callback, core, &core->dev);
-      if (code != 0) {
-        destroy_core(core);
-        return code;
-      }
-      break;
-    }
-    default: {
-      fprintf(stderr, "<3>unsupported sdr type\n");
-      return -1;
-    }
+  int code = core_create_sdr_library(server_config, core);
+  if (code != 0) {
+    destroy_core(core);
+    return code;
   }
   *result = core;
   return 0;
@@ -192,11 +195,17 @@ static void *dsp_worker(void *arg) {
 
 int start_rtlsdr(struct client_config *config) {
   core *core = config->core;
+  if (core->dev == NULL) {
+    int code = core_create_sdr_device(core->server_config, core);
+    if (code != 0) {
+      return 0x04;
+    }
+  }
   int code = core->dev->start_rx(config->band_freq, core->dev->plugin);
   if (code != 0) {
     return 0x04;
   }
-  return 0x0;
+  return 0;
 }
 
 void stop_rtlsdr(core *core) {

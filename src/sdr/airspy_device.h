@@ -5,7 +5,7 @@
 #include "airspy_lib.h"
 #include "sdr_device.h"
 
-int airspy_device_create(uint32_t id, struct server_config *server_config, airspy_lib *lib, void (*sdr_callback)(float *buf, uint32_t len, void *ctx), void *ctx, sdr_device **result);
+int airspy_device_create(uint32_t id, struct server_config *server_config, airspy_lib *lib, int (*sdr_callback)(float *buf, uint32_t len, void *ctx), void *ctx, sdr_device **result);
 
 void airspy_device_destroy(void *plugin);
 

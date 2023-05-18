@@ -16,13 +16,13 @@
 struct airspy_device_t {
   uint32_t id;
   struct airspy_device *dev;
-  void (*sdr_callback)(float *buf, uint32_t len, void *ctx);
+  int (*sdr_callback)(float *buf, uint32_t len, void *ctx);
   void *ctx;
 
   airspy_lib *lib;
 };
 
-int airspy_device_create(uint32_t id,  struct server_config *server_config,  airspy_lib *lib, void (*sdr_callback)(float *buf, uint32_t len, void *ctx), void *ctx, sdr_device **output) {
+int airspy_device_create(uint32_t id,  struct server_config *server_config,  airspy_lib *lib, int (*sdr_callback)(float *buf, uint32_t len, void *ctx), void *ctx, sdr_device **output) {
   fprintf(stdout, "airspy is starting\n");
   struct airspy_device_t *device = malloc(sizeof(struct airspy_device_t));
   if (device == NULL) {
@@ -96,8 +96,7 @@ void airspy_device_destroy(void *plugin) {
 
 int airspy_device_callback(airspy_transfer* transfer) {
   struct airspy_device_t *device = (struct airspy_device_t *) transfer->ctx;
-  device->sdr_callback(transfer->samples, transfer->sample_count * 2, device->ctx);
-  return 0;
+  return device->sdr_callback(transfer->samples, transfer->sample_count * 2, device->ctx);
 }
 
 int airspy_device_start_rx(uint32_t band_freq, void *plugin) {

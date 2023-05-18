@@ -32,7 +32,10 @@ struct linked_list_node {
 struct core_t {
   struct server_config *server_config;
   pthread_mutex_t mutex;
+  pthread_cond_t sdr_stoping_condition;
   pthread_cond_t sdr_stopped_condition;
+  bool sdr_stop_requested;
+  bool sdr_last_message_processed;
   bool sdr_stopped;
 
   float *buffer;
@@ -43,9 +46,10 @@ struct core_t {
   airspy_lib *airspy;
 };
 
-static void rtlsdr_callback(uint8_t *buf, uint32_t buf_len, void *ctx) {
+static int rtlsdr_callback(uint8_t *buf, uint32_t buf_len, void *ctx) {
   core *core = (struct core_t *) ctx;
   volk_8i_s32f_convert_32f_u(core->buffer, (const signed char *) buf, 128.0F, buf_len);
+  int result = 0;
   pthread_mutex_lock(&core->mutex);
   struct linked_list_node *current_node = core->client_configs;
   while (current_node != NULL) {
@@ -53,12 +57,19 @@ static void rtlsdr_callback(uint8_t *buf, uint32_t buf_len, void *ctx) {
     queue_put(core->buffer, buf_len, current_node->queue);
     current_node = current_node->next;
   }
+  if (core->sdr_stop_requested) {
+    result = 1;
+    core->sdr_last_message_processed = true;
+    pthread_cond_broadcast(&core->sdr_stoping_condition);
+  }
   pthread_mutex_unlock(&core->mutex);
+  return result;
 }
 
-static void airspy_callback(float *buf, uint32_t buf_len, void *ctx) {
+static int airspy_callback(float *buf, uint32_t buf_len, void *ctx) {
   core *core = (struct core_t *) ctx;
   //TODO check if unpacking raw is fast in libairspy
+  int result = 0;
   pthread_mutex_lock(&core->mutex);
   struct linked_list_node *current_node = core->client_configs;
   while (current_node != NULL) {
@@ -66,7 +77,13 @@ static void airspy_callback(float *buf, uint32_t buf_len, void *ctx) {
     queue_put(buf, buf_len, current_node->queue);
     current_node = current_node->next;
   }
+  if (core->sdr_stop_requested) {
+    result = 1;
+    core->sdr_last_message_processed = true;
+    pthread_cond_broadcast(&core->sdr_stoping_condition);
+  }
   pthread_mutex_unlock(&core->mutex);
+  return result;
 }
 
 int core_create_sdr_device(struct server_config *server_config, core *core) {
@@ -113,8 +130,11 @@ int create_core(struct server_config *server_config, core **result) {
   }
   core->server_config = server_config;
   core->mutex = (pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER;
+  core->sdr_stoping_condition = (pthread_cond_t) PTHREAD_COND_INITIALIZER;
   core->sdr_stopped_condition = (pthread_cond_t) PTHREAD_COND_INITIALIZER;
   core->sdr_stopped = true;
+  core->sdr_stop_requested = false;
+  core->sdr_last_message_processed = false;
   int code = core_create_sdr_library(server_config, core);
   if (code != 0) {
     destroy_core(core);
@@ -211,12 +231,22 @@ int start_rtlsdr(struct client_config *config) {
     fprintf(stderr, "<3>unable to start rx\n");
     return 0x04;
   }
+  // reset internal state
   core->sdr_stopped = false;
+  core->sdr_stop_requested = false;
+  core->sdr_last_message_processed = false;
   return 0;
 }
 
 void stop_rtlsdr(core *core) {
   fprintf(stdout, "sdr is stopping\n");
+  // async shutdown request
+  core->sdr_stop_requested = true;
+  // wait until last message processed by the callback
+  while (!core->sdr_last_message_processed) {
+    pthread_cond_wait(&core->sdr_stoping_condition, &core->mutex);
+  }
+  // synchronous wait until all threads shutdown
   core->dev->stop_rx(core->dev->plugin);
   fprintf(stdout, "sdr stopped\n");
   core->sdr_stopped = true;

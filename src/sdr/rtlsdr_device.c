@@ -23,7 +23,7 @@ struct rtlsdr_device_t {
   uint8_t *output;
   size_t output_len;
 
-  void (*rtlsdr_callback)(uint8_t *buf, uint32_t len, void *ctx);
+  int (*rtlsdr_callback)(uint8_t *buf, uint32_t len, void *ctx);
 
   void *ctx;
 
@@ -56,7 +56,7 @@ int find_nearest_gain(struct rtlsdr_device_t *dev, int target_gain, int *nearest
   return 0;
 }
 
-int rtlsdr_device_create(uint32_t id, struct server_config *server_config, rtlsdr_lib *lib, void (*rtlsdr_callback)(uint8_t *buf, uint32_t len, void *ctx), void *ctx, sdr_device **output) {
+int rtlsdr_device_create(uint32_t id, struct server_config *server_config, rtlsdr_lib *lib, int (*rtlsdr_callback)(uint8_t *buf, uint32_t len, void *ctx), void *ctx, sdr_device **output) {
   fprintf(stdout, "rtl-sdr is starting\n");
   struct rtlsdr_device_t *device = malloc(sizeof(struct rtlsdr_device_t));
   if (device == NULL) {
@@ -111,7 +111,10 @@ static void *rtlsdr_worker(void *arg) {
     if (code != 0) {
       break;
     }
-    device->rtlsdr_callback(device->output, n_read, device->ctx);
+    code = device->rtlsdr_callback(device->output, n_read, device->ctx);
+    if (code != 0) {
+      device->running = false;
+    }
   }
   return (void *) 0;
 }

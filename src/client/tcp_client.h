@@ -2,7 +2,7 @@
 #define TCP_CLIENT_H_
 
 #include <stdint.h>
-#include "../src/api.h"
+#include "../api.h"
 
 struct tcp_client {
 	int client_socket;

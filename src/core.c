@@ -32,6 +32,8 @@ struct linked_list_node {
 struct core_t {
   struct server_config *server_config;
   pthread_mutex_t mutex;
+  pthread_cond_t sdr_stopped_condition;
+  bool sdr_stopped;
 
   float *buffer;
 
@@ -111,6 +113,8 @@ int create_core(struct server_config *server_config, core **result) {
   }
   core->server_config = server_config;
   core->mutex = (pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER;
+  core->sdr_stopped_condition = (pthread_cond_t) PTHREAD_COND_INITIALIZER;
+  core->sdr_stopped = true;
   int code = core_create_sdr_library(server_config, core);
   if (code != 0) {
     destroy_core(core);
@@ -207,6 +211,7 @@ int start_rtlsdr(struct client_config *config) {
     fprintf(stderr, "<3>unable to start rx\n");
     return 0x04;
   }
+  core->sdr_stopped = false;
   return 0;
 }
 
@@ -214,6 +219,8 @@ void stop_rtlsdr(core *core) {
   fprintf(stdout, "sdr is stopping\n");
   core->dev->stop_rx(core->dev->plugin);
   fprintf(stdout, "sdr stopped\n");
+  core->sdr_stopped = true;
+  pthread_cond_broadcast(&core->sdr_stopped_condition);
 }
 
 void destroy_node(struct linked_list_node *node) {
@@ -320,6 +327,11 @@ int add_client(struct client_config *config) {
   pthread_mutex_lock(&config->core->mutex);
   if (config->core->client_configs == NULL) {
     // init rtl-sdr only for the first client
+    // wait until sdr fully stop
+    // release mutex for stop to perform some cleanups
+    while (!config->core->sdr_stopped) {
+      pthread_cond_wait(&config->core->sdr_stopped_condition, &config->core->mutex);
+    }
     result = start_rtlsdr(config);
     if (result == 0) {
       config->core->client_configs = config_node;
@@ -372,6 +384,7 @@ void remove_client(struct client_config *config) {
     stop_rtlsdr(config->core);
   }
   pthread_mutex_unlock(&config->core->mutex);
+
   // stopping the thread can take some time
   // do it outside of synch block
   if (node_to_destroy != NULL) {

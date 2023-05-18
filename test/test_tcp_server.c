@@ -3,7 +3,7 @@
 
 #include "utils.h"
 #include "../src/tcp_server.h"
-#include "tcp_client.h"
+#include "../src/client/tcp_client.h"
 #include "rtlsdr_lib_mock.h"
 
 tcp_server *server = NULL;

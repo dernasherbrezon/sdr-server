@@ -62,7 +62,12 @@ add_executable(sdr_server
 )
 target_link_libraries(sdr_server sdr_serverLib)
 
-install(TARGETS sdr_server DESTINATION /usr/bin/)
+add_executable(sdr_server_client
+		${CMAKE_CURRENT_SOURCE_DIR}/src/client/tcp_client.c
+		${CMAKE_CURRENT_SOURCE_DIR}/src/client/tcp_client_main.c
+)
+
+install(TARGETS sdr_server sdr_server_client DESTINATION /usr/bin/)
 install(FILES src/resources/config.conf DESTINATION /etc/sdr-server/)
 
 enable_testing()
@@ -78,7 +83,7 @@ link_directories(${PC_CHECK_LIBRARY_DIRS})
 add_library(sdr_serverTestLib
 		${CMAKE_CURRENT_SOURCE_DIR}/test/rtlsdr_lib_mock.c
 		${CMAKE_CURRENT_SOURCE_DIR}/test/airspy_lib_mock.c
-		${CMAKE_CURRENT_SOURCE_DIR}/test/tcp_client.c
+		${CMAKE_CURRENT_SOURCE_DIR}/src/client/tcp_client.c
 		${CMAKE_CURRENT_SOURCE_DIR}/test/utils.c
 )
 file(GLOB TEST_SOURCES test/test_*.c)

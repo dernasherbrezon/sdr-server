@@ -30,7 +30,7 @@ int airspy_lib_create(airspy_lib **lib) {
   *result = (struct airspy_lib_t) {0};
 
 #if defined(__APPLE__)
-  result->handle = dlopen("libairspy", RTLD_LAZY);
+  result->handle = dlopen("libairspy.dylib", RTLD_LAZY);
 #else
   result->handle = dlopen("libairspy.so", RTLD_LAZY);
 #endif

@@ -9,7 +9,7 @@
   do {                           \
     int __err_rc = (x);          \
     if (__err_rc != 0) {         \
-      fprintf(stderr, "%s code: %d\n", y, __err_rc);                           \
+      fprintf(stderr, "%s: %d\n", y, __err_rc);                           \
       rtlsdr_device_destroy(device);                           \
       return __err_rc;           \
     }                            \
@@ -76,7 +76,9 @@ int rtlsdr_device_create(uint32_t id, struct server_config *server_config, rtlsd
   ERROR_CHECK(lib->rtlsdr_open(&device->dev, 0), "<3>unable to open device");
   ERROR_CHECK(lib->rtlsdr_set_sample_rate(device->dev, server_config->band_sampling_rate), "<3>unable to set sample rate");
   ERROR_CHECK(lib->rtlsdr_set_tuner_gain_mode(device->dev, server_config->gain_mode), "<3>unable to set gain mode");
-  ERROR_CHECK(lib->rtlsdr_set_freq_correction(device->dev, server_config->ppm), "<3>unable to set freq correction");
+  if (server_config->ppm != 0) {
+    ERROR_CHECK(lib->rtlsdr_set_freq_correction(device->dev, server_config->ppm), "<3>unable to set freq correction");
+  }
   if (server_config->gain_mode == 1) {
     int nearest_gain = 0;
     ERROR_CHECK(find_nearest_gain(device, server_config->gain, &nearest_gain), "<3>unable to find nearest gain");

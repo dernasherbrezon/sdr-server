@@ -7,7 +7,7 @@
   do {                           \
     int __err_rc = (x);          \
     if (__err_rc != 0) {            \
-      fprintf(stderr, "%s code: %d\n", y, __err_rc);                              \
+      fprintf(stderr, "%s: %d\n", y, __err_rc);                              \
       airspy_device_destroy(device);                           \
       return __err_rc;           \
     }                            \

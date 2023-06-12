@@ -4,7 +4,7 @@ project(sdr-server)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99")
 if(CMAKE_BUILD_TYPE MATCHES Debug)
-	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --coverage")
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --coverage ")
 endif()
 
 add_library(sdr_serverLib
@@ -30,8 +30,6 @@ find_package(PkgConfig REQUIRED)
 
 pkg_check_modules(PC_RTLSDR REQUIRED librtlsdr>=0.5.4)
 include_directories(${PC_RTLSDR_INCLUDE_DIRS})
-link_directories(${PC_RTLSDR_LIBRARY_DIRS})
-target_link_libraries(sdr_serverLib ${PC_RTLSDR_LIBRARIES})
 
 pkg_check_modules(PC_LIBAIRSPY REQUIRED libairspy)
 include_directories(${PC_LIBAIRSPY_INCLUDE_DIRS})

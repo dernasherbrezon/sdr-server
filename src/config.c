@@ -6,6 +6,8 @@
 
 #include "config.h"
 
+#define AIRSPY_BUFFER_SIZE 262144
+
 char *read_and_copy_str(const config_setting_t *setting, const char *default_value) {
   const char *value;
   if (setting == NULL) {
@@ -155,6 +157,10 @@ int create_server_config(struct server_config **config, const char *path) {
   result->band_sampling_rate = band_sampling_rate;
 
   result->buffer_size = config_read_uint32_t(&libconfig, "buffer_size", 262144);
+  if( result->sdr_type == SDR_TYPE_AIRSPY && result->buffer_size != AIRSPY_BUFFER_SIZE ) {
+    result->buffer_size = AIRSPY_BUFFER_SIZE;
+    fprintf(stdout, "force airspy buffer_size to: %d\n", result->buffer_size);
+  }
   result->lpf_cutoff_rate = config_read_int(&libconfig, "lpf_cutoff_rate", 5);
 
   setting = config_lookup(&libconfig, "bind_address");

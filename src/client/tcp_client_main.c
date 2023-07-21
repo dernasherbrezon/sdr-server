@@ -67,8 +67,9 @@ int main(int argc, char **argv) {
     }
   }
 
-  if (argc <= optind) {
+  if (argc <= optind || center_freq == 0) {
     usage();
+    return EXIT_SUCCESS;
   } else {
     filename = argv[optind];
   }

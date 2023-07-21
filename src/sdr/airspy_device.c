@@ -38,7 +38,6 @@ int airspy_device_create(uint32_t id, struct server_config *server_config, airsp
   ERROR_CHECK(lib->airspy_set_samplerate(device->dev, server_config->band_sampling_rate), "<3>unable to set sample rate");
   ERROR_CHECK(lib->airspy_set_packing(device->dev, 1), "<3>unable to set packing");
   ERROR_CHECK(lib->airspy_set_rf_bias(device->dev, server_config->bias_t), "<3>unable to set bias_t");
-  //FIXME configure output buffer size
   switch (server_config->airspy_gain_mode) {
     case AIRSPY_GAIN_SENSITIVITY: {
       ERROR_CHECK(lib->airspy_set_sensitivity_gain(device->dev, server_config->airspy_sensitivity_gain), "<3>unable to set sensitivity gain");

@@ -29,6 +29,8 @@ struct xlating_t {
 
 	float complex *output;
 	size_t output_len;
+
+	float temp[2];
 };
 
 void process(const uint8_t *input, size_t input_len, float complex **output, size_t *output_len, xlating *filter) {
@@ -48,8 +50,13 @@ void process(const uint8_t *input, size_t input_len, float complex **output, siz
 			const lv_32fc_t *aligned_buffer = (const lv_32fc_t*) ((size_t) buf & ~(filter->alignment - 1));
 			unsigned align_index = buf - aligned_buffer;
 
-			volk_32fc_x2_dot_prod_32fc_a(filter->volk_output, aligned_buffer, (const lv_32fc_t*) filter->taps[align_index], filter->taps_len + align_index);
-			filter->output[produced] = *filter->volk_output;
+			#pragma clang loop unroll(full)
+			for (int i = 0; i < filter->taps_len; ++i) {
+				filter->temp[0] += buf[0] * filter->taps[0][0] - buf[1] * filter->taps[0][1];
+				filter->temp[1] += buf[0] * filter->taps[0][1] + buf[1] * filter->taps[0][0];
+			}
+//			volk_32fc_x2_dot_prod_32fc_a(filter->volk_output, aligned_buffer, (const lv_32fc_t*) filter->taps[align_index], filter->taps_len + align_index);
+			filter->output[produced] = CMPLXF(filter->temp[0], filter->temp[1]);
 		}
 
 		rotator_increment_batch(filter->rot, filter->output, filter->output, produced);

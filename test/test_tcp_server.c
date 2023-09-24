@@ -4,10 +4,7 @@
 #include "utils.h"
 #include "mock_librtlsdr.c"
 #include "../src/tcp_server.h"
-#include "tcp_client.h"
-#include "../src/api.h"
-
-#include <stdio.h>
+#include "../src/client/tcp_client.h"
 
 extern void init_mock_librtlsdr();
 extern void wait_for_data_read();

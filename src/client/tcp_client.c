@@ -29,7 +29,7 @@ int create_client(const char *addr, int port, struct tcp_client **tcp_client) {
 	int code = connect(client_socket, (struct sockaddr*) &address, sizeof(address));
 	if (code != 0) {
 		free(result);
-		fprintf(stderr, "connection with the server failed: %d\n", code);
+		fprintf(stderr, "unable to connect to: %s:%d - %d\n", addr, port, code);
 		return -1;
 	}
 	fprintf(stderr, "connected to the server..\n");

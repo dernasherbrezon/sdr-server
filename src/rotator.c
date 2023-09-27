@@ -29,10 +29,10 @@ void rotator_increment_batch(rotator *rotator, float complex *input, float compl
   volk_32fc_s32fc_x2_rotator_32fc(output, input, rotator->phase_incr, &rotator->phase, batch_size);
 }
 
-int destroy_rotator(rotator *rotator) {
-  if (rotator != NULL) {
-    free(rotator);
+void destroy_rotator(rotator *rotator) {
+  if (rotator == NULL) {
+    return;
   }
-  return 0;
+  free(rotator);
 }
 

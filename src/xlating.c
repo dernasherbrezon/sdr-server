@@ -43,13 +43,17 @@ void process(const uint8_t *input, size_t input_len, float complex **output, siz
   if (working_len > (filter->taps_len - 1) * 2) {
     size_t max_index = working_len - (filter->taps_len - 1) * 2;
     for (; current_index < max_index; current_index += 2 * filter->decimation, produced++) {
-      const lv_32fc_t *buf = (const lv_32fc_t *) (filter->working_buffer + current_index);
+      float complex *buf = (float complex *) (filter->working_buffer + current_index);
+      float complex temp = 0 + I * 0;
 
-      const lv_32fc_t *aligned_buffer = (const lv_32fc_t *) ((size_t) buf & ~(filter->alignment - 1));
-      unsigned align_index = buf - aligned_buffer;
+//      const lv_32fc_t *aligned_buffer = (const lv_32fc_t *) ((size_t) buf & ~(filter->alignment - 1));
+//      unsigned align_index = buf - aligned_buffer;
 
-      volk_32fc_x2_dot_prod_32fc_a(filter->volk_output, aligned_buffer, (const lv_32fc_t *) filter->taps[align_index], filter->taps_len + align_index);
-      filter->output[produced] = *filter->volk_output;
+//      volk_32fc_x2_dot_prod_32fc_a(filter->volk_output, aligned_buffer, (const lv_32fc_t *) filter->taps[align_index], filter->taps_len + align_index);
+      for (int i = 0; i < filter->taps_len; i++) {
+        temp += buf[i] * filter->taps[0][i];
+      }
+      filter->output[produced] = temp;
     }
 
     rotator_increment_batch(filter->rot, filter->output, filter->output, produced);

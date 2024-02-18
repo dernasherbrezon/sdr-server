@@ -2,15 +2,25 @@
 
 set -e
 
-# only these volk methods are being used
-volk_profile -R volk_32fc_x2_dot_prod_32fc --path dot_prod
-volk_profile -R volk_32fc_s32fc_rotatorpuppet_32fc --path rotator
-volk_profile -R volk_8i_s32f_convert_32f --path convert
-
 mkdir -p /etc/sdr-server/volk
-cat dot_prod/volk_config rotator/volk_config convert/volk_config > /etc/sdr-server/volk/volk_config
+FINAL_NAME="/etc/sdr-server/volk/volk_config"
 
-# remove unused dirs
-rm -r dot_prod rotator convert
+updateVolkConfig() {
+  case $(grep $1 ${FINAL_NAME} 2>&1 > /dev/null; echo $?) in
+   0)
+          return;
+          ;;
+   *)
+          volk_profile -R $1 --path $1
+          cat $1/volk_config >> ${FINAL_NAME}
+          rm -r $1
+          ;;
+  esac
+}
+
+# only these volk methods are being used
+updateVolkConfig volk_32fc_x2_dot_prod_32fc
+updateVolkConfig volk_32fc_s32fc_rotatorpuppet_32fc
+updateVolkConfig volk_8i_s32f_convert_32f
 
 #DEBHELPER#

@@ -90,7 +90,7 @@ make
 
 ## Install
 
-sdr-server can be installed from [r2cloud APT repository](https://r2server.ru/apt.html):
+sdr-server can be installed from [leosatdata APT repository](https://leosatdata.com/apt):
 
 ```
 sudo apt-get install sdr-server

@@ -95,4 +95,3 @@ sdr-server can be installed from [r2cloud APT repository](https://r2server.ru/ap
 ```
 sudo apt-get install sdr-server
 ```
-

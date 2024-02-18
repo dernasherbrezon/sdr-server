@@ -1,3 +1,33 @@
+sdr-server (1.1.16-16~bookworm) unstable; urgency=medium
+
+  [ dernasherbrezon ]
+  * graceful shutdown
+  * migrate to github actions
+  * fix memory leak in unit test
+  * fix the build
+  * fix the build
+  * fix the build for old ubuntu
+  * fix the build for old ubuntu
+  * fix the build under macos
+  * speed up the upgrade
+  * fix async
+  * fix async
+  * add small command line client application
+  * fix the build
+  * better logging
+  * fix unit tests
+  * destroy functions actually never return non-0
+  * migrate to github actions + configure jenkins
+  * fix the build
+  * executable
+  * bump the build
+  * bump the build
+  * fix the build
+  * fix the build
+  * fix the build
+
+ -- r2cloud <gpg@r2cloud.ru>  Sun, 18 Feb 2024 22:31:41 +0000
+
 sdr-server (1.1.0-2~bookworm) unstable; urgency=medium
 
   * bookworm-specific branch

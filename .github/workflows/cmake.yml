@@ -1,0 +1,88 @@
+name: CMake
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  BASE_VERSION: "1.1"
+  DEBEMAIL: "gpg@r2cloud.ru"
+  DEBFULLNAME: "r2cloud"
+
+jobs:
+  build:
+    name: Build and analyze
+    runs-on: ubuntu-latest
+    env:
+      BUILD_WRAPPER_OUT_DIR: build_wrapper_output_directory # Directory where build-wrapper output will be placed
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Shallow clones should be disabled for a better relevancy of analysis
+      - name: Cache SonarQube packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+      - name: Install sonar-scanner and build-wrapper
+        uses: SonarSource/sonarcloud-github-c-cpp@v2
+      - name: install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libconfig-dev valgrind check cmake pkg-config libvolk2-dev librtlsdr-dev
+      - name: Run build-wrapper
+        run: |
+          mkdir build
+          cmake -DCMAKE_BUILD_TYPE=Debug -S . -B build
+          build-wrapper-linux-x86-64 --out-dir ${{ env.BUILD_WRAPPER_OUT_DIR }} cmake --build build/ --config Debug
+      - name: run tests & coverage
+        run: |
+          cd build
+          bash ./run_tests.sh
+          make coverage
+          cd ..
+      - name: Run sonar-scanner
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          sonar-scanner --define sonar.cfamily.build-wrapper-output="${{ env.BUILD_WRAPPER_OUT_DIR }}"
+      - name: Merge into OS-specific branches
+        run: |
+          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+          git config user.name "$GITHUB_ACTOR"
+          git tag ${{ env.BASE_VERSION }}.${{ github.run_number }}
+          git push origin ${{ env.BASE_VERSION }}.${{ github.run_number }}
+  deploy:
+    name: Build, package and deploy
+    needs: build
+    strategy:
+      matrix:
+        hosts: [ubuntu-20.04, ubuntu-22.04]
+        cpu: ["nocpuspecific"]
+    runs-on: ${{ matrix.hosts }}
+    steps:
+      - name: Import GPG key
+        uses: crazy-max/ghaction-import-gpg@v5
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.PASSPHRASE }}
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      - name: Set env
+        run: echo "OS_CODENAME=$(lsb_release --codename --short)" >> $GITHUB_ENV
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Shallow clones should be disabled for a better relevancy of analysis
+          ref: '${{ env.OS_CODENAME }}'
+      - name: Configure agent
+        run: bash ./configure_agent.sh
+      - name: Build and deploy
+        run: bash ./build_and_deploy.sh ${{ matrix.cpu }} ${{ env.OS_CODENAME }} ${{ env.BASE_VERSION }} ${{ github.run_number }} F2DCBFDCA5A70917

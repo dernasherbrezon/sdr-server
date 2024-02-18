@@ -30,6 +30,7 @@ struct core_t {
     struct server_config *server_config;
     pthread_mutex_t mutex;
     pthread_cond_t rtl_thread_stopped_condition;
+    pthread_cond_t sdr_stopped_condition;
 
     struct linked_list_node *client_configs;
     rtlsdr_dev_t *dev;
@@ -81,6 +82,7 @@ int create_core(struct server_config *server_config, core **result) {
     core->buffer = buffer;
     core->mutex = (pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER;
     core->rtl_thread_stopped_condition = (pthread_cond_t) PTHREAD_COND_INITIALIZER;
+    core->sdr_stopped_condition = (pthread_cond_t) PTHREAD_COND_INITIALIZER;
     *result = core;
     return 0;
 }
@@ -180,8 +182,8 @@ static void *rtlsdr_worker(void *arg) {
     rtlsdr_close(core->dev);
     core->dev = NULL;
     pthread_cond_broadcast(&core->rtl_thread_stopped_condition);
-    pthread_mutex_unlock(&core->mutex);
     printf("rtl-sdr stopped\n");
+    pthread_mutex_unlock(&core->mutex);
     return (void *) 0;
 }
 
@@ -260,7 +262,9 @@ void stop_rtlsdr(core *core) {
     if (core->rtlsdr_worker_thread != NULL) {
         pthread_join(*core->rtlsdr_worker_thread, NULL);
         free(core->rtlsdr_worker_thread);
+        core->rtlsdr_worker_thread = NULL;
     }
+    pthread_cond_broadcast(&core->sdr_stopped_condition);
 }
 
 void destroy_node(struct linked_list_node *node) {
@@ -367,6 +371,9 @@ int add_client(struct client_config *config) {
     pthread_mutex_lock(&config->core->mutex);
     if (config->core->client_configs == NULL) {
         // init rtl-sdr only for the first client
+        while (config->core->rtlsdr_worker_thread != NULL) {
+            pthread_cond_wait(&config->core->sdr_stopped_condition, &config->core->mutex);
+        }
         result = start_rtlsdr(config);
         if (result == 0) {
             config->core->client_configs = config_node;

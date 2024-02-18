@@ -6,10 +6,17 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99")
 if(CMAKE_BUILD_TYPE MATCHES Debug)
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --coverage")
 endif()
-file(GLOB SOURCES src/*.c)
-list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/main.c")
 
-add_library(sdr_serverLib ${SOURCES})
+add_library(sdr_serverLib
+		${CMAKE_CURRENT_SOURCE_DIR}/src/config.c
+		${CMAKE_CURRENT_SOURCE_DIR}/src/core.c
+		${CMAKE_CURRENT_SOURCE_DIR}/src/lpf.c
+		${CMAKE_CURRENT_SOURCE_DIR}/src/queue.c
+		${CMAKE_CURRENT_SOURCE_DIR}/src/rotator.c
+		${CMAKE_CURRENT_SOURCE_DIR}/src/tcp_server.c
+		${CMAKE_CURRENT_SOURCE_DIR}/src/xlating.c
+		${CMAKE_CURRENT_SOURCE_DIR}/src/client/tcp_client.c
+)
 
 # at some point homebrew changed default location
 # so all libraries need an explicit path
@@ -47,7 +54,13 @@ target_link_libraries(sdr_serverLib m)
 add_executable(sdr_server src/main.c)
 target_link_libraries(sdr_server sdr_serverLib)
 
+add_executable(sdr_server_client
+		${CMAKE_CURRENT_SOURCE_DIR}/src/client/tcp_client.c
+		${CMAKE_CURRENT_SOURCE_DIR}/src/client/tcp_client_main.c
+)
+
 install(TARGETS sdr_server DESTINATION /usr/bin/)
+install(TARGETS sdr_server_client DESTINATION /usr/bin/)
 install(FILES src/resources/config.conf DESTINATION /etc/sdr-server/)
 
 enable_testing()

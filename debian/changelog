@@ -1,3 +1,24 @@
+sdr-server (1.1.16-16~stretch) unstable; urgency=medium
+
+  [ dernasherbrezon ]
+  * add small command line client application
+  * fix the build
+  * better logging
+  * fix unit tests
+  * destroy functions actually never return non-0
+  * migrate to github actions + configure jenkins
+  * fix the build
+  * executable
+  * bump the build
+  * bump the build
+  * fix the build
+  * fix the build
+  * fix the build
+
+  [ r2cloud ]
+
+ -- r2cloud <gpg@r2cloud.ru>  Sun, 18 Feb 2024 22:33:13 +0000
+
 sdr-server (1.1.8-8~stretch) unstable; urgency=medium
 
   [ dernasherbrezon ]

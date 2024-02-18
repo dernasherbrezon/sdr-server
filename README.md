@@ -1,4 +1,4 @@
-# About [![Build Status](https://travis-ci.com/dernasherbrezon/sdr-server.svg?branch=main)](https://travis-ci.com/dernasherbrezon/sdr-server) [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=dernasherbrezon_sdr-server&metric=alert_status)](https://sonarcloud.io/dashboard?id=dernasherbrezon_sdr-server)
+# About [![CMake](https://github.com/dernasherbrezon/sdr-server/actions/workflows/cmake.yml/badge.svg)](https://github.com/dernasherbrezon/sdr-server/actions/workflows/cmake.yml) [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=dernasherbrezon_sdr-server&metric=alert_status)](https://sonarcloud.io/dashboard?id=dernasherbrezon_sdr-server)
 
 ![design](/docs/dsp.jpg?raw=true)
 

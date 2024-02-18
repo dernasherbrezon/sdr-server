@@ -1,3 +1,33 @@
+sdr-server (1.1.18-18~focal) unstable; urgency=medium
+
+  [ dernasherbrezon ]
+  * fix the build
+
+ -- r2cloud <gpg@r2cloud.ru>  Sun, 18 Feb 2024 22:14:25 +0000
+
+sdr-server (1.1.17-17~focal) unstable; urgency=medium
+
+  [ dernasherbrezon ]
+  * fix the build
+  * fix the build for old ubuntu
+  * fix the build for old ubuntu
+  * fix the build under macos
+  * speed up the upgrade
+  * fix async
+  * fix async
+  * add small command line client application
+  * fix the build
+  * better logging
+  * fix unit tests
+  * destroy functions actually never return non-0
+  * migrate to github actions + configure jenkins
+  * fix the build
+  * executable
+  * bump the build
+  * bump the build
+
+ -- r2cloud <gpg@r2cloud.ru>  Sun, 18 Feb 2024 22:09:03 +0000
+
 sdr-server (1.1.3-3~focal) unstable; urgency=medium
 
   * fork focal

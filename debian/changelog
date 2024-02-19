@@ -1,3 +1,10 @@
+sdr-server (1.1.21-21~jammy) unstable; urgency=medium
+
+  [ dernasherbrezon ]
+  * update readme
+
+ -- r2cloud <gpg@r2cloud.ru>  Mon, 19 Feb 2024 08:13:27 +0000
+
 sdr-server (1.1.20-20~jammy) unstable; urgency=medium
 
   [ dernasherbrezon ]

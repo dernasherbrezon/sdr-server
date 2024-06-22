@@ -1,3 +1,10 @@
+sdr-server (1.1.22-22~jammy) unstable; urgency=medium
+
+  [ dernasherbrezon ]
+  * test cpack packaging
+
+ -- r2cloud <gpg@r2cloud.ru>  Sat, 22 Jun 2024 08:52:46 +0000
+
 sdr-server (1.1.21-21~jammy) unstable; urgency=medium
 
   [ dernasherbrezon ]

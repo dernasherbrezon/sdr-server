@@ -2,6 +2,12 @@ sdr-server (1.1.77-77~stretch) unstable; urgency=medium
 
   * UNRELEASED
 
+ -- r2cloud <gpg@r2cloud.ru>  Sat, 22 Jun 2024 08:52:07 +0000
+
+sdr-server (1.1.77-77~stretch) unstable; urgency=medium
+
+  * UNRELEASED
+
  -- r2cloud <gpg@r2cloud.ru>  Sat, 22 Jun 2024 08:51:36 +0000
 
 sdr-server (1.1.77-77~stretch) unstable; urgency=medium

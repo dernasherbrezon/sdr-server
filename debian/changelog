@@ -1,3 +1,10 @@
+sdr-server (1.1.22-22~focal) unstable; urgency=medium
+
+  [ dernasherbrezon ]
+  * test cpack packaging
+
+ -- r2cloud <gpg@r2cloud.ru>  Sat, 22 Jun 2024 08:53:05 +0000
+
 sdr-server (1.1.21-21~focal) unstable; urgency=medium
 
   [ dernasherbrezon ]

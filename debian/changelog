@@ -1,3 +1,10 @@
+sdr-server (1.1.24-24~focal) unstable; urgency=medium
+
+  [ dernasherbrezon ]
+  * optimize flags
+
+ -- r2cloud <gpg@r2cloud.ru>  Sat, 22 Jun 2024 09:17:06 +0000
+
 sdr-server (1.1.23-23~focal) unstable; urgency=medium
 
   [ dernasherbrezon ]

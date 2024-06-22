@@ -1,5 +1,12 @@
 sdr-server (1.1.77-77~stretch) unstable; urgency=medium
 
+  [ dernasherbrezon ]
+  * better package name
+
+ -- r2cloud <gpg@r2cloud.ru>  Sat, 22 Jun 2024 09:06:40 +0000
+
+sdr-server (1.1.77-77~stretch) unstable; urgency=medium
+
   * UNRELEASED
 
  -- r2cloud <gpg@r2cloud.ru>  Sat, 22 Jun 2024 08:57:57 +0000

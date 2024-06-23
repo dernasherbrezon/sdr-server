@@ -6,4 +6,11 @@ if [ "$1" = purge ]; then
   rm -rf /etc/sdr-server/volk/
 fi
 
-#DEBHELPER#
+if [ -d /run/systemd/system ]; then
+  if systemctl is-active sdr-server; then
+    systemctl stop sdr-server.service
+  fi
+  if systemctl is-enabled sdr-server; then
+    systemctl disable sdr-server.service
+  fi
+fi

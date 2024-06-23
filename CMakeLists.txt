@@ -99,7 +99,7 @@ endif()
 
 set(CPACK_GENERATOR "DEB")
 set(CPACK_DEBIAN_PACKAGE_NAME "sdr-server")
-set(CPACK_DEBIAN_PACKAGE_DEPENDS "libvolk2.4, librtlsdr2 (>= 0.5.4), libconfig9, zlib1g")
+set(CPACK_DEBIAN_PACKAGE_DEPENDS "libvolk2-bin, librtlsdr2 (>= 0.5.4), libconfig9, zlib1g")
 set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Andrey Rodionov <dernasherbrezon@gmail.com>")
 set(CPACK_DEBIAN_PACKAGE_DESCRIPTION "High performant TCP server for rtl-sdr")
 set(CPACK_DEBIAN_PACKAGE_SECTION "comm")

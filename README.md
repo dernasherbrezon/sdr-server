@@ -67,7 +67,7 @@ sdr-server depends on several libraries:
  * libm. Same
  * [libcheck](https://libcheck.github.io/check/) for tests (Optional)
  
-All dependencies can be easily installed from [r2cloud APT repository](https://r2server.ru/apt.html):
+All dependencies can be easily installed from [leosatdata APT repository](https://leosatdata.com/apt):
 
 ```
 sudo apt-get install dirmngr lsb-release
@@ -90,7 +90,7 @@ make
 
 ## Install
 
-sdr-server can be installed from [r2cloud APT repository](https://r2server.ru/apt.html):
+sdr-server can be installed from [leosatdata APT repository](https://leosatdata.com/apt):
 
 ```
 sudo apt-get install sdr-server

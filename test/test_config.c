@@ -48,6 +48,8 @@ START_TEST (test_success) {
 	ck_assert_int_eq(42, config->gain);
 	ck_assert_int_eq(0, config->bias_t);
 	ck_assert_int_eq(config->ppm, 10);
+  ck_assert_int_eq(config->device_index, 1);
+  ck_assert_str_eq(config->device_serial, "00000400");
 	ck_assert_str_eq(config->bind_address, "127.0.0.1");
 	ck_assert_int_eq(config->port, 8089);
 	ck_assert_int_eq(config->buffer_size, 131072);

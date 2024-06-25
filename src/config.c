@@ -120,6 +120,9 @@ int create_server_config(struct server_config **config, const char *path) {
 
     result->device_index = config_read_int(&libconfig, "device_index", 0);
     result->device_serial = read_and_copy_str(config_lookup(&libconfig, "device_serial"), NULL);
+    if (result->device_serial != NULL) {
+        fprintf(stdout, "device_serial: %s\n", result->device_serial);
+    }
 
     result->buffer_size = config_read_uint32_t(&libconfig, "buffer_size", 262144);
     result->lpf_cutoff_rate = config_read_int(&libconfig, "lpf_cutoff_rate", 5);

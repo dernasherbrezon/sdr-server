@@ -1,5 +1,5 @@
 #include <stdlib.h>
-#include <check.h>
+#include <unity.h>
 
 #include "utils.h"
 #include "mock_librtlsdr.c"
@@ -26,16 +26,16 @@ void reconnect_client() {
   destroy_client(client0);
   client0 = NULL;
   int code = create_client(config->bind_address, config->port, &client0);
-  ck_assert_int_eq(code, 0);
+  TEST_ASSERT_EQUAL_INT(code, 0);
 }
 
 void create_and_init_tcpserver() {
   int code = create_server_config(&config, "tcp_server.config");
-  ck_assert_int_eq(code, 0);
+  TEST_ASSERT_EQUAL_INT(code, 0);
   code = create_core(config, &core_obj);
-  ck_assert_int_eq(code, 0);
+  TEST_ASSERT_EQUAL_INT(code, 0);
   code = start_tcp_server(config, core_obj, &server);
-  ck_assert_int_eq(code, 0);
+  TEST_ASSERT_EQUAL_INT(code, 0);
   reconnect_client();
 }
 
@@ -43,22 +43,22 @@ void assert_response(struct tcp_client *client, uint8_t type, uint8_t status, ui
   struct message_header *response_header = NULL;
   struct response *resp = NULL;
   int code = read_response(&response_header, &resp, client);
-  ck_assert_int_eq(code, 0);
-  ck_assert_int_eq(response_header->type, type);
-  ck_assert_int_eq(resp->status, status);
-  ck_assert_int_eq(resp->details, details);
+  TEST_ASSERT_EQUAL_INT(code, 0);
+  TEST_ASSERT_EQUAL_INT(response_header->type, type);
+  TEST_ASSERT_EQUAL_INT(resp->status, status);
+  TEST_ASSERT_EQUAL_INT(resp->details, details);
   free(resp);
   free(response_header);
 }
 
-START_TEST (test_out_of_band_frequency_clients) {
+void test_out_of_band_frequency_clients() {
   create_and_init_tcpserver();
 
   send_message(client0, PROTOCOL_VERSION, TYPE_REQUEST, 460700000, 48000, 460600000, REQUEST_DESTINATION_FILE);
   assert_response(client0, TYPE_RESPONSE, RESPONSE_STATUS_SUCCESS, 0);
 
   int code = create_client(config->bind_address, config->port, &client1);
-  ck_assert_int_eq(code, 0);
+  TEST_ASSERT_EQUAL_INT(code, 0);
   send_message(client1, PROTOCOL_VERSION, TYPE_REQUEST, 460700000, 48000, 461600000, REQUEST_DESTINATION_FILE);
   assert_response(client1, TYPE_RESPONSE, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_OUT_OF_BAND_FREQ);
   destroy_client(client1);
@@ -71,31 +71,25 @@ START_TEST (test_out_of_band_frequency_clients) {
 
   // now band freq is available
   code = create_client(config->bind_address, config->port, &client1);
-  ck_assert_int_eq(code, 0);
+  TEST_ASSERT_EQUAL_INT(code, 0);
   send_message(client1, PROTOCOL_VERSION, TYPE_REQUEST, 460700000, 48000, 461600000, REQUEST_DESTINATION_FILE);
   assert_response(client1, TYPE_RESPONSE, RESPONSE_STATUS_SUCCESS, 2);
 }
 
-END_TEST
-
 // this test will ensure tcp server stops
 // if client connected and didn't send anything
-START_TEST (test_connect_and_keep_quiet) {
+void test_connect_and_keep_quiet() {
   create_and_init_tcpserver();
 }
 
-END_TEST
-
-START_TEST (test_partial_request) {
+void test_partial_request() {
   create_and_init_tcpserver();
   uint8_t buffer[] = {PROTOCOL_VERSION};
   int code = write_data(buffer, sizeof(buffer), client0);
-  ck_assert_int_eq(code, 0);
+  TEST_ASSERT_EQUAL_INT(code, 0);
 }
 
-END_TEST
-
-START_TEST (test_invalid_request) {
+void test_invalid_request() {
   create_and_init_tcpserver();
 
   send_message(client0, PROTOCOL_VERSION, TYPE_REQUEST, 460700000, 48000, 0, REQUEST_DESTINATION_FILE);
@@ -134,16 +128,14 @@ START_TEST (test_invalid_request) {
   assert_response(client0, TYPE_RESPONSE, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_INVALID_REQUEST);
 }
 
-END_TEST
-
-START_TEST (test_connect_disconnect) {
+void test_connect_disconnect() {
   create_and_init_tcpserver();
 
   send_message(client0, PROTOCOL_VERSION, TYPE_REQUEST, 460700000, 48000, 460600000, REQUEST_DESTINATION_FILE);
   assert_response(client0, TYPE_RESPONSE, RESPONSE_STATUS_SUCCESS, 0);
 
   int code = create_client(config->bind_address, config->port, &client1);
-  ck_assert_int_eq(code, 0);
+  TEST_ASSERT_EQUAL_INT(code, 0);
   send_message(client1, PROTOCOL_VERSION, TYPE_REQUEST, 460700000, 48000, 460600000, REQUEST_DESTINATION_FILE);
   assert_response(client1, TYPE_RESPONSE, RESPONSE_STATUS_SUCCESS, 1);
 
@@ -151,7 +143,7 @@ START_TEST (test_connect_disconnect) {
   // no response here is expected
 
   code = create_client(config->bind_address, config->port, &client2);
-  ck_assert_int_eq(code, 0);
+  TEST_ASSERT_EQUAL_INT(code, 0);
   send_message(client2, PROTOCOL_VERSION, TYPE_REQUEST, 460700000, 48000, 460600000, REQUEST_DESTINATION_FILE);
   assert_response(client2, TYPE_RESPONSE, RESPONSE_STATUS_SUCCESS, 2);
 
@@ -159,18 +151,14 @@ START_TEST (test_connect_disconnect) {
   // no response here is expected
 }
 
-END_TEST
-
-START_TEST (test_connect_disconnect_single_client) {
+void test_connect_disconnect_single_client() {
   create_and_init_tcpserver();
 
   send_message(client0, PROTOCOL_VERSION, TYPE_REQUEST, 460700000, 48000, 460600000, REQUEST_DESTINATION_FILE);
   assert_response(client0, TYPE_RESPONSE, RESPONSE_STATUS_SUCCESS, 0);
 }
 
-END_TEST
-
-START_TEST (test_disconnect_client) {
+void test_disconnect_client() {
   create_and_init_tcpserver();
 
   send_message(client0, PROTOCOL_VERSION, TYPE_REQUEST, 460700000, 48000, 460600000, REQUEST_DESTINATION_FILE);
@@ -180,17 +168,15 @@ START_TEST (test_disconnect_client) {
   client0 = NULL;
 }
 
-END_TEST
-
-START_TEST (test_destination_socket) {
+void test_destination_socket() {
   // make input/output compatible with test_core
   int code = create_server_config(&config, "tcp_server.config");
-  ck_assert_int_eq(code, 0);
+  TEST_ASSERT_EQUAL_INT(code, 0);
   config->band_sampling_rate = 48000;
   code = create_core(config, &core_obj);
-  ck_assert_int_eq(code, 0);
+  TEST_ASSERT_EQUAL_INT(code, 0);
   code = start_tcp_server(config, core_obj, &server);
-  ck_assert_int_eq(code, 0);
+  TEST_ASSERT_EQUAL_INT(code, 0);
   reconnect_client();
 
   send_message(client0, PROTOCOL_VERSION, TYPE_REQUEST, -12000 + 460100200, 9600, 460100200, REQUEST_DESTINATION_SOCKET);
@@ -205,25 +191,21 @@ START_TEST (test_destination_socket) {
                             -0.0001877f, 0.0002557f, -0.0002522f, 0.0002613f, 0.0002652f, 0.0007585f, 0.0013720f, -0.0015104f, -0.0039876f, 0.0041792f, 0.0114027f, -0.0093692f, -0.0255084f, 0.0198582f, 0.0540531f, -0.0603861f, -0.1393571f, 0.0422274f, -0.3586643f};
 
   float *actual = malloc(sizeof(expected));
-  ck_assert(actual != NULL);
+  TEST_ASSERT(actual != NULL);
   code = read_data(actual, sizeof(expected), client0);
-  ck_assert_int_eq(code, 0);
+  TEST_ASSERT_EQUAL_INT(code, 0);
   assert_float_array(expected, sizeof(expected) / sizeof(float), actual, sizeof(expected) / sizeof(float));
   free(actual);
 }
 
-END_TEST
-
-START_TEST (test_ping) {
+void test_ping() {
   create_and_init_tcpserver();
 
   send_message(client0, PROTOCOL_VERSION, TYPE_PING, 0, 0, 0, 0);
   assert_response(client0, TYPE_RESPONSE, RESPONSE_STATUS_SUCCESS, 0);
 }
 
-END_TEST
-
-void teardown() {
+void tearDown() {
   stop_rtlsdr_mock();
   stop_tcp_server(server);
   join_tcp_server_thread(server);
@@ -244,47 +226,21 @@ void teardown() {
   }
 }
 
-void setup() {
+void setUp() {
   init_mock_librtlsdr();
 }
 
-Suite *common_suite(void) {
-  Suite *s;
-  TCase *tc_core;
-
-  s = suite_create("tcp_server");
-
-  /* Core test case */
-  tc_core = tcase_create("Core");
-
-  tcase_add_test(tc_core, test_connect_disconnect);
-  tcase_add_test(tc_core, test_invalid_request);
-  tcase_add_test(tc_core, test_partial_request);
-  tcase_add_test(tc_core, test_connect_and_keep_quiet);
-  tcase_add_test(tc_core, test_connect_disconnect_single_client);
-  tcase_add_test(tc_core, test_disconnect_client);
-  tcase_add_test(tc_core, test_destination_socket);
-  tcase_add_test(tc_core, test_out_of_band_frequency_clients);
-  tcase_add_test(tc_core, test_ping);
-
-  tcase_add_checked_fixture(tc_core, setup, teardown);
-  suite_add_tcase(s, tc_core);
-
-  return s;
-}
-
 int main(void) {
-  int number_failed;
-  Suite *s;
-  SRunner *sr;
-
-  s = common_suite();
-  sr = srunner_create(s);
-
-  srunner_set_fork_status(sr, CK_NOFORK);
-  srunner_run_all(sr, CK_NORMAL);
-  number_failed = srunner_ntests_failed(sr);
-  srunner_free(sr);
-  return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
+  UNITY_BEGIN();
+  RUN_TEST(test_connect_disconnect);
+  RUN_TEST(test_invalid_request);
+  RUN_TEST(test_partial_request);
+  RUN_TEST(test_connect_and_keep_quiet);
+  RUN_TEST(test_connect_disconnect_single_client);
+  RUN_TEST(test_disconnect_client);
+  RUN_TEST(test_destination_socket);
+  RUN_TEST(test_out_of_band_frequency_clients);
+  RUN_TEST(test_ping);
+  return UNITY_END();
 }
 

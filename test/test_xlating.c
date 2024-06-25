@@ -1,5 +1,5 @@
 #include <stdlib.h>
-#include <check.h>
+#include <unity.h>
 #include "utils.h"
 #include "../src/xlating.h"
 #include "../src/lpf.h"
@@ -12,14 +12,14 @@ void setup_filter(size_t input_offset, size_t input_len, size_t max_input) {
   uint32_t target_freq = 9600;
   float *taps = NULL;
   size_t len;
-  int code = create_low_pass_filter(1.0, sampling_freq, target_freq / 2, 2000, &taps, &len);
-  ck_assert_int_eq(code, 0);
+  int code = create_low_pass_filter(1.0f, sampling_freq, target_freq / 2, 2000, &taps, &len);
+  TEST_ASSERT_EQUAL_INT(code, 0);
   code = create_frequency_xlating_filter((int) (sampling_freq / target_freq), taps, len, -12000, sampling_freq, max_input, &filter);
-  ck_assert_int_eq(code, 0);
+  TEST_ASSERT_EQUAL_INT(code, 0);
   setup_input_data(&input, input_offset, input_len);
 }
 
-START_TEST (test_max_input_buffer_size) {
+void test_max_input_buffer_size() {
   size_t input_len = 2000;
   setup_filter(0, input_len, input_len);
   float complex *output;
@@ -47,9 +47,7 @@ START_TEST (test_max_input_buffer_size) {
   assert_complex(expected, sizeof(expected) / (2 * sizeof(float)), output, output_len);
 }
 
-END_TEST
-
-START_TEST (test_parital_input_buffer_size) {
+void test_parital_input_buffer_size() {
   size_t input_len = 200; // taps is 57
   setup_filter(0, input_len, 2000);
   float complex *output;
@@ -67,9 +65,7 @@ START_TEST (test_parital_input_buffer_size) {
   assert_complex(expectedNextBatch, 20, output, output_len);
 }
 
-END_TEST
-
-START_TEST (test_small_input_data) {
+void test_small_input_data() {
   size_t input_len = 198; // taps is 57
   setup_filter(0, input_len, 2000);
   float complex *output;
@@ -84,9 +80,7 @@ START_TEST (test_small_input_data) {
   assert_complex(expectedNextBatch, 0, output, output_len);
 }
 
-END_TEST
-
-void teardown() {
+void tearDown() {
   destroy_xlating(filter);
   filter = NULL;
   if (input != NULL) {
@@ -95,41 +89,14 @@ void teardown() {
   }
 }
 
-void setup() {
+void setUp() {
 //do nothing
 }
 
-Suite *common_suite(void) {
-  Suite *s;
-  TCase *tc_core;
-
-  s = suite_create("xlating");
-
-  /* Core test case */
-  tc_core = tcase_create("Core");
-
-  tcase_add_test(tc_core, test_max_input_buffer_size);
-  tcase_add_test(tc_core, test_parital_input_buffer_size);
-  tcase_add_test(tc_core, test_small_input_data);
-
-  tcase_add_checked_fixture(tc_core, setup, teardown);
-  suite_add_tcase(s, tc_core);
-
-  return s;
-}
-
 int main(void) {
-  int number_failed;
-  Suite *s;
-  SRunner *sr;
-
-  s = common_suite();
-  sr = srunner_create(s);
-
-  srunner_set_fork_status(sr, CK_NOFORK);
-  srunner_run_all(sr, CK_NORMAL);
-  number_failed = srunner_ntests_failed(sr);
-  srunner_free(sr);
-  return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
+  UNITY_BEGIN();
+  RUN_TEST(test_max_input_buffer_size);
+  RUN_TEST(test_parital_input_buffer_size);
+  RUN_TEST(test_small_input_data);
+  return UNITY_END();
 }
-

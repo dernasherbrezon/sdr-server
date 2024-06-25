@@ -9,7 +9,7 @@ int main(void) {
 	uint32_t target_freq = 48000;
 	float *taps = NULL;
 	size_t len;
-	int code = create_low_pass_filter(1.0, sampling_freq, target_freq / 2, 2000, &taps, &len);
+	int code = create_low_pass_filter(1.0f, sampling_freq, target_freq / 2, 2000, &taps, &len);
 	if (code != 0) {
 		exit(EXIT_FAILURE);
 	}

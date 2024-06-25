@@ -8,7 +8,10 @@
 
 char *read_and_copy_str(const config_setting_t *setting, const char *default_value) {
     const char *value;
-    if (setting == NULL) {
+      if (setting == NULL) {
+        if (default_value == NULL) {
+          return NULL;
+        }
         value = default_value;
     } else {
         value = config_setting_get_string(setting);
@@ -115,6 +118,9 @@ int create_server_config(struct server_config **config, const char *path) {
     fprintf(stdout, "band sampling rate: %d\n", band_sampling_rate);
     result->band_sampling_rate = band_sampling_rate;
 
+    result->device_index = config_read_int(&libconfig, "device_index", 0);
+    result->device_serial = read_and_copy_str(config_lookup(&libconfig, "device_serial"), NULL);
+
     result->buffer_size = config_read_uint32_t(&libconfig, "buffer_size", 262144);
     result->lpf_cutoff_rate = config_read_int(&libconfig, "lpf_cutoff_rate", 5);
 
@@ -166,10 +172,13 @@ void destroy_server_config(struct server_config *config) {
         return;
     }
     if (config->bind_address != NULL) {
-        free(config->bind_address);
+      free(config->bind_address);
     }
     if (config->base_path != NULL) {
-        free(config->base_path);
+      free(config->base_path);
+    }
+    if (config->device_serial != NULL) {
+      free(config->device_serial);
     }
     free(config);
 }

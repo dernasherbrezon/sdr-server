@@ -190,8 +190,18 @@ static void *rtlsdr_worker(void *arg) {
 int start_rtlsdr(struct client_config *config) {
     core *core = config->core;
     fprintf(stdout, "rtl-sdr is starting\n");
+    int device_index = -1;
+    if (core->server_config->device_serial != NULL) {
+      device_index = rtlsdr_get_index_by_serial(core->server_config->device_serial);
+      if (device_index < 0) {
+        fprintf(stdout, "can't find device by serial: %s. fallback to device index\n", core->server_config->device_serial);
+      }
+    }
+    if (device_index < 0) {
+      device_index = core->server_config->device_index;
+    }
     rtlsdr_dev_t *dev = NULL;
-    rtlsdr_open(&dev, 0);
+    rtlsdr_open(&dev, device_index);
     if (dev == NULL) {
         fprintf(stderr, "<3>unable to open rtl-sdr device\n");
         return 0x04;

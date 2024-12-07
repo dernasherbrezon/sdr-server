@@ -36,6 +36,9 @@ void process(const uint8_t *input, size_t input_len, float complex **output, siz
 
   // convert to [-1.0;1.0] working buffer
   volk_8i_s32f_convert_32f_u(filter->working_buffer + filter->history_offset, (const signed char *) input, 128.0F, input_len);
+  for (size_t i = filter->history_offset; i < input_len; i++) {
+    filter->working_buffer[i] -= 127.5F / 128.0F;
+  }
   size_t working_len = filter->history_offset + input_len;
   size_t produced = 0;
   size_t current_index = 0;

@@ -8,7 +8,6 @@
 struct rotator_t {
   float complex phase;
   float complex phase_incr;
-  uint32_t counter;
 };
 
 int create_rotator(float complex phase, float complex phase_incr, rotator **rotator) {
@@ -19,7 +18,6 @@ int create_rotator(float complex phase, float complex phase_incr, rotator **rota
 
   result->phase = phase / cabsf(phase);
   result->phase_incr = phase_incr / cabsf(phase_incr);
-  result->counter = 0;
 
   *rotator = result;
   return 0;

@@ -31,13 +31,12 @@ struct xlating_t {
   size_t output_len;
 };
 
+
 void process(const uint8_t *input, size_t input_len, float complex **output, size_t *output_len, xlating *filter) {
   // input_len cannot be more than (working_len_total - history_offset)
-
   // convert to [-1.0;1.0] working buffer
-  volk_8i_s32f_convert_32f_u(filter->working_buffer + filter->history_offset, (const signed char *) input, 128.0F, input_len);
   for (size_t i = 0; i < input_len; i++) {
-    filter->working_buffer[i + filter->history_offset] -= 127.5F / 128.0F;
+    filter->working_buffer[i + filter->history_offset] = ((float) input[i] - 127.5F) / 128.0F;
   }
   size_t working_len = filter->history_offset + input_len;
   size_t produced = 0;

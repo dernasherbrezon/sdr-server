@@ -26,7 +26,7 @@ int create_rotator(float complex phase, float complex phase_incr, rotator **rota
 }
 
 void rotator_increment_batch(rotator *rotator, float complex *input, float complex *output, int batch_size) {
-  volk_32fc_s32fc_x2_rotator_32fc(output, input, rotator->phase_incr, &rotator->phase, batch_size);
+  volk_32fc_s32fc_x2_rotator2_32fc(output, input, &rotator->phase_incr, &rotator->phase, batch_size);
 }
 
 void destroy_rotator(rotator *rotator) {

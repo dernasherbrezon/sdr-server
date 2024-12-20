@@ -2,11 +2,9 @@
 #include <math.h>
 #include <errno.h>
 #include <volk/volk.h>
-#include <limits.h>
 #include <string.h>
 
 #include "xlating.h"
-#include "rotator.h"
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -18,7 +16,6 @@ struct xlating_t {
   size_t aligned_taps_len;
   size_t alignment;
   size_t taps_len;
-  rotator *rot;
   float *original_taps;
 
   float *working_buffer;
@@ -29,13 +26,15 @@ struct xlating_t {
 
   float complex *output;
   size_t output_len;
-};
 
+  float complex phase;
+  float complex phase_incr;
+};
 
 void process(const uint8_t *input, size_t input_len, float complex **output, size_t *output_len, xlating *filter) {
   // input_len cannot be more than (working_len_total - history_offset)
   // convert to [-1.0;1.0] working buffer
-  for (size_t i = 0; i < input_len; i++) {
+ for (size_t i = 0; i < input_len; i++) {
     filter->working_buffer[i + filter->history_offset] = ((float) input[i] - 127.5F) / 128.0F;
   }
   size_t working_len = filter->history_offset + input_len;
@@ -45,16 +44,16 @@ void process(const uint8_t *input, size_t input_len, float complex **output, siz
   if (working_len > (filter->taps_len - 1) * 2) {
     size_t max_index = working_len - (filter->taps_len - 1) * 2;
     for (; current_index < max_index; current_index += 2 * filter->decimation, produced++) {
-      const lv_32fc_t *buf = (const lv_32fc_t *) (filter->working_buffer + current_index);
+     const lv_32fc_t *buf = (const lv_32fc_t *) (filter->working_buffer + current_index);
 
-      const lv_32fc_t *aligned_buffer = (const lv_32fc_t *) ((size_t) buf & ~(filter->alignment - 1));
-      unsigned align_index = buf - aligned_buffer;
+     const lv_32fc_t *aligned_buffer = (const lv_32fc_t *) ((size_t) buf & ~(filter->alignment - 1));
+     unsigned align_index = buf - aligned_buffer;
 
-      volk_32fc_x2_dot_prod_32fc_a(filter->volk_output, aligned_buffer, (const lv_32fc_t *) filter->taps[align_index], filter->taps_len + align_index);
-      filter->output[produced] = *filter->volk_output;
+     volk_32fc_x2_dot_prod_32fc_a(filter->volk_output, aligned_buffer, (const lv_32fc_t *) filter->taps[align_index], filter->taps_len + align_index);
+     filter->output[produced] = *filter->volk_output;
     }
-
-    rotator_increment_batch(filter->rot, filter->output, filter->output, produced);
+    
+    volk_32fc_s32fc_x2_rotator_32fc(filter->output, filter->output, filter->phase_incr, &filter->phase, produced);
   }
   // preserve history for the next execution
   filter->history_offset = working_len - current_index;
@@ -140,15 +139,8 @@ int create_frequency_xlating_filter(uint32_t decimation, float *taps, size_t tap
   }
   free(bpfTaps);
 
-  float complex phase = 1.0 + 0.0 * I;
-  float complex phase_incr = cexpf(0.0f + -fwT0 * decimation * I);
-  rotator *rot = NULL;
-  code = create_rotator(phase, phase_incr, &rot);
-  if (code != 0) {
-    destroy_xlating(result);
-    return code;
-  }
-  result->rot = rot;
+  result->phase = 1.0 + 0.0 * I;
+  result->phase_incr = cexpf(0.0f + -fwT0 * decimation * I);
 
   // max input length + history
   // taps_len is a complex number. i.e. 2 floats
@@ -204,6 +196,5 @@ void destroy_xlating(xlating *filter) {
   if (filter->volk_output != NULL) {
     volk_free(filter->volk_output);
   }
-  destroy_rotator(filter->rot);
   free(filter);
 }

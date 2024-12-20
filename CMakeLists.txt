@@ -12,7 +12,6 @@ add_library(sdr_serverLib
 		${CMAKE_CURRENT_SOURCE_DIR}/src/core.c
 		${CMAKE_CURRENT_SOURCE_DIR}/src/lpf.c
 		${CMAKE_CURRENT_SOURCE_DIR}/src/queue.c
-		${CMAKE_CURRENT_SOURCE_DIR}/src/rotator.c
 		${CMAKE_CURRENT_SOURCE_DIR}/src/tcp_server.c
 		${CMAKE_CURRENT_SOURCE_DIR}/src/xlating.c
 		${CMAKE_CURRENT_SOURCE_DIR}/src/client/tcp_client.c

@@ -59,6 +59,12 @@ int main(void) {
 	// tuned kernel:
 	// completed in: 0.024855 seconds
 
+	// Raspberrypi 4
+	// VOLK_GENERIC=1:
+	// completed in: 0.041116 seconds
+	// tuned kernel:
+	// completed in: 0.013621 seconds
+
     // Raspberrypi 1
     // VOLK_GENERIC=1:
     // completed in: 0.291598 seconds

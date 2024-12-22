@@ -7,7 +7,12 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --coverage")
 endif()
 
-# add_definitions(-DNO_MANUAL_SIMD)
+if(NO_MANUAL_SIMD)
+	add_definitions(-DNO_MANUAL_SIMD)
+	message("manual simd optimizations were disabled")
+else()
+	remove_definitions(-DNO_MANUAL_SIMD)
+endif()
 
 add_library(sdr_serverLib
 		${CMAKE_CURRENT_SOURCE_DIR}/src/config.c

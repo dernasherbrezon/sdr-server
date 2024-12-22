@@ -65,6 +65,11 @@ int main(void) {
     // tuned kernel:
     // completed in: 0.332934 seconds
 
+    // Intel(R) Core(TM) i5-7500 CPU @ 3.40GHz
+    // VOLK_GENERIC=1:
+    // completed in: 0.003249 seconds
+    // tuned kernel:
+    // completed in: 0.001609 seconds
 	printf("completed in: %f seconds\n", time_spent / total_executions);
 	return 0;
 }

@@ -2,10 +2,12 @@ cmake_minimum_required(VERSION 2.8)
 project(sdr-server)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11")
 if(CMAKE_BUILD_TYPE MATCHES Debug)
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --coverage")
 endif()
+
+# add_definitions(-DNO_MANUAL_SIMD)
 
 add_library(sdr_serverLib
 		${CMAKE_CURRENT_SOURCE_DIR}/src/config.c
@@ -30,11 +32,6 @@ pkg_check_modules(PC_RTLSDR REQUIRED librtlsdr>=0.5.4)
 include_directories(${PC_RTLSDR_INCLUDE_DIRS})
 link_directories(${PC_RTLSDR_LIBRARY_DIRS})
 target_link_libraries(sdr_serverLib ${PC_RTLSDR_LIBRARIES})
-
-pkg_check_modules(PC_VOLK REQUIRED volk)
-include_directories(${PC_VOLK_INCLUDE_DIRS})
-link_directories(${PC_VOLK_LIBRARY_DIRS})
-target_link_libraries(sdr_serverLib ${PC_VOLK_LIBRARIES})
 
 pkg_check_modules(PC_ZLIB REQUIRED zlib)
 include_directories(${PC_ZLIB_INCLUDE_DIRS})
@@ -97,7 +94,7 @@ endif()
 
 set(CPACK_GENERATOR "DEB")
 set(CPACK_DEBIAN_PACKAGE_NAME "sdr-server")
-set(CPACK_DEBIAN_PACKAGE_DEPENDS "libvolk2-bin, librtlsdr2 (>= 2.0.1), libconfig9, zlib1g")
+set(CPACK_DEBIAN_PACKAGE_DEPENDS "librtlsdr2 (>= 2.0.1), libconfig9, zlib1g")
 set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Andrey Rodionov <dernasherbrezon@gmail.com>")
 set(CPACK_DEBIAN_PACKAGE_DESCRIPTION "High performant TCP server for rtl-sdr")
 set(CPACK_DEBIAN_PACKAGE_SECTION "comm")

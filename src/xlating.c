@@ -1,10 +1,11 @@
-#include <stdlib.h>
-#include <math.h>
-#include <errno.h>
-#include <volk/volk.h>
-#include <string.h>
-
 #include "xlating.h"
+
+#include <complex.h>
+#include <errno.h>
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -18,11 +19,9 @@ struct xlating_t {
   size_t taps_len;
   float *original_taps;
 
-  float *working_buffer;
+  float complex *working_buffer;
   size_t history_offset;
   size_t working_len_total;
-
-  float complex *volk_output;
 
   float complex *output;
   size_t output_len;
@@ -31,43 +30,177 @@ struct xlating_t {
   float complex phase_incr;
 };
 
+void *sdrserver_aligned_alloc(size_t alignment, size_t size) {
+  if (size % alignment != 0) {
+    size = ((size / alignment) + 1) * alignment;
+  }
+  return aligned_alloc(alignment, size);
+}
+
+// FIXME check if no arm defined and no avx defined or explicitly defined
+#if defined(NO_MANUAL_SIMD) || !defined(__ARM_NEON)
+
 void process(const uint8_t *input, size_t input_len, float complex **output, size_t *output_len, xlating *filter) {
   // input_len cannot be more than (working_len_total - history_offset)
   // convert to [-1.0;1.0] working buffer
- for (size_t i = 0; i < input_len; i++) {
-    filter->working_buffer[i + filter->history_offset] = ((float) input[i] - 127.5F) / 128.0F;
+  size_t input_complex_len = input_len / 2;
+  for (size_t i = 0; i < input_complex_len; i++) {
+    float real = ((float)input[2 * i] - 127.5F) / 128.0F;
+    float imag = ((float)input[2 * i + 1] - 127.5F) / 128.0F;
+    filter->working_buffer[i + filter->history_offset] = real + imag * I;
   }
-  size_t working_len = filter->history_offset + input_len;
+  size_t working_len = filter->history_offset + input_complex_len;
   size_t produced = 0;
   size_t current_index = 0;
+
   // input might not have enough data to produce output sample
-  if (working_len > (filter->taps_len - 1) * 2) {
-    size_t max_index = working_len - (filter->taps_len - 1) * 2;
-    for (; current_index < max_index; current_index += 2 * filter->decimation, produced++) {
-     const lv_32fc_t *buf = (const lv_32fc_t *) (filter->working_buffer + current_index);
+  if (working_len > (filter->taps_len - 1)) {
+    size_t max_index = working_len - (filter->taps_len - 1);
+    for (; current_index < max_index; current_index += filter->decimation, produced++) {
+      const float complex *buf = (const float complex *)(filter->working_buffer + current_index);
 
-     const lv_32fc_t *aligned_buffer = (const lv_32fc_t *) ((size_t) buf & ~(filter->alignment - 1));
-     unsigned align_index = buf - aligned_buffer;
+      const float complex *aligned_buffer = (const float complex *)((size_t)buf & ~(filter->alignment - 1));
+      unsigned align_index = buf - aligned_buffer;
 
-     volk_32fc_x2_dot_prod_32fc_a(filter->volk_output, aligned_buffer, (const lv_32fc_t *) filter->taps[align_index], filter->taps_len + align_index);
-     filter->output[produced] = *filter->volk_output;
+      float complex temp = 0.0f + I * 0.0f;
+      for (size_t i = 0; i < filter->taps_len + align_index; i++) {
+        temp += aligned_buffer[i] * filter->taps[align_index][i];
+      }
+      filter->output[produced] = temp * filter->phase;
+      filter->phase = filter->phase * filter->phase_incr;
     }
-    
-    volk_32fc_s32fc_x2_rotator_32fc(filter->output, filter->output, filter->phase_incr, &filter->phase, produced);
   }
   // preserve history for the next execution
   filter->history_offset = working_len - current_index;
   if (current_index > 0) {
-    memmove(filter->working_buffer, filter->working_buffer + current_index, sizeof(float) * filter->history_offset);
+    memmove(filter->working_buffer, filter->working_buffer + current_index, sizeof(float complex) * filter->history_offset);
+  }
+
+  *output = filter->output;
+  *output_len = produced;
+}
+#elif defined(__ARM_NEON)
+
+#include <arm_neon.h>
+void process(const uint8_t *input, size_t input_len, float complex **output, size_t *output_len, xlating *filter) {
+  // input_len cannot be more than (working_len_total - history_offset)
+  // convert to [-1.0;1.0] working buffer
+  size_t input_complex_len = input_len / 2;
+  for (size_t i = 0; i < input_complex_len; i++) {
+    float real = ((float)input[2 * i] - 127.5F) / 128.0F;
+    float imag = ((float)input[2 * i + 1] - 127.5F) / 128.0F;
+    filter->working_buffer[i + filter->history_offset] = real + imag * I;
+  }
+  size_t working_len = filter->history_offset + input_complex_len;
+  size_t produced = 0;
+  size_t current_index = 0;
+  // input might not have enough data to produce output sample
+  if (working_len > (filter->taps_len - 1)) {
+    size_t max_index = working_len - (filter->taps_len - 1);
+    for (; current_index < max_index; current_index += filter->decimation, produced++) {
+      const float complex *buf = (const float complex *)(filter->working_buffer + current_index);
+
+      const float complex *aligned_buffer = (const float complex *)((size_t)buf & ~(filter->alignment - 1));
+      unsigned align_index = buf - aligned_buffer;
+
+      float *pSrcA = (float *)aligned_buffer;
+      float *pSrcB = (float *)filter->taps[align_index];
+      uint32_t numSamples = filter->taps_len + align_index;
+
+      uint32_t blkCnt;                            /* Loop counter */
+      float32_t real_sum = 0.0f, imag_sum = 0.0f; /* Temporary result variables */
+      float32_t a0, b0, c0, d0;
+
+      float32x4x2_t vec1, vec2, vec3, vec4;
+      float32x4_t accR, accI;
+      float32x2_t accum = vdup_n_f32(0);
+
+      accR = vdupq_n_f32(0.0f);
+      accI = vdupq_n_f32(0.0f);
+
+      /* Loop unrolling: Compute 8 outputs at a time */
+      blkCnt = numSamples >> 3U;
+
+      while (blkCnt > 0U) {
+        /* C = (A[0]+jA[1])*(B[0]+jB[1]) + ...  */
+        /* Calculate dot product and then store the result in a temporary buffer. */
+
+        vec1 = vld2q_f32(pSrcA);
+        vec2 = vld2q_f32(pSrcB);
+
+        /* Increment pointers */
+        pSrcA += 8;
+        pSrcB += 8;
+
+        /* Re{C} = Re{A}*Re{B} - Im{A}*Im{B} */
+        accR = vmlaq_f32(accR, vec1.val[0], vec2.val[0]);
+        accR = vmlsq_f32(accR, vec1.val[1], vec2.val[1]);
+
+        /* Im{C} = Re{A}*Im{B} + Im{A}*Re{B} */
+        accI = vmlaq_f32(accI, vec1.val[1], vec2.val[0]);
+        accI = vmlaq_f32(accI, vec1.val[0], vec2.val[1]);
+
+        vec3 = vld2q_f32(pSrcA);
+        vec4 = vld2q_f32(pSrcB);
+
+        /* Increment pointers */
+        pSrcA += 8;
+        pSrcB += 8;
+
+        /* Re{C} = Re{A}*Re{B} - Im{A}*Im{B} */
+        accR = vmlaq_f32(accR, vec3.val[0], vec4.val[0]);
+        accR = vmlsq_f32(accR, vec3.val[1], vec4.val[1]);
+
+        /* Im{C} = Re{A}*Im{B} + Im{A}*Re{B} */
+        accI = vmlaq_f32(accI, vec3.val[1], vec4.val[0]);
+        accI = vmlaq_f32(accI, vec3.val[0], vec4.val[1]);
+
+        /* Decrement the loop counter */
+        blkCnt--;
+      }
+
+      accum = vpadd_f32(vget_low_f32(accR), vget_high_f32(accR));
+      real_sum += vget_lane_f32(accum, 0) + vget_lane_f32(accum, 1);
+
+      accum = vpadd_f32(vget_low_f32(accI), vget_high_f32(accI));
+      imag_sum += vget_lane_f32(accum, 0) + vget_lane_f32(accum, 1);
+
+      /* Tail */
+      blkCnt = numSamples & 0x7;
+
+      while (blkCnt > 0U) {
+        a0 = *pSrcA++;
+        b0 = *pSrcA++;
+        c0 = *pSrcB++;
+        d0 = *pSrcB++;
+
+        real_sum += a0 * c0;
+        imag_sum += a0 * d0;
+        real_sum -= b0 * d0;
+        imag_sum += b0 * c0;
+
+        /* Decrement loop counter */
+        blkCnt--;
+      }
+      float complex sum_temp = real_sum + I * imag_sum;
+      filter->output[produced] = sum_temp * filter->phase;
+      filter->phase = filter->phase * filter->phase_incr;
+    }
+  }
+  // preserve history for the next execution
+  filter->history_offset = working_len - current_index;
+  if (current_index > 0) {
+    memmove(filter->working_buffer, filter->working_buffer + current_index, sizeof(float complex) * filter->history_offset);
   }
 
   *output = filter->output;
   *output_len = produced;
 }
 
+#endif
+
 int create_aligned_taps(xlating *filter, float complex *bpfTaps, size_t taps_len) {
-  size_t alignment = volk_get_alignment();
-  size_t number_of_aligned = fmax((size_t) 1, alignment / sizeof(float complex));
+  size_t number_of_aligned = fmax((size_t)1, filter->alignment / sizeof(float complex));
   // Make a set of taps at all possible alignments
   float complex **result = malloc(number_of_aligned * sizeof(float complex *));
   if (result == NULL) {
@@ -75,7 +208,7 @@ int create_aligned_taps(xlating *filter, float complex *bpfTaps, size_t taps_len
   }
   for (int i = 0; i < number_of_aligned; i++) {
     size_t aligned_taps_len = taps_len + number_of_aligned - 1;
-    result[i] = (float complex *) volk_malloc(aligned_taps_len * sizeof(float complex), alignment);
+    result[i] = (float complex *)sdrserver_aligned_alloc(filter->alignment, aligned_taps_len * sizeof(float complex));
     // some taps will be longer than original, but
     // since they contain zeros, multiplication on an input will produce 0
     // there is a tradeoff: multiply unaligned input or
@@ -89,7 +222,6 @@ int create_aligned_taps(xlating *filter, float complex *bpfTaps, size_t taps_len
   }
   filter->taps = result;
   filter->aligned_taps_len = number_of_aligned;
-  filter->alignment = alignment;
   return 0;
 }
 
@@ -102,11 +234,12 @@ int create_frequency_xlating_filter(uint32_t decimation, float *taps, size_t tap
     return -ENOMEM;
   }
   // init all fields with 0
-  *result = (struct xlating_t) {0};
+  *result = (struct xlating_t){0};
   result->decimation = decimation;
   result->taps_len = taps_len;
-  //make code consistent - i.e. destroy all incoming memory in destory_xxx methods
+  // make code consistent - i.e. destroy all incoming memory in destory_xxx methods
   result->original_taps = taps;
+  result->alignment = 32;
 
   // The basic principle of this block is to perform:
   //    x(t) -> (mult by -fwT0) -> LPF -> decim -> y(t)
@@ -139,33 +272,23 @@ int create_frequency_xlating_filter(uint32_t decimation, float *taps, size_t tap
   }
   free(bpfTaps);
 
-  result->phase = 1.0 + 0.0 * I;
+  result->phase = 1.0f + I * 0.0f;
   result->phase_incr = cexpf(0.0f + -fwT0 * decimation * I);
 
   // max input length + history
-  // taps_len is a complex number. i.e. 2 floats
-  result->history_offset = (taps_len - 1) * 2;
-  result->working_len_total = max_input_buffer_length + result->history_offset;
-  size_t alignment = volk_get_alignment();
-  result->working_buffer = volk_malloc(sizeof(float) * result->working_len_total, alignment);
+  result->history_offset = (taps_len - 1);
+  result->working_len_total = max_input_buffer_length / 2 + result->history_offset;
+  result->working_buffer = sdrserver_aligned_alloc(result->alignment, sizeof(float complex) * result->working_len_total);
   if (result->working_buffer == NULL) {
     destroy_xlating(result);
     return -ENOMEM;
   }
-  for (size_t i = 0; i < result->working_len_total; i++) {
-    result->working_buffer[i] = 0.0;
-  }
+  memset(result->working_buffer, 0, sizeof(float complex) * result->working_len_total);
 
   // +1 for case when round-up needed.
   result->output_len = max_input_buffer_length / 2 / decimation + 1;
   result->output = malloc(sizeof(float complex) * result->output_len);
   if (result->output == NULL) {
-    destroy_xlating(result);
-    return -ENOMEM;
-  }
-
-  result->volk_output = volk_malloc(1 * sizeof(float complex), alignment);
-  if (result->volk_output == NULL) {
     destroy_xlating(result);
     return -ENOMEM;
   }
@@ -180,7 +303,7 @@ void destroy_xlating(xlating *filter) {
   }
   if (filter->taps != NULL) {
     for (size_t i = 0; i < filter->aligned_taps_len; i++) {
-      volk_free(filter->taps[i]);
+      free(filter->taps[i]);
     }
     free(filter->taps);
   }
@@ -191,10 +314,7 @@ void destroy_xlating(xlating *filter) {
     free(filter->output);
   }
   if (filter->working_buffer != NULL) {
-    volk_free(filter->working_buffer);
-  }
-  if (filter->volk_output != NULL) {
-    volk_free(filter->volk_output);
+    free(filter->working_buffer);
   }
   free(filter);
 }

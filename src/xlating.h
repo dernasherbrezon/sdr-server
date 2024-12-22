@@ -3,6 +3,7 @@
 
 #include <complex.h>
 #include <stdint.h>
+#include <stddef.h>
 
 typedef struct xlating_t xlating;
 

@@ -38,7 +38,7 @@ void *sdrserver_aligned_alloc(size_t alignment, size_t size) {
 }
 
 // FIXME check if no arm defined and no avx defined or explicitly defined
-#if defined(NO_MANUAL_SIMD) || !defined(__ARM_NEON)
+#if defined(NO_MANUAL_SIMD) || !defined(__ARM_NEON) || !defined(__AVX__)
 
 void process(const uint8_t *input, size_t input_len, float complex **output, size_t *output_len, xlating *filter) {
   // input_len cannot be more than (working_len_total - history_offset)
@@ -79,9 +79,10 @@ void process(const uint8_t *input, size_t input_len, float complex **output, siz
   *output = filter->output;
   *output_len = produced;
 }
-#elif defined(__ARM_NEON)
 
+#elif defined(__ARM_NEON)
 #include <arm_neon.h>
+
 void process(const uint8_t *input, size_t input_len, float complex **output, size_t *output_len, xlating *filter) {
   // input_len cannot be more than (working_len_total - history_offset)
   // convert to [-1.0;1.0] working buffer
@@ -184,6 +185,89 @@ void process(const uint8_t *input, size_t input_len, float complex **output, siz
       }
       float complex sum_temp = real_sum + I * imag_sum;
       filter->output[produced] = sum_temp * filter->phase;
+      filter->phase = filter->phase * filter->phase_incr;
+    }
+  }
+  // preserve history for the next execution
+  filter->history_offset = working_len - current_index;
+  if (current_index > 0) {
+    memmove(filter->working_buffer, filter->working_buffer + current_index, sizeof(float complex) * filter->history_offset);
+  }
+
+  *output = filter->output;
+  *output_len = produced;
+}
+
+#elif defined(__AVX__)
+#include <immintrin.h>
+
+void process(const uint8_t *input, size_t input_len, float complex **output, size_t *output_len, xlating *filter) {
+  // input_len cannot be more than (working_len_total - history_offset)
+  // convert to [-1.0;1.0] working buffer
+  size_t input_complex_len = input_len / 2;
+  for (size_t i = 0; i < input_complex_len; i++) {
+    float real = ((float)input[2 * i] - 127.5F) / 128.0F;
+    float imag = ((float)input[2 * i + 1] - 127.5F) / 128.0F;
+    filter->working_buffer[i + filter->history_offset] = real + imag * I;
+  }
+  size_t working_len = filter->history_offset + input_complex_len;
+  size_t produced = 0;
+  size_t current_index = 0;
+
+  // input might not have enough data to produce output sample
+  if (working_len > (filter->taps_len - 1)) {
+    size_t max_index = working_len - (filter->taps_len - 1);
+    for (; current_index < max_index; current_index += filter->decimation, produced++) {
+      const float complex *buf = (const float complex *)(filter->working_buffer + current_index);
+
+      const float complex *aligned_buffer = (const float complex *)((size_t)buf & ~(filter->alignment - 1));
+      unsigned align_index = buf - aligned_buffer;
+
+      float *pSrcA = (float *)aligned_buffer;
+      float *pSrcB = (float *)filter->taps[align_index];
+      uint32_t numSamples = filter->taps_len + align_index;
+
+      uint32_t blkCnt; /* Loop counter */
+      __m256 x, y, yl, yh, z, tmp1, tmp2, res;
+
+      /* Loop unrolling: Compute 4 outputs at a time */
+      blkCnt = numSamples >> 2U;
+
+      while (blkCnt > 0U) {
+        x = _mm256_load_ps(pSrcA[i]);
+        y = _mm256_load_ps(pSrcB[i]);
+        yl = _mm256_moveldup_ps(y);
+        yh = _mm256_movehdup_ps(y);
+        tmp1 = _mm256_mul_ps(x, yl);
+        x = _mm256_shuffle_ps(x, x, 0xB1);
+        tmp2 = _mm256_mul_ps(x, yh);
+        z = _mm256_addsub_ps(tmp1, tmp2);
+        res = _mm256_add_ps(res, z);
+        blkCnt--;
+      }
+
+      __attribute__((aligned(32))) float complex[4] store;
+      _mm256_store_ps(store, res);
+
+      /* Tail */
+      blkCnt = numSamples & 0x3;
+      float32_t real_sum = 0.0f, imag_sum = 0.0f;
+      while (blkCnt > 0U) {
+        a0 = *pSrcA++;
+        b0 = *pSrcA++;
+        c0 = *pSrcB++;
+        d0 = *pSrcB++;
+
+        real_sum += a0 * c0;
+        imag_sum += a0 * d0;
+        real_sum -= b0 * d0;
+        imag_sum += b0 * c0;
+
+        /* Decrement loop counter */
+        blkCnt--;
+      }
+      float complex sum_temp = real_sum + I * imag_sum;
+      filter->output[produced] = (sum_temp + res[0] + res[1] + res[2] + res[3]) * filter->phase;
       filter->phase = filter->phase * filter->phase_incr;
     }
   }

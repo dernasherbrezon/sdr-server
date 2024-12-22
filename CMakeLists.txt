@@ -67,25 +67,24 @@ file(GLOB TEST_RESOURCES test/resources/*)
 file(COPY ${TEST_RESOURCES} DESTINATION "${CMAKE_BINARY_DIR}")
 file(GLOB PERF_SOURCES test/perf_*.c)
 
-file(GLOB AUX_TEST_SOURCES test/*.c)
-list(FILTER AUX_TEST_SOURCES EXCLUDE REGEX "test_.*\\.c")
-list(FILTER AUX_TEST_SOURCES EXCLUDE REGEX "perf_.*\\.c")
-list(FILTER AUX_TEST_SOURCES EXCLUDE REGEX "mock_.*\\.c")
+add_library(sdr_serverTestLib
+		${CMAKE_CURRENT_SOURCE_DIR}/test/utils.c
+		${CMAKE_CURRENT_SOURCE_DIR}/test/unity-2.5.2/src/unity.c
+)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/test/unity-2.5.2/src/)
 
 foreach(curTest ${TEST_SOURCES})
 	get_filename_component(curTestName ${curTest} NAME_WE)
 	add_test(NAME ${curTestName} COMMAND ${curTestName} ${curTest})
-	add_executable(${curTestName} ${curTest} ${AUX_TEST_SOURCES} ${CMAKE_CURRENT_SOURCE_DIR}/test/unity-2.5.2/src/unity.c)
-	target_link_libraries(${curTestName} sdr_serverLib)
+	add_executable(${curTestName} ${curTest})
+	target_link_libraries(${curTestName} sdr_serverLib sdr_serverTestLib)
 endforeach()
 
-foreach(curPerfTest ${PERF_SOURCES})
-	get_filename_component(curPerfTestName ${curPerfTest} NAME_WE)
-	add_executable(${curPerfTestName} ${curPerfTest})
-	target_link_libraries(${curPerfTestName} sdr_serverLib)
-endforeach()
+add_executable(perf_xlating
+		${CMAKE_CURRENT_SOURCE_DIR}/test/perf_xlating.c
+)
+target_link_libraries(perf_xlating sdr_serverLib)
 
 if(CMAKE_BUILD_TYPE MATCHES Debug)
 	add_custom_target("coverage")

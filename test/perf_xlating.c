@@ -64,6 +64,10 @@ int main(void) {
 	// completed in: 0.041116 seconds
 	// tuned kernel:
 	// completed in: 0.013621 seconds
+	// NO_MANUAL_SIMD
+	// completed in: 0.039529 seconds
+	// manual simd
+	// completed in: 0.011978 seconds
 
     // Raspberrypi 1
     // VOLK_GENERIC=1:

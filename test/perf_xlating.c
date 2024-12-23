@@ -84,6 +84,10 @@ int main(void) {
     // completed in: 0.003249 seconds
     // tuned kernel:
     // completed in: 0.001609 seconds
+	// NO_MANUAL_SIMD
+	// completed in: 0.001603 seconds
+	// manual simd
+	// completed in: 0.001605 seconds
 	printf("completed in: %f seconds\n", time_spent / total_executions);
 	return 0;
 }

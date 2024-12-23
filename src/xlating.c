@@ -37,8 +37,8 @@ void *sdrserver_aligned_alloc(size_t alignment, size_t size) {
   return aligned_alloc(alignment, size);
 }
 
-// FIXME check if no arm defined and no avx defined or explicitly defined
-#if defined(NO_MANUAL_SIMD) || !defined(__ARM_NEON) || !defined(__AVX__)
+#if defined(NO_MANUAL_SIMD) || (!defined(__ARM_NEON) && !defined(__AVX__))
+#pragma message ( "No manual SIMD" )
 
 void process(const uint8_t *input, size_t input_len, float complex **output, size_t *output_len, xlating *filter) {
   // input_len cannot be more than (working_len_total - history_offset)
@@ -81,6 +81,7 @@ void process(const uint8_t *input, size_t input_len, float complex **output, siz
 }
 
 #elif defined(__ARM_NEON)
+#pragma message ( "ARM NEON detected" )
 #include <arm_neon.h>
 
 void process(const uint8_t *input, size_t input_len, float complex **output, size_t *output_len, xlating *filter) {
@@ -199,6 +200,7 @@ void process(const uint8_t *input, size_t input_len, float complex **output, siz
 }
 
 #elif defined(__AVX__)
+#pragma message ( "AVX detected" )
 #include <immintrin.h>
 
 void process(const uint8_t *input, size_t input_len, float complex **output, size_t *output_len, xlating *filter) {
@@ -230,12 +232,18 @@ void process(const uint8_t *input, size_t input_len, float complex **output, siz
       uint32_t blkCnt; /* Loop counter */
       __m256 x, y, yl, yh, z, tmp1, tmp2, res;
 
-      /* Loop unrolling: Compute 4 outputs at a time */
+      res = _mm256_setzero_ps();
+
+      /* Loop unrolling: Compute 8 outputs at a time */
       blkCnt = numSamples >> 2U;
 
       while (blkCnt > 0U) {
-        x = _mm256_load_ps(pSrcA[i]);
-        y = _mm256_load_ps(pSrcB[i]);
+        x = _mm256_load_ps(pSrcA);
+        y = _mm256_load_ps(pSrcB);
+
+        pSrcA += 8;
+        pSrcB += 8;
+
         yl = _mm256_moveldup_ps(y);
         yh = _mm256_movehdup_ps(y);
         tmp1 = _mm256_mul_ps(x, yl);
@@ -244,14 +252,16 @@ void process(const uint8_t *input, size_t input_len, float complex **output, siz
         z = _mm256_addsub_ps(tmp1, tmp2);
         res = _mm256_add_ps(res, z);
         blkCnt--;
+
       }
 
-      __attribute__((aligned(32))) float complex[4] store;
-      _mm256_store_ps(store, res);
+      __attribute__((aligned(32))) float complex store[4];
+      _mm256_store_ps((float *)store, res);
 
       /* Tail */
       blkCnt = numSamples & 0x3;
-      float32_t real_sum = 0.0f, imag_sum = 0.0f;
+      float real_sum = 0.0f, imag_sum = 0.0f;
+      float a0, b0, c0, d0;
       while (blkCnt > 0U) {
         a0 = *pSrcA++;
         b0 = *pSrcA++;
@@ -267,7 +277,7 @@ void process(const uint8_t *input, size_t input_len, float complex **output, siz
         blkCnt--;
       }
       float complex sum_temp = real_sum + I * imag_sum;
-      filter->output[produced] = (sum_temp + res[0] + res[1] + res[2] + res[3]) * filter->phase;
+      filter->output[produced] = (sum_temp + store[0] + store[1] + store[2] + store[3]) * filter->phase;
       filter->phase = filter->phase * filter->phase_incr;
     }
   }

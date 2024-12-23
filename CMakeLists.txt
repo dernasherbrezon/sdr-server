@@ -2,14 +2,13 @@ cmake_minimum_required(VERSION 2.8)
 project(sdr-server)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -ffast-math -std=c11")
 if(CMAKE_BUILD_TYPE MATCHES Debug)
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --coverage")
 endif()
 
 if(NO_MANUAL_SIMD)
 	add_definitions(-DNO_MANUAL_SIMD)
-	message("manual simd optimizations were disabled")
 else()
 	remove_definitions(-DNO_MANUAL_SIMD)
 endif()
@@ -28,8 +27,11 @@ add_library(sdr_serverLib
 # so all libraries need an explicit path
 if (APPLE)
 	include_directories("/opt/homebrew/include")
+	include_directories("/usr/local/include")
 	link_directories("/opt/homebrew/lib")
+	link_directories("/usr/local/lib")
 endif ()
+
 
 find_package(PkgConfig REQUIRED)
 

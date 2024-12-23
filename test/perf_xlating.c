@@ -46,6 +46,10 @@ int main(void) {
 	// completed in: 0.002649 seconds
 	// tuned cu8 -> cf32:
 	// completed in: 0.002038 seconds
+	// NO_MANUAL_SIMD
+	// completed in: 0.002902 seconds
+	// manual simd (avx)
+	// completed in: 0.002093 seconds
 
 	// MacBook Air M1
 	// VOLK_GENERIC=1:

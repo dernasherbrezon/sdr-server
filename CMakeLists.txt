@@ -43,11 +43,6 @@ include_directories(${PC_RTLSDR_INCLUDE_DIRS})
 pkg_check_modules(PC_LIBAIRSPY REQUIRED libairspy)
 include_directories(${PC_LIBAIRSPY_INCLUDE_DIRS})
 
-pkg_check_modules(PC_VOLK REQUIRED volk)
-include_directories(${PC_VOLK_INCLUDE_DIRS})
-link_directories(${PC_VOLK_LIBRARY_DIRS})
-target_link_libraries(sdr_serverLib ${PC_VOLK_LIBRARIES})
-
 pkg_check_modules(PC_ZLIB REQUIRED zlib)
 include_directories(${PC_ZLIB_INCLUDE_DIRS})
 link_directories(${PC_ZLIB_LIBRARY_DIRS})
@@ -85,11 +80,6 @@ file(GLOB TEST_RESOURCES test/resources/*)
 file(COPY ${TEST_RESOURCES} DESTINATION "${CMAKE_BINARY_DIR}")
 file(GLOB PERF_SOURCES test/perf_*.c)
 
-add_library(sdr_serverTestLib
-		${CMAKE_CURRENT_SOURCE_DIR}/test/utils.c
-		${CMAKE_CURRENT_SOURCE_DIR}/test/unity-2.5.2/src/unity.c
-)
-
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/test/unity-2.5.2/src/)
 
 # speed up test compilation.
@@ -98,6 +88,7 @@ add_library(sdr_serverTestLib
 		${CMAKE_CURRENT_SOURCE_DIR}/test/airspy_lib_mock.c
 		${CMAKE_CURRENT_SOURCE_DIR}/src/client/tcp_client.c
 		${CMAKE_CURRENT_SOURCE_DIR}/test/utils.c
+		${CMAKE_CURRENT_SOURCE_DIR}/test/unity-2.5.2/src/unity.c
 )
 file(GLOB TEST_SOURCES test/test_*.c)
 foreach(curTest ${TEST_SOURCES})

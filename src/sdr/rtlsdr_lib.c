@@ -50,6 +50,7 @@ int rtlsdr_lib_create(rtlsdr_lib **lib) {
   SETUP_FUNCTION(result, rtlsdr_reset_buffer);
   SETUP_FUNCTION(result, rtlsdr_read_sync);
   SETUP_FUNCTION(result, rtlsdr_set_freq_correction);
+  SETUP_FUNCTION(result, rtlsdr_get_index_by_serial);
   *lib = result;
   return 0;
 }

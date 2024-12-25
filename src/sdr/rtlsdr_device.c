@@ -1,18 +1,19 @@
-#include <stdio.h>
+#include "rtlsdr_device.h"
+
 #include <errno.h>
 #include <pthread.h>
 #include <stdatomic.h>
+#include <stdio.h>
 #include <string.h>
-#include "rtlsdr_device.h"
 
-#define ERROR_CHECK(x, y)           \
-  do {                           \
-    int __err_rc = (x);          \
-    if (__err_rc != 0) {         \
-      fprintf(stderr, "%s: %d\n", y, __err_rc);                           \
-      rtlsdr_device_destroy(device);                           \
-      return __err_rc;           \
-    }                            \
+#define ERROR_CHECK(x, y)                       \
+  do {                                          \
+    int __err_rc = (x);                         \
+    if (__err_rc != 0) {                        \
+      fprintf(stderr, "%s: %d\n", y, __err_rc); \
+      rtlsdr_device_destroy(device);            \
+      return __err_rc;                          \
+    }                                           \
   } while (0)
 
 struct rtlsdr_device_t {
@@ -62,7 +63,7 @@ int rtlsdr_device_create(uint32_t id, struct server_config *server_config, rtlsd
   if (device == NULL) {
     return -ENOMEM;
   }
-  *device = (struct rtlsdr_device_t) {0};
+  *device = (struct rtlsdr_device_t){0};
   device->lib = lib;
   device->rtlsdr_callback = rtlsdr_callback;
   device->ctx = ctx;
@@ -73,7 +74,17 @@ int rtlsdr_device_create(uint32_t id, struct server_config *server_config, rtlsd
     return -ENOMEM;
   }
   memset(device->output, 0, server_config->buffer_size);
-  ERROR_CHECK(lib->rtlsdr_open(&device->dev, 0), "<3>unable to open device");
+  int device_index = -1;
+  if (server_config->device_serial != NULL) {
+    device_index = lib->rtlsdr_get_index_by_serial(server_config->device_serial);
+    if (device_index < 0) {
+      fprintf(stdout, "can't find device by serial: %s. fallback to device index\n", server_config->device_serial);
+    }
+  }
+  if (device_index < 0) {
+    device_index = server_config->device_index;
+  }
+  ERROR_CHECK(lib->rtlsdr_open(&device->dev, device_index), "<3>unable to open device");
   ERROR_CHECK(lib->rtlsdr_set_sample_rate(device->dev, server_config->band_sampling_rate), "<3>unable to set sample rate");
   ERROR_CHECK(lib->rtlsdr_set_tuner_gain_mode(device->dev, server_config->gain_mode), "<3>unable to set gain mode");
   if (server_config->ppm != 0) {
@@ -83,7 +94,7 @@ int rtlsdr_device_create(uint32_t id, struct server_config *server_config, rtlsd
     int nearest_gain = 0;
     ERROR_CHECK(find_nearest_gain(device, server_config->gain, &nearest_gain), "<3>unable to find nearest gain");
     if (nearest_gain != server_config->gain) {
-      fprintf(stdout, "the actual nearest supported gain is: %f\n", (float) nearest_gain / 10);
+      fprintf(stdout, "the actual nearest supported gain is: %f\n", (float)nearest_gain / 10);
     }
     ERROR_CHECK(lib->rtlsdr_set_tuner_gain(device->dev, nearest_gain), "<3>unable to set gain");
   }
@@ -105,7 +116,7 @@ int rtlsdr_device_create(uint32_t id, struct server_config *server_config, rtlsd
 }
 
 static void *rtlsdr_worker(void *arg) {
-  struct rtlsdr_device_t *device = (struct rtlsdr_device_t *) arg;
+  struct rtlsdr_device_t *device = (struct rtlsdr_device_t *)arg;
   device->running = true;
   int n_read = 0;
   while (device->running) {
@@ -118,11 +129,11 @@ static void *rtlsdr_worker(void *arg) {
       device->running = false;
     }
   }
-  return (void *) 0;
+  return (void *)0;
 }
 
 int rtlsdr_device_start_rx(uint32_t band_freq, void *plugin) {
-  struct rtlsdr_device_t *device = (struct rtlsdr_device_t *) plugin;
+  struct rtlsdr_device_t *device = (struct rtlsdr_device_t *)plugin;
   ERROR_CHECK(device->lib->rtlsdr_set_center_freq(device->dev, band_freq), "<3>unable to set freq");
   int code = pthread_create(&device->rtlsdr_worker_thread, NULL, &rtlsdr_worker, device);
   if (code != 0) {
@@ -135,7 +146,7 @@ void rtlsdr_device_stop_rx(void *plugin) {
   if (plugin == NULL) {
     return;
   }
-  struct rtlsdr_device_t *device = (struct rtlsdr_device_t *) plugin;
+  struct rtlsdr_device_t *device = (struct rtlsdr_device_t *)plugin;
   device->running = false;
   pthread_join(device->rtlsdr_worker_thread, NULL);
 }
@@ -144,9 +155,8 @@ void rtlsdr_device_destroy(void *plugin) {
   if (plugin == NULL) {
     return;
   }
-  struct rtlsdr_device_t *device = (struct rtlsdr_device_t *) plugin;
+  struct rtlsdr_device_t *device = (struct rtlsdr_device_t *)plugin;
   device->lib->rtlsdr_close(device->dev);
   device->dev = NULL;
   free(device);
 }
-

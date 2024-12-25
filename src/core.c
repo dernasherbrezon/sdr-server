@@ -1,22 +1,23 @@
-#include <stdio.h>
-#include <errno.h>
-#include <stdlib.h>
-#include <stdbool.h>
-#include <pthread.h>
-#include <string.h>
-#include <complex.h>
-#include <unistd.h>
-#include <zlib.h>
-#include <volk/volk.h>
-
-#include "sdr/sdr_device.h"
-#include "sdr/rtlsdr_device.h"
-#include "sdr/airspy_device.h"
-#include "lpf.h"
-#include "xlating.h"
-#include "queue.h"
 #include "core.h"
+
+#include <complex.h>
+#include <errno.h>
+#include <pthread.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <volk/volk.h>
+#include <zlib.h>
+
 #include "api.h"
+#include "lpf.h"
+#include "queue.h"
+#include "sdr/airspy_device.h"
+#include "sdr/rtlsdr_device.h"
+#include "sdr/sdr_device.h"
+#include "xlating.h"
 
 struct linked_list_node {
   struct linked_list_node *next;
@@ -38,8 +39,6 @@ struct core_t {
   bool sdr_last_message_processed;
   bool sdr_stopped;
 
-  float *buffer;
-
   struct linked_list_node *client_configs;
   sdr_device *dev;
   rtlsdr_lib *rtllib;
@@ -47,14 +46,13 @@ struct core_t {
 };
 
 static int rtlsdr_callback(uint8_t *buf, uint32_t buf_len, void *ctx) {
-  core *core = (struct core_t *) ctx;
-  volk_8i_s32f_convert_32f_u(core->buffer, (const signed char *) buf, 128.0F, buf_len);
+  core *core = (struct core_t *)ctx;
   int result = 0;
   pthread_mutex_lock(&core->mutex);
   struct linked_list_node *current_node = core->client_configs;
   while (current_node != NULL) {
     // copy to client's buffers and notify
-    queue_put(core->buffer, buf_len, current_node->queue);
+    queue_put(buf, buf_len, current_node->queue);
     current_node = current_node->next;
   }
   if (core->sdr_stop_requested) {
@@ -67,14 +65,15 @@ static int rtlsdr_callback(uint8_t *buf, uint32_t buf_len, void *ctx) {
 }
 
 static int airspy_callback(float *buf, uint32_t buf_len, void *ctx) {
-  core *core = (struct core_t *) ctx;
-  //TODO check if unpacking raw is fast in libairspy
+  core *core = (struct core_t *)ctx;
+  // TODO check if unpacking raw is fast in libairspy
   int result = 0;
   pthread_mutex_lock(&core->mutex);
   struct linked_list_node *current_node = core->client_configs;
   while (current_node != NULL) {
     // copy to client's buffers and notify
-    queue_put(buf, buf_len, current_node->queue);
+    //FIXME propertly handle floats
+    queue_put((uint8_t *)buf, buf_len * sizeof(float), current_node->queue);
     current_node = current_node->next;
   }
   if (core->sdr_stop_requested) {
@@ -122,16 +121,11 @@ int create_core(struct server_config *server_config, core **result) {
     return -ENOMEM;
   }
   // init all fields with 0 so that destroy_* method would work
-  *core = (struct core_t) {0};
-  core->buffer = (float *) malloc(sizeof(float) * server_config->buffer_size);
-  if (core->buffer == NULL) {
-    destroy_core(core);
-    return -ENOMEM;
-  }
+  *core = (struct core_t){0};
   core->server_config = server_config;
-  core->mutex = (pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER;
-  core->sdr_stoping_condition = (pthread_cond_t) PTHREAD_COND_INITIALIZER;
-  core->sdr_stopped_condition = (pthread_cond_t) PTHREAD_COND_INITIALIZER;
+  core->mutex = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
+  core->sdr_stoping_condition = (pthread_cond_t)PTHREAD_COND_INITIALIZER;
+  core->sdr_stopped_condition = (pthread_cond_t)PTHREAD_COND_INITIALIZER;
   core->sdr_stopped = true;
   core->sdr_stop_requested = false;
   core->sdr_last_message_processed = false;
@@ -166,7 +160,7 @@ int write_to_socket(struct linked_list_node *config_node, float complex *filter_
   size_t total_len = filter_output_len * sizeof(float complex);
   size_t left = total_len;
   while (left > 0) {
-    int written = write(config_node->config->client_socket, (char *) filter_output + (total_len - left), left);
+    int written = write(config_node->config->client_socket, (char *)filter_output + (total_len - left), left);
     if (written < 0) {
       return -1;
     }
@@ -176,9 +170,9 @@ int write_to_socket(struct linked_list_node *config_node, float complex *filter_
 }
 
 static void *dsp_worker(void *arg) {
-  struct linked_list_node *config_node = (struct linked_list_node *) arg;
+  struct linked_list_node *config_node = (struct linked_list_node *)arg;
   fprintf(stdout, "[%d] dsp_worker is starting\n", config_node->config->id);
-  float *input = NULL;
+  uint8_t *input = NULL;
   size_t input_len = 0;
   float complex *filter_output = NULL;
   size_t filter_output_len = 0;
@@ -210,11 +204,10 @@ static void *dsp_worker(void *arg) {
       //   - calling "close" socket multiple times is OK (I hope)
       close(config_node->config->client_socket);
     }
-
   }
   destroy_queue(config_node->queue);
   printf("[%d] dsp_worker stopped\n", config_node->config->id);
-  return (void *) 0;
+  return (void *)0;
 }
 
 int start_rtlsdr(struct client_config *config) {
@@ -288,7 +281,7 @@ int add_client(struct client_config *config) {
     return -ENOMEM;
   }
   // init all fields with 0 so that destroy_* method would work
-  *config_node = (struct linked_list_node) {0};
+  *config_node = (struct linked_list_node){0};
   config_node->config = config;
 
   // setup taps
@@ -301,7 +294,7 @@ int add_client(struct client_config *config) {
   }
   // setup xlating frequency filter
   xlating *filter = NULL;
-  code = create_frequency_xlating_filter(config->core->server_config->band_sampling_rate / config->sampling_rate, taps, len, (int64_t) config->center_freq - (int64_t) config->band_freq, config->core->server_config->band_sampling_rate, config->core->server_config->buffer_size, &filter);
+  code = create_frequency_xlating_filter(config->core->server_config->band_sampling_rate / config->sampling_rate, taps, len, (int64_t)config->center_freq - (int64_t)config->band_freq, config->core->server_config->band_sampling_rate, config->core->server_config->buffer_size, &filter);
   if (code != 0) {
     destroy_node(config_node);
     return code;
@@ -448,9 +441,5 @@ void destroy_core(core *core) {
   }
   core->client_configs = NULL;
   pthread_mutex_unlock(&core->mutex);
-  if (core->buffer != NULL) {
-    free(core->buffer);
-  }
   free(core);
 }
-

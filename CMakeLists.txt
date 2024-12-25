@@ -2,9 +2,15 @@ cmake_minimum_required(VERSION 2.8)
 project(sdr-server)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -ffast-math -std=c11")
 if(CMAKE_BUILD_TYPE MATCHES Debug)
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --coverage ")
+endif()
+
+if(NO_MANUAL_SIMD)
+	add_definitions(-DNO_MANUAL_SIMD)
+else()
+	remove_definitions(-DNO_MANUAL_SIMD)
 endif()
 
 add_library(sdr_serverLib
@@ -12,9 +18,9 @@ add_library(sdr_serverLib
 		${CMAKE_CURRENT_SOURCE_DIR}/src/core.c
 		${CMAKE_CURRENT_SOURCE_DIR}/src/lpf.c
 		${CMAKE_CURRENT_SOURCE_DIR}/src/queue.c
-		${CMAKE_CURRENT_SOURCE_DIR}/src/rotator.c
 		${CMAKE_CURRENT_SOURCE_DIR}/src/tcp_server.c
 		${CMAKE_CURRENT_SOURCE_DIR}/src/xlating.c
+		${CMAKE_CURRENT_SOURCE_DIR}/src/client/tcp_client.c
 		${CMAKE_CURRENT_SOURCE_DIR}/src/sdr/airspy_device.c
 		${CMAKE_CURRENT_SOURCE_DIR}/src/sdr/rtlsdr_device.c
 )
@@ -23,8 +29,11 @@ add_library(sdr_serverLib
 # so all libraries need an explicit path
 if (APPLE)
 	include_directories("/opt/homebrew/include")
+	include_directories("/usr/local/include")
 	link_directories("/opt/homebrew/lib")
+	link_directories("/usr/local/lib")
 endif ()
+
 
 find_package(PkgConfig REQUIRED)
 
@@ -65,17 +74,23 @@ add_executable(sdr_server_client
 		${CMAKE_CURRENT_SOURCE_DIR}/src/client/tcp_client_main.c
 )
 
-install(TARGETS sdr_server sdr_server_client DESTINATION /usr/bin/)
+install(TARGETS sdr_server DESTINATION /usr/bin/)
+install(TARGETS sdr_server_client DESTINATION /usr/bin/)
 install(FILES src/resources/config.conf DESTINATION /etc/sdr-server/)
+install(FILES debian/sdr-server.service DESTINATION /lib/systemd/system/)
 
 enable_testing()
 
 file(GLOB TEST_RESOURCES test/resources/*)
 file(COPY ${TEST_RESOURCES} DESTINATION "${CMAKE_BINARY_DIR}")
+file(GLOB PERF_SOURCES test/perf_*.c)
 
-pkg_check_modules(PC_CHECK REQUIRED check)
-include_directories(${PC_CHECK_INCLUDE_DIRS})
-link_directories(${PC_CHECK_LIBRARY_DIRS})
+add_library(sdr_serverTestLib
+		${CMAKE_CURRENT_SOURCE_DIR}/test/utils.c
+		${CMAKE_CURRENT_SOURCE_DIR}/test/unity-2.5.2/src/unity.c
+)
+
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/test/unity-2.5.2/src/)
 
 # speed up test compilation.
 add_library(sdr_serverTestLib
@@ -87,19 +102,29 @@ add_library(sdr_serverTestLib
 file(GLOB TEST_SOURCES test/test_*.c)
 foreach(curTest ${TEST_SOURCES})
 	get_filename_component(curTestName ${curTest} NAME_WE)
-	add_executable(${curTestName} ${CMAKE_CURRENT_SOURCE_DIR}/test/${curTestName}.c)
-	target_link_libraries(${curTestName} sdr_serverLib sdr_serverTestLib ${PC_CHECK_LIBRARIES})
-	add_test(NAME ${curTestName} COMMAND ${curTestName})
+	add_test(NAME ${curTestName} COMMAND ${curTestName} ${curTest})
+	add_executable(${curTestName} ${curTest})
+	target_link_libraries(${curTestName} sdr_serverLib sdr_serverTestLib)
 endforeach()
 
-file(GLOB PERF_SOURCES test/perf_*.c)
-foreach(curPerfTest ${PERF_SOURCES})
-	get_filename_component(curPerfTestName ${curPerfTest} NAME_WE)
-	add_executable(${curPerfTestName} ${curPerfTest})
-	target_link_libraries(${curPerfTestName} sdr_serverLib ${PC_CHECK_LIBRARIES})
-endforeach()
+add_executable(perf_xlating
+		${CMAKE_CURRENT_SOURCE_DIR}/test/perf_xlating.c
+)
+target_link_libraries(perf_xlating sdr_serverLib)
 
 if(CMAKE_BUILD_TYPE MATCHES Debug)
 	add_custom_target("coverage")
 	add_custom_command(TARGET "coverage" COMMAND gcov ${CMAKE_BINARY_DIR}/CMakeFiles/sdr_serverLib.dir/src/*.c.o ${CMAKE_BINARY_DIR}/CMakeFiles/test_core.dir/test/*.c.o)
 endif()
+
+set(CPACK_GENERATOR "DEB")
+set(CPACK_DEBIAN_PACKAGE_NAME "sdr-server")
+set(CPACK_DEBIAN_PACKAGE_DEPENDS "librtlsdr2 (>= 2.0.1), libconfig9, zlib1g")
+set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Andrey Rodionov <dernasherbrezon@gmail.com>")
+set(CPACK_DEBIAN_PACKAGE_DESCRIPTION "High performant TCP server for rtl-sdr")
+set(CPACK_DEBIAN_PACKAGE_SECTION "comm")
+set(CPACK_DEBIAN_PACKAGE_HOMEPAGE "https://github.com/dernasherbrezon/sdr-server")
+set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA "${CMAKE_CURRENT_SOURCE_DIR}/debian/postinst;${CMAKE_CURRENT_SOURCE_DIR}/debian/prerm;${CMAKE_CURRENT_SOURCE_DIR}/debian/postrm")
+set(CPACK_DEBIAN_DEBUGINFO_PACKAGE ON)
+set(CPACK_DEBIAN_FILE_NAME "sdr-server_${CPACK_DEBIAN_PACKAGE_VERSION}_${CUSTOM_ARCHITECTURE}.deb")
+include(CPack)

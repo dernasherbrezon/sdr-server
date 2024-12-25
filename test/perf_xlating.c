@@ -9,7 +9,7 @@ int main(void) {
 	uint32_t target_freq = 48000;
 	float *taps = NULL;
 	size_t len;
-	int code = create_low_pass_filter(1.0, sampling_freq, target_freq / 2, 2000, &taps, &len);
+	int code = create_low_pass_filter(1.0f, sampling_freq, target_freq / 2, 2000, &taps, &len);
 	if (code != 0) {
 		exit(EXIT_FAILURE);
 	}
@@ -46,6 +46,10 @@ int main(void) {
 	// completed in: 0.002649 seconds
 	// tuned cu8 -> cf32:
 	// completed in: 0.002038 seconds
+	// NO_MANUAL_SIMD
+	// completed in: 0.002902 seconds
+	// manual simd (avx)
+	// completed in: 0.002093 seconds
 
 	// MacBook Air M1
 	// VOLK_GENERIC=1:
@@ -59,12 +63,31 @@ int main(void) {
 	// tuned kernel:
 	// completed in: 0.024855 seconds
 
+	// Raspberrypi 4
+	// VOLK_GENERIC=1:
+	// completed in: 0.041116 seconds
+	// tuned kernel:
+	// completed in: 0.013621 seconds
+	// NO_MANUAL_SIMD
+	// completed in: 0.039529 seconds
+	// manual simd
+	// completed in: 0.011978 seconds
+
     // Raspberrypi 1
     // VOLK_GENERIC=1:
     // completed in: 0.291598 seconds
     // tuned kernel:
     // completed in: 0.332934 seconds
 
+    // Intel(R) Core(TM) i5-7500 CPU @ 3.40GHz
+    // VOLK_GENERIC=1:
+    // completed in: 0.003249 seconds
+    // tuned kernel:
+    // completed in: 0.001609 seconds
+	// NO_MANUAL_SIMD
+	// completed in: 0.001603 seconds
+	// manual simd
+	// completed in: 0.001605 seconds
 	printf("completed in: %f seconds\n", time_spent / total_executions);
 	return 0;
 }

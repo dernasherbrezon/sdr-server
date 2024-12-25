@@ -3,50 +3,24 @@ name: CMake
 on:
   push:
     branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
-
-env:
-  BASE_VERSION: "1.1"
-
 jobs:
   build:
     name: Build and analyze
     runs-on: ubuntu-latest
     env:
-      SONAR_SCANNER_VERSION: 4.7.0.2747 # Find the latest version in the "Linux" link on this page:
-      # https://docs.sonarqube.org/latest/analysis/scan/sonarscanner/
-      SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }} # Value stored in a Github secret
       BUILD_WRAPPER_OUT_DIR: build_wrapper_output_directory # Directory where build-wrapper output will be placed
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0 # Shallow clones should be disabled for a better relevancy of analysis
-      - name: Set up JDK 11
-        uses: actions/setup-java@v1
-        with:
-          java-version: 11
       - name: Cache SonarQube packages
-        uses: actions/cache@v1
+        uses: actions/cache@v4
         with:
           path: ~/.sonar/cache
           key: ${{ runner.os }}-sonar
           restore-keys: ${{ runner.os }}-sonar
-      - name: Download and set up sonar-scanner
-        env:
-          SONAR_SCANNER_DOWNLOAD_URL: https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-${{ env.SONAR_SCANNER_VERSION }}-linux.zip
-        run: |
-          mkdir -p $HOME/.sonar
-          curl -sSLo $HOME/.sonar/sonar-scanner.zip ${{ env.SONAR_SCANNER_DOWNLOAD_URL }}
-          unzip -o $HOME/.sonar/sonar-scanner.zip -d $HOME/.sonar/
-          echo "$HOME/.sonar/sonar-scanner-${{ env.SONAR_SCANNER_VERSION }}-linux/bin" >> $GITHUB_PATH
-      - name: Download and set up build-wrapper
-        env:
-          BUILD_WRAPPER_DOWNLOAD_URL: ${{ env.SONAR_HOST_URL }}/static/cpp/build-wrapper-linux-x86.zip
-        run: |
-          curl -sSLo $HOME/.sonar/build-wrapper-linux-x86.zip ${{ env.BUILD_WRAPPER_DOWNLOAD_URL }}
-          unzip -o $HOME/.sonar/build-wrapper-linux-x86.zip -d $HOME/.sonar/
-          echo "$HOME/.sonar/build-wrapper-linux-x86" >> $GITHUB_PATH
+      - name: Install sonar-scanner and build-wrapper
+        uses: SonarSource/sonarcloud-github-c-cpp@v2
       - name: install dependencies
         run: |
           sudo apt-get update
@@ -65,71 +39,6 @@ jobs:
       - name: Run sonar-scanner
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONARQUBE_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
           sonar-scanner --define sonar.cfamily.build-wrapper-output="${{ env.BUILD_WRAPPER_OUT_DIR }}"
-      - name: Merge into OS-specific branches
-        run: |
-          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
-          git config user.name "$GITHUB_ACTOR"
-          git tag ${{ env.BASE_VERSION }}.${{ github.run_number }}
-          git push origin ${{ env.BASE_VERSION }}.${{ github.run_number }}
-  deploy:
-    name: Build, package and deploy
-    needs: build
-    env:
-      APT_CLI_VERSION: "apt-cli-1.4"
-      GPG_KEYNAME: "F2DCBFDCA5A70917"
-    strategy:
-      matrix:
-        hosts: [[self-hosted, bullseye], [self-hosted, buster], [self-hosted, stretch2], ubuntu-18.04]
-        cpu: ["nocpuspecific"]
-    runs-on: ${{ matrix.hosts }}
-    steps:
-      - name: Set env
-        run: echo "OS_CODENAME=$(lsb_release --codename --short)" >> $GITHUB_ENV
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0 # Shallow clones should be disabled for a better relevancy of analysis
-          ref: '${{ env.OS_CODENAME }}'
-      - name: install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y dirmngr lsb-release
-          sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys A5A70917
-          sudo bash -c "echo \"deb http://apt.leosatdata.com $(lsb_release --codename --short) main\" > /etc/apt/sources.list.d/r2cloud.list"
-          sudo bash -c "echo \"deb http://apt.leosatdata.com/cpu-generic $(lsb_release --codename --short) main\" > /etc/apt/sources.list.d/r2cloud-generic.list"
-          sudo apt-get update
-          sudo apt-get install -y debhelper git-buildpackage libconfig-dev zlib1g-dev valgrind check cmake pkg-config libvolk2-dev librtlsdr-dev
-      - name: Import GPG key
-        uses: crazy-max/ghaction-import-gpg@v5
-        with:
-          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-          passphrase: ${{ secrets.PASSPHRASE }}
-      - name: merge from upstream
-        run: |
-          git config user.email "gpg@r2cloud.ru"
-          git config user.name "r2cloud"
-          git merge origin/main --no-edit
-      - name: Set compilation flags
-        run: bash ./configure_flags.sh ${{ matrix.cpu }}
-      - name: build debian package
-        run: |
-          gbp dch --auto --debian-branch=${{ env.OS_CODENAME }} --upstream-branch=main --new-version=${{ env.BASE_VERSION }}.${{ github.run_number }}-${{ github.run_number }}~${{ env.OS_CODENAME }} --git-author --distribution=unstable --commit
-          git push origin
-          rm -f ../${GITHUB_REPOSITORY#*/}*deb
-          gbp buildpackage --git-ignore-new --git-upstream-tag=${{ env.BASE_VERSION }}.${{ github.run_number }} --git-keyid=${{ env.GPG_KEYNAME }}
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
-      - name: Deploy
-        run: |
-          cd ..
-          if [ ! -f ${{ env.APT_CLI_VERSION }}.jar ]; then
-            wget -O ${{ env.APT_CLI_VERSION }}.jar.temp https://github.com/dernasherbrezon/apt-cli/releases/download/${{ env.APT_CLI_VERSION }}/apt-cli.jar
-            mv ${{ env.APT_CLI_VERSION }}.jar.temp ${{ env.APT_CLI_VERSION }}.jar
-          fi
-          java -jar ${{ env.APT_CLI_VERSION }}.jar --url s3://${{ env.BUCKET }} --component main --codename ${{ env.OS_CODENAME }} --gpg-keyname ${{ env.GPG_KEYNAME }} --gpg-arguments "--pinentry-mode,loopback" save --patterns ./*.deb,./*.ddeb

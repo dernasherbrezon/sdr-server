@@ -1,14 +1,16 @@
 #include <stdlib.h>
-#include <check.h>
+#include <unity.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <complex.h>
 #include <zlib.h>
-
-#include "../src/api.h"
-#include "../src/core.h"
 #include "utils.h"
-#include "rtlsdr_lib_mock.h"
+
+extern void init_mock_librtlsdr();
+
+extern void wait_for_data_read();
+
+extern void setup_mock_data(uint8_t *buffer, int len);
 
 core *core_obj = NULL;
 struct server_config *config = NULL;
@@ -17,218 +19,188 @@ struct client_config *client_config1 = NULL;
 uint8_t *input = NULL;
 
 void create_client_config(int id, struct client_config **client_config) {
-	struct client_config *result = malloc(sizeof(struct client_config));
-	ck_assert(result != NULL);
-	result->core = core_obj;
-	result->id = id;
-	result->is_running = true;
-	result->sampling_rate = 9600;
-	result->band_freq = 460100200;
-	result->center_freq = -12000 + result->band_freq;
-	result->client_socket = 0;
-	result->destination = REQUEST_DESTINATION_FILE;
-	*client_config = result;
+  struct client_config *result = malloc(sizeof(struct client_config));
+  TEST_ASSERT(result != NULL);
+  result->core = core_obj;
+  result->id = id;
+  result->is_running = true;
+  result->sampling_rate = 9600;
+  result->band_freq = 460100200;
+  result->center_freq = -12000 + result->band_freq;
+  result->client_socket = 0;
+  result->destination = REQUEST_DESTINATION_FILE;
+  *client_config = result;
 }
 
 void assert_file(int id, const float expected[], size_t expected_size) {
-	char file_path[4096];
-	snprintf(file_path, sizeof(file_path), "%s/%d.cf32", config->base_path, id);
-	fprintf(stdout, "checking: %s\n", file_path);
-	FILE *f = fopen(file_path, "rb");
-	ck_assert(f != NULL);
-	fseek(f, 0, SEEK_END);
-	long fsize = ftell(f);
-	ck_assert_int_gt(fsize, 0);
-	fseek(f, 0, SEEK_SET);
-	uint8_t *buffer = malloc(fsize);
-	ck_assert(buffer != NULL);
-	fread(buffer, 1, fsize, f);
-	fclose(f);
-	size_t actual_size = fsize / sizeof(float complex);
-	assert_complex(expected, expected_size, (float complex*) buffer, actual_size);
-	free(buffer);
+  char file_path[4096];
+  snprintf(file_path, sizeof(file_path), "%s/%d.cf32", config->base_path, id);
+  fprintf(stdout, "checking: %s\n", file_path);
+  FILE *f = fopen(file_path, "rb");
+  TEST_ASSERT(f != NULL);
+  fseek(f, 0, SEEK_END);
+  long fsize = ftell(f);
+  TEST_ASSERT(fsize > 0);
+  fseek(f, 0, SEEK_SET);
+  uint8_t *buffer = malloc(fsize);
+  TEST_ASSERT(buffer != NULL);
+  fread(buffer, 1, fsize, f);
+  fclose(f);
+  size_t actual_size = fsize / sizeof(float complex);
+  assert_complex(expected, expected_size, (float complex *) buffer, actual_size);
+  free(buffer);
 }
 
 int read_gzfile_fully(gzFile f, void *result, size_t len) {
-	size_t left = len;
-	while (left > 0) {
-		int received = gzread(f, (char*) result + (len - left), left);
-		if (received <= 0) {
-			perror("unable to read the message");
-			return -1;
-		}
-		left -= received;
-	}
-	return 0;
+  size_t left = len;
+  while (left > 0) {
+    int received = gzread(f, (char *) result + (len - left), left);
+    if (received <= 0) {
+      perror("unable to read the message");
+      return -1;
+    }
+    left -= received;
+  }
+  return 0;
 }
 
 void assert_gzfile(int id, const float expected[], size_t expected_size) {
-	char file_path[4096];
-	snprintf(file_path, sizeof(file_path), "%s/%d.cf32.gz", config->base_path, id);
-	fprintf(stdout, "checking: %s\n", file_path);
-	gzFile f = gzopen(file_path, "rb");
-	ck_assert(f != NULL);
-	size_t expected_size_bytes = sizeof(float complex) * expected_size;
-	uint8_t *buffer = malloc(expected_size_bytes);
-	ck_assert(buffer != NULL);
-	int code = read_gzfile_fully(f, buffer, expected_size_bytes);
-	ck_assert_int_eq(code, 0);
-	gzclose(f);
-	size_t actual_size = expected_size;
-	assert_complex(expected, expected_size, (float complex*) buffer, actual_size);
-	free(buffer);
+  char file_path[4096];
+  snprintf(file_path, sizeof(file_path), "%s/%d.cf32.gz", config->base_path, id);
+  fprintf(stdout, "checking: %s\n", file_path);
+  gzFile f = gzopen(file_path, "rb");
+  TEST_ASSERT(f != NULL);
+  size_t expected_size_bytes = sizeof(float complex) * expected_size;
+  uint8_t *buffer = malloc(expected_size_bytes);
+  TEST_ASSERT(buffer != NULL);
+  int code = read_gzfile_fully(f, buffer, expected_size_bytes);
+  TEST_ASSERT_EQUAL_INT(code, 0);
+  gzclose(f);
+  size_t actual_size = expected_size;
+  assert_complex(expected, expected_size, (float complex *) buffer, actual_size);
+  free(buffer);
 }
 
-START_TEST (test_gzoutput) {
-	int code = create_server_config(&config, "core.config");
-	ck_assert_int_eq(code, 0);
-	config->use_gzip = true;
-	code = create_core(config, &core_obj);
-	ck_assert_int_eq(code, 0);
+void test_gzoutput() {
+  int code = create_server_config(&config, "core.config");
+  TEST_ASSERT_EQUAL_INT(code, 0);
+  config->use_gzip = true;
+  code = create_core(config, &core_obj);
+  TEST_ASSERT_EQUAL_INT(code, 0);
 
-	create_client_config(0, &client_config0);
-	code = add_client(client_config0);
-	ck_assert_int_eq(code, 0);
+  create_client_config(0, &client_config0);
+  code = add_client(client_config0);
+  TEST_ASSERT_EQUAL_INT(code, 0);
 
-	int length = 200;
-	setup_input_data(&input, 0, length);
-	setup_mock_data(input, length);
-	wait_for_data_read();
+  int length = 200;
+  setup_input_data(&input, 0, length);
+  setup_mock_data(input, length);
+  wait_for_data_read();
 
-	// flush data to files and close them
-	destroy_core(core_obj);
-	core_obj = NULL;
+  // flush data to files and close them
+  destroy_core(core_obj);
+  core_obj = NULL;
 
-	const float expected[] = { 0.000863, 0.000856, -0.000321, -0.001891, 0.000503, 0.007740, -0.002556, -0.018693, 0.006283, 0.040774, -0.030721, -0.127291, 0.027252, -0.129404, -0.004634, 0.040908, 0.002169, -0.018314, -0.000892, 0.007892, 0.000249, -0.002613, -0.000070, 0.000939, -0.000113, 0.000749, -0.000698, -0.000163, 0.000214, -0.000648, 0.000597, 0.000264, -0.000315, 0.000547, -0.000496, -0.000365, 0.000415, -0.000446, 0.000395, 0.000466 };
-	size_t expected_length = 20;
-	assert_gzfile(0, expected, expected_length);
-}
-END_TEST
-
-START_TEST (test_invalid_lpf_config) {
-	int code = create_server_config(&config, "core.config");
-	ck_assert_int_eq(code, 0);
-	code = create_core(config, &core_obj);
-	ck_assert_int_eq(code, 0);
-
-	create_client_config(0, &client_config0);
-	client_config0->sampling_rate = 49000;
-	code = add_client(client_config0);
-	ck_assert_int_eq(code, -1);
-}
-END_TEST
-
-START_TEST (test_process_message) {
-	int code = create_server_config(&config, "core.config");
-	ck_assert_int_eq(code, 0);
-	code = create_core(config, &core_obj);
-	ck_assert_int_eq(code, 0);
-
-	create_client_config(0, &client_config0);
-	code = add_client(client_config0);
-	ck_assert_int_eq(code, 0);
-
-	create_client_config(1, &client_config1);
-	code = add_client(client_config1);
-	ck_assert_int_eq(code, 0);
-
-	int length = 200;
-	setup_input_data(&input, 0, length);
-	setup_mock_data(input, length);
-	wait_for_data_read();
-
-	// just to increase code coverage
-	remove_client(client_config1);
-
-	// flush data to files and close them
-	destroy_core(core_obj);
-	core_obj = NULL;
-
-	const float expected[] = { 0.000863, 0.000856, -0.000321, -0.001891, 0.000503, 0.007740, -0.002556, -0.018693, 0.006283, 0.040774, -0.030721, -0.127291, 0.027252, -0.129404, -0.004634, 0.040908, 0.002169, -0.018314, -0.000892, 0.007892, 0.000249, -0.002613, -0.000070, 0.000939, -0.000113, 0.000749, -0.000698, -0.000163, 0.000214, -0.000648, 0.000597, 0.000264, -0.000315, 0.000547, -0.000496, -0.000365, 0.000415, -0.000446, 0.000395, 0.000466 };
-	size_t expected_length = 20;
-	assert_file(0, expected, expected_length);
-	assert_file(1, expected, expected_length);
-}
-END_TEST
-
-START_TEST (test_invalid_config) {
-	int code = create_server_config(&config, "invalid.basepath.config");
-	ck_assert_int_eq(code, 0);
-	code = create_core(config, &core_obj);
-	ck_assert_int_eq(code, 0);
-
-	code = add_client(NULL);
-	ck_assert_int_eq(code, -1);
-
-	create_client_config(0, &client_config0);
-	config->use_gzip = true;
-	code = add_client(client_config0);
-	ck_assert_int_eq(code, -1);
-
-	// check both types handled properly
-	config->use_gzip = false;
-	code = add_client(client_config0);
-	ck_assert_int_eq(code, -1);
-
-}
-END_TEST
-
-void teardown() {
-	destroy_core(core_obj);
-	core_obj = NULL;
-	destroy_server_config(config);
-	config = NULL;
-	if (client_config0 != NULL) {
-		free(client_config0);
-		client_config0 = NULL;
-	}
-	if (client_config1 != NULL) {
-		free(client_config1);
-		client_config1 = NULL;
-	}
-	if (input != NULL) {
-		free(input);
-		input = NULL;
-	}
+  const float expected[] = {-0.0001035f, -0.0001027f, -0.0000105f, 0.0001232f, -0.0000066f, -0.0002575f, 0.0001184f, 0.0002886f, -0.0001268f, -0.0002544f, 0.0000687f, 0.0003351f, -0.0001032f, -0.0004956f, 0.0001945f, 0.0005987f, -0.0002240f, -0.0006826f, 0.0002285f, 0.0008483f, -0.0002878f,
+                            -0.0010620f, 0.0003668f, 0.0012673f, -0.0004268f, -0.0015031f, 0.0005049f, 0.0017931f, -0.0006021f, -0.0021068f, 0.0006850f, 0.0024705f, -0.0007959f, -0.0029283f, 0.0009737f, 0.0034315f, -0.0011436f, -0.0039606f, 0.0012771f, 0.0046368f};
+  size_t expected_length = 20;
+  assert_gzfile(0, expected, expected_length);
 }
 
-void setup() {
-	init_mock_librtlsdr();
-	//do nothing
+void test_invalid_lpf_config() {
+  int code = create_server_config(&config, "core.config");
+  TEST_ASSERT_EQUAL_INT(code, 0);
+  code = create_core(config, &core_obj);
+  TEST_ASSERT_EQUAL_INT(code, 0);
+
+  create_client_config(0, &client_config0);
+  client_config0->sampling_rate = 49000;
+  code = add_client(client_config0);
+  TEST_ASSERT_EQUAL_INT(code, -1);
 }
 
-Suite* common_suite(void) {
-	Suite *s;
-	TCase *tc_core;
+void test_process_message() {
+  int code = create_server_config(&config, "core.config");
+  TEST_ASSERT_EQUAL_INT(code, 0);
+  code = create_core(config, &core_obj);
+  TEST_ASSERT_EQUAL_INT(code, 0);
 
-	s = suite_create("core");
+  create_client_config(0, &client_config0);
+  code = add_client(client_config0);
+  TEST_ASSERT_EQUAL_INT(code, 0);
 
-	/* Core test case */
-	tc_core = tcase_create("Core");
+  create_client_config(1, &client_config1);
+  code = add_client(client_config1);
+  TEST_ASSERT_EQUAL_INT(code, 0);
 
-	tcase_add_test(tc_core, test_process_message);
-	tcase_add_test(tc_core, test_invalid_lpf_config);
-	tcase_add_test(tc_core, test_gzoutput);
-	tcase_add_test(tc_core, test_invalid_config);
+  int length = 200;
+  setup_input_data(&input, 0, length);
+  setup_mock_data(input, length);
+  wait_for_data_read();
 
-	tcase_add_checked_fixture(tc_core, setup, teardown);
-	suite_add_tcase(s, tc_core);
+  // just to increase code coverage
+  remove_client(client_config1);
 
-	return s;
+  // flush data to files and close them
+  destroy_core(core_obj);
+  core_obj = NULL;
+
+  const float expected[] = {-0.0001035f, -0.0001027f, -0.0000105f, 0.0001232f, -0.0000066f, -0.0002575f, 0.0001184f, 0.0002886f, -0.0001268f, -0.0002544f, 0.0000687f, 0.0003351f, -0.0001032f, -0.0004956f, 0.0001945f, 0.0005987f, -0.0002240f, -0.0006826f, 0.0002285f, 0.0008483f, -0.0002878f,
+                            -0.0010620f, 0.0003668f, 0.0012673f, -0.0004268f, -0.0015031f, 0.0005049f, 0.0017931f, -0.0006021f, -0.0021068f, 0.0006850f, 0.0024705f, -0.0007959f, -0.0029283f, 0.0009737f, 0.0034315f, -0.0011436f, -0.0039606f, 0.0012771f, 0.0046368f};
+  size_t expected_length = 20;
+  assert_file(0, expected, expected_length);
+  assert_file(1, expected, expected_length);
+}
+
+void test_invalid_config() {
+  int code = create_server_config(&config, "invalid.basepath.config");
+  TEST_ASSERT_EQUAL_INT(code, 0);
+  code = create_core(config, &core_obj);
+  TEST_ASSERT_EQUAL_INT(code, 0);
+
+  code = add_client(NULL);
+  TEST_ASSERT_EQUAL_INT(code, -1);
+
+  create_client_config(0, &client_config0);
+  config->use_gzip = true;
+  code = add_client(client_config0);
+  TEST_ASSERT_EQUAL_INT(code, -1);
+
+  // check both types handled properly
+  config->use_gzip = false;
+  code = add_client(client_config0);
+  TEST_ASSERT_EQUAL_INT(code, -1);
+}
+
+void tearDown() {
+  destroy_core(core_obj);
+  core_obj = NULL;
+  destroy_server_config(config);
+  config = NULL;
+  if (client_config0 != NULL) {
+    free(client_config0);
+    client_config0 = NULL;
+  }
+  if (client_config1 != NULL) {
+    free(client_config1);
+    client_config1 = NULL;
+  }
+  if (input != NULL) {
+    free(input);
+    input = NULL;
+  }
+}
+
+void setUp() {
+  init_mock_librtlsdr();
+  //do nothing
 }
 
 int main(void) {
-	int number_failed;
-	Suite *s;
-	SRunner *sr;
-
-	s = common_suite();
-	sr = srunner_create(s);
-
-	srunner_set_fork_status(sr, CK_NOFORK);
-	srunner_run_all(sr, CK_NORMAL);
-	number_failed = srunner_ntests_failed(sr);
-	srunner_free(sr);
-	return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
+  UNITY_BEGIN();
+  RUN_TEST(test_process_message);
+  RUN_TEST(test_invalid_lpf_config);
+  RUN_TEST(test_gzoutput);
+  RUN_TEST(test_invalid_config);
+  return UNITY_END();
 }
-

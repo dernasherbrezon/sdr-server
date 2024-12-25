@@ -2,25 +2,7 @@
 
 set -e
 
-mkdir -p /etc/sdr-server/volk
-FINAL_NAME="/etc/sdr-server/volk/volk_config"
-
-updateVolkConfig() {
-  case $(grep $1 ${FINAL_NAME} 2>&1 > /dev/null; echo $?) in
-   0)
-          return;
-          ;;
-   *)
-          volk_profile -R $1 --path $1
-          cat $1/volk_config >> ${FINAL_NAME}
-          rm -r $1
-          ;;
-  esac
-}
-
-# only these volk methods are being used
-updateVolkConfig volk_32fc_x2_dot_prod_32fc
-updateVolkConfig volk_32fc_s32fc_rotatorpuppet_32fc
-updateVolkConfig volk_8i_s32f_convert_32f
-
-#DEBHELPER#
+if [ -d /run/systemd/system ]; then
+  systemctl enable sdr-server.service
+	systemctl start sdr-server.service
+fi

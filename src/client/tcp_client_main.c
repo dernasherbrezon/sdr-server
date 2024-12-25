@@ -23,14 +23,14 @@ static void sighandler(int signum) {
 }
 
 void usage() {
-  printf("Usage: %s [OPTION]\n", __FILE__);
-  printf("  -h             : print help\n");
-  printf("  -k <hostname>     : sdr_server hostname,                  default: localhost\n");
-  printf("  -p <port>     : sdr_server port,                  default: 8090\n");
-  printf("  -s <sampling_rate>     : sampling rate,                  default: 48000\n");
-  printf("  -f <center_freq>     : Center frequency. Frequency where signal of interest is\n");
-  printf("  -b <band_freq>     : Band frequency. Multiple clients have to specify same frequency band\n");
-  printf("  <filename>     : Filename to output (a '-' dumps samples to stdout)\n");
+  printf("Usage:\n");
+  printf("  -h  print help\n");
+  printf("  -k <hostname> sdr_server hostname (default: localhost)\n");
+  printf("  -p <port> sdr_server port (default: 8090)\n");
+  printf("  -s <sampling_rate> sampling rate (default: 48000)\n");
+  printf("  -f <center_freq> Center frequency. Frequency where signal of interest is\n");
+  printf("  -b <band_freq> Band frequency. Multiple clients have to specify same frequency band\n");
+  printf("  <filename> Filename to output (a '-' dumps samples to stdout)\n");
 }
 
 int main(int argc, char **argv) {
@@ -86,10 +86,12 @@ int main(int argc, char **argv) {
   ERROR_CHECK(read_response(&response_header, &resp, client));
   if (response_header->type != TYPE_RESPONSE) {
     fprintf(stderr, "invalid response type received: %d\n", response_header->type);
+    destroy_client(client);
     return EXIT_FAILURE;
   }
   if (resp->status != RESPONSE_STATUS_SUCCESS) {
     fprintf(stderr, "invalid request: %d\n", resp->details);
+    destroy_client(client);
     return EXIT_FAILURE;
   }
   FILE *output;
@@ -99,25 +101,30 @@ int main(int argc, char **argv) {
     output = fopen(filename, "wb");
     if (!output) {
       fprintf(stderr, "failed to open %s\n", filename);
+      destroy_client(client);
       return EXIT_FAILURE;
     }
   }
   size_t buffer_length = 262144;
   uint8_t *buffer = malloc(buffer_length);
   if (buffer == NULL) {
+    destroy_client(client);
     return -ENOMEM;
   }
   while (!do_exit) {
     int code = read_data(buffer, buffer_length, client);
     if (code != 0) {
+      fprintf(stderr, "unable to read data. shutdown\n");
+      destroy_client(client);
       return EXIT_FAILURE;
     }
 
     size_t left = buffer_length;
     while (left > 0) {
       size_t written = fwrite(buffer + (buffer_length - left), sizeof(uint8_t), left, output);
-      if (written < 0) {
+      if (written == 0) {
         perror("unable to write the message");
+        destroy_client(client);
         return EXIT_FAILURE;
       }
       left -= written;

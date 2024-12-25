@@ -21,6 +21,8 @@ struct server_config {
 	char* bind_address;
 	int port;
 	int read_timeout_seconds;
+  int device_index;
+  char* device_serial;
 
 	sdr_type_t sdr_type;
 

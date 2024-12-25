@@ -3,6 +3,7 @@
 
 #include <complex.h>
 #include <stdint.h>
+#include <stddef.h>
 
 typedef struct xlating_t xlating;
 
@@ -10,6 +11,6 @@ int create_frequency_xlating_filter(uint32_t decimation, float *taps, size_t tap
 
 void process(const float *input, size_t input_len, float complex **output, size_t *output_len, xlating *filter);
 
-int destroy_xlating(xlating *filter);
+void destroy_xlating(xlating *filter);
 
 #endif /* SRC_XLATING_H_ */

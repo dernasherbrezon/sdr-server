@@ -133,6 +133,10 @@ int rtlsdr_get_tuner_gains_mocked(rtlsdr_dev_t *dev, int *gains) {
   return 1;
 }
 
+int rtlsdr_get_index_by_serial(const char *serial) {
+  return 0;
+}
+
 int rtlsdr_lib_create(rtlsdr_lib **lib) {
   struct rtlsdr_lib_t *result = malloc(sizeof(struct rtlsdr_lib_t));
   if (result == NULL) {
@@ -150,7 +154,8 @@ int rtlsdr_lib_create(rtlsdr_lib **lib) {
   result->rtlsdr_set_tuner_gain_mode = rtlsdr_set_tuner_gain_mode_mocked;
   result->rtlsdr_read_sync = rtlsdr_read_sync_mocked;
   result->rtlsdr_set_freq_correction = rtlsdr_set_freq_correction_mocked;
-
+  result->rtlsdr_get_index_by_serial = rtlsdr_get_index_by_serial;
+  
   *lib = result;
   return 0;
 }

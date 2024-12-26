@@ -6,6 +6,7 @@
         "compare": "c",
         "cstdint": "c",
         "utils.h": "c",
-        "stddef.h": "c"
+        "stddef.h": "c",
+        "rtlsdr_lib_mock.h": "c"
     }
 }

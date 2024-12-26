@@ -43,7 +43,7 @@ struct core_t {
   airspy_lib *airspy;
 };
 
-static int rtlsdr_callback(uint8_t *buf, uint32_t buf_len, void *ctx) {
+static int sdr_callback(uint8_t *buf, uint32_t buf_len, void *ctx) {
   core *core = (struct core_t *)ctx;
   int result = 0;
   pthread_mutex_lock(&core->mutex);
@@ -60,30 +60,13 @@ static int rtlsdr_callback(uint8_t *buf, uint32_t buf_len, void *ctx) {
   return result;
 }
 
-static int airspy_callback(int16_t *buf, uint32_t buf_len, void *ctx) {
-  core *core = (struct core_t *)ctx;
-  int result = 0;
-  pthread_mutex_lock(&core->mutex);
-  struct linked_list_node *current_node = core->client_configs;
-  while (current_node != NULL) {
-    // copy to client's buffers and notify
-    queue_put((uint8_t *)buf, buf_len * sizeof(int16_t), current_node->queue);
-    current_node = current_node->next;
-  }
-  if (core->sdr_stop_requested) {
-    result = 1;
-  }
-  pthread_mutex_unlock(&core->mutex);
-  return result;
-}
-
 int core_create_sdr_device(struct server_config *server_config, core *core) {
   switch (server_config->sdr_type) {
     case SDR_TYPE_RTL: {
-      return rtlsdr_device_create(1, server_config, core->rtllib, rtlsdr_callback, core, &core->dev);
+      return rtlsdr_device_create(1, server_config, core->rtllib, sdr_callback, core, &core->dev);
     }
     case SDR_TYPE_AIRSPY: {
-      return airspy_device_create(1, server_config, core->airspy, airspy_callback, core, &core->dev);
+      return airspy_device_create(1, server_config, core->airspy, sdr_callback, core, &core->dev);
     }
     default: {
       fprintf(stderr, "<3>unsupported sdr type: %d\n", server_config->sdr_type);

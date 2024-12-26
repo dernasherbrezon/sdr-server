@@ -7,12 +7,7 @@
 #include "utils.h"
 #include "../src/core.h"
 #include "../src/api.h"
-
-extern void init_mock_librtlsdr();
-
-extern void wait_for_data_read();
-
-extern void setup_mock_data(uint8_t *buffer, int len);
+#include "rtlsdr_lib_mock.h"
 
 core *core_obj = NULL;
 struct server_config *config = NULL;
@@ -58,7 +53,7 @@ int read_gzfile_fully(gzFile f, void *result, size_t len) {
   while (left > 0) {
     int received = gzread(f, (char *) result + (len - left), left);
     if (received <= 0) {
-      perror("unable to read the message");
+      perror("unable read the file");
       return -1;
     }
     left -= received;

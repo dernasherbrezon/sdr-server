@@ -4,14 +4,7 @@
 #include "utils.h"
 #include "../src/tcp_server.h"
 #include "../src/client/tcp_client.h"
-
-extern void init_mock_librtlsdr();
-
-extern void wait_for_data_read();
-
-extern void setup_mock_data(uint8_t *buffer, int len);
-
-extern void stop_rtlsdr_mock();
+#include "rtlsdr_lib_mock.h"
 
 tcp_server *server = NULL;
 core *core_obj = NULL;

@@ -42,7 +42,7 @@ void log_client(struct sockaddr_in *address, uint32_t id) {
 int read_struct(int socket, void *result, size_t len) {
 	size_t left = len;
 	while (left > 0) {
-		int received = recv(socket, (char*) result + (len - left), left, 0);
+		ssize_t received = recv(socket, (char*) result + (len - left), left, 0);
 		if (received < 0) {
 			// will happen on timeout
 			if (errno == EWOULDBLOCK || errno == EAGAIN) {
@@ -56,8 +56,10 @@ int read_struct(int socket, void *result, size_t len) {
 			}
 			// other types of errors
 			// log and disconnect
-			perror("unable to read struct");
-			return -1;
+			if (received != -1) {
+				perror("unable to read struct");
+			}
+            return -1;
 		}
 		// client has closed the socket
 		if (received == 0) {

@@ -210,7 +210,7 @@ static void *dsp_worker(void *arg) {
   return (void *)0;
 }
 
-int start_rtlsdr(struct client_config *config) {
+int start_sdr(struct client_config *config) {
   core *core = config->core;
   if (core->dev == NULL) {
     int code = core_create_sdr_device(core->server_config, core);
@@ -231,7 +231,7 @@ int start_rtlsdr(struct client_config *config) {
   return 0;
 }
 
-void stop_rtlsdr(core *core) {
+void stop_sdr(core *core) {
   fprintf(stdout, "sdr is stopping\n");
   // async shutdown request
   core->sdr_stop_requested = true;
@@ -355,7 +355,7 @@ int add_client(struct client_config *config) {
     while (!config->core->sdr_stopped) {
       pthread_cond_wait(&config->core->sdr_stopped_condition, &config->core->mutex);
     }
-    result = start_rtlsdr(config);
+    result = start_sdr(config);
     if (result == 0) {
       config->core->client_configs = config_node;
     }
@@ -380,7 +380,7 @@ void remove_client(struct client_config *config) {
     return;
   }
   struct linked_list_node *node_to_destroy = NULL;
-  bool should_stop_rtlsdr = false;
+  bool should_stop_sdr = false;
   pthread_mutex_lock(&config->core->mutex);
   struct linked_list_node *cur_node = config->core->client_configs;
   struct linked_list_node *previous_node = NULL;
@@ -390,7 +390,7 @@ void remove_client(struct client_config *config) {
         if (cur_node->next == NULL) {
           // this is the first and the last node
           // shutdown rtlsdr
-          should_stop_rtlsdr = true;
+          should_stop_sdr = true;
         }
         // update pointer to the first node
         config->core->client_configs = cur_node->next;
@@ -403,8 +403,8 @@ void remove_client(struct client_config *config) {
     previous_node = cur_node;
     cur_node = cur_node->next;
   }
-  if (should_stop_rtlsdr) {
-    stop_rtlsdr(config->core);
+  if (should_stop_sdr) {
+    stop_sdr(config->core);
   }
   pthread_mutex_unlock(&config->core->mutex);
 

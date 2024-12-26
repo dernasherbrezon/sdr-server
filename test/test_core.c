@@ -5,6 +5,8 @@
 #include <complex.h>
 #include <zlib.h>
 #include "utils.h"
+#include "../src/core.h"
+#include "../src/api.h"
 
 extern void init_mock_librtlsdr();
 

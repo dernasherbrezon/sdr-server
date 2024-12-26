@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "airspy_device.h": "c",
+        "__threading_support": "c"
+    }
+}

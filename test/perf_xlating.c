@@ -19,7 +19,7 @@ int main(void) {
 	if (code != 0) {
 		exit(EXIT_FAILURE);
 	}
-	float *input = NULL;
+	uint8_t *input = NULL;
 	input = malloc(sizeof(float) * max_input);
 	if (input == NULL) {
 		exit(EXIT_FAILURE);

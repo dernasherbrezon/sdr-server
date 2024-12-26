@@ -5,7 +5,7 @@
 #include "../src/lpf.h"
 
 xlating *filter = NULL;
-float *input = NULL;
+uint8_t *input = NULL;
 
 void setup_filter(size_t input_offset, size_t input_len, size_t max_input) {
   uint32_t sampling_freq = 48000;

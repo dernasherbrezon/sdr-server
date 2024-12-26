@@ -1,6 +1,11 @@
 {
     "files.associations": {
         "airspy_device.h": "c",
-        "__threading_support": "c"
+        "__threading_support": "c",
+        "complex": "c",
+        "compare": "c",
+        "cstdint": "c",
+        "utils.h": "c",
+        "stddef.h": "c"
     }
 }

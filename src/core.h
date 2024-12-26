@@ -19,6 +19,7 @@ struct client_config {
   uint32_t id;
   atomic_bool is_running;
   core *core;
+  sdr_type_t sdr_type;
 };
 
 int create_core(struct server_config *server_config, core **result);

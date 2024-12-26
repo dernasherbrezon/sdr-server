@@ -35,7 +35,7 @@ int main(void) {
 	for (int i = 0; i < total_executions; i++) {
 		float complex *output;
 		size_t output_len = 0;
-		process(input, max_input, &output, &output_len, filter);
+		process_cu8(input, max_input, &output, &output_len, filter);
 	}
 	clock_t end = clock();
 	double time_spent = (double) (end - begin) / CLOCKS_PER_SEC;

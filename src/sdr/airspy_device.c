@@ -16,14 +16,14 @@
 struct airspy_device_t {
   uint32_t id;
   struct airspy_device *dev;
-  int (*sdr_callback)(float *buf, uint32_t len, void *ctx);
+  int (*sdr_callback)(int16_t *buf, uint32_t len, void *ctx);
 
   void *ctx;
 
   airspy_lib *lib;
 };
 
-int airspy_device_create(uint32_t id, struct server_config *server_config, airspy_lib *lib, int (*sdr_callback)(float *buf, uint32_t len, void *ctx), void *ctx, sdr_device **output) {
+int airspy_device_create(uint32_t id, struct server_config *server_config, airspy_lib *lib, int (*sdr_callback)(int16_t *buf, uint32_t len, void *ctx), void *ctx, sdr_device **output) {
   fprintf(stdout, "airspy is starting\n");
   struct airspy_device_t *device = malloc(sizeof(struct airspy_device_t));
   if (device == NULL) {
@@ -34,7 +34,7 @@ int airspy_device_create(uint32_t id, struct server_config *server_config, airsp
   device->sdr_callback = sdr_callback;
   device->ctx = ctx;
   ERROR_CHECK(lib->airspy_open(&device->dev), "<3>unable to init airspy device");
-  ERROR_CHECK(lib->airspy_set_sample_type(device->dev, AIRSPY_SAMPLE_FLOAT32_IQ), "<3>unable to set sample type float32 iq");
+  ERROR_CHECK(lib->airspy_set_sample_type(device->dev, AIRSPY_SAMPLE_INT16_IQ), "<3>unable to set sample type int16 iq");
   ERROR_CHECK(lib->airspy_set_samplerate(device->dev, server_config->band_sampling_rate), "<3>unable to set sample rate");
   ERROR_CHECK(lib->airspy_set_packing(device->dev, 1), "<3>unable to set packing");
   ERROR_CHECK(lib->airspy_set_rf_bias(device->dev, server_config->bias_t), "<3>unable to set bias_t");

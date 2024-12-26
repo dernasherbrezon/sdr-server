@@ -1,30 +1,32 @@
 #include <stdlib.h>
 #include <unity.h>
-#include "utils.h"
-#include "../src/xlating.h"
+
 #include "../src/lpf.h"
+#include "../src/xlating.h"
+#include "utils.h"
 
 xlating *filter = NULL;
-uint8_t *input = NULL;
+uint8_t *input_cu8 = NULL;
+int16_t *input_cs16 = NULL;
 
-void setup_filter(size_t input_offset, size_t input_len, size_t max_input) {
+void setup_filter(size_t max_input) {
   uint32_t sampling_freq = 48000;
   uint32_t target_freq = 9600;
   float *taps = NULL;
   size_t len;
   int code = create_low_pass_filter(1.0f, sampling_freq, target_freq / 2, 2000, &taps, &len);
   TEST_ASSERT_EQUAL_INT(code, 0);
-  code = create_frequency_xlating_filter((int) (sampling_freq / target_freq), taps, len, -12000, sampling_freq, max_input, &filter);
+  code = create_frequency_xlating_filter((int)(sampling_freq / target_freq), taps, len, -12000, sampling_freq, max_input, &filter);
   TEST_ASSERT_EQUAL_INT(code, 0);
-  setup_input_data(&input, input_offset, input_len);
 }
 
 void test_max_input_buffer_size() {
   size_t input_len = 2000;
-  setup_filter(0, input_len, input_len);
+  setup_filter(input_len);
+  setup_input_cu8(&input_cu8, 0, input_len);
   float complex *output;
   size_t output_len = 0;
-  process(input, input_len, &output, &output_len, filter);
+  process_cu8(input_cu8, input_len, &output, &output_len, filter);
   const float expected[] = {0.0008628f, 0.0008561f, -0.0003212f, -0.0018911f, 0.0005033f, 0.0077399f, -0.0025557f, -0.0186932f, 0.0062834f, 0.0407742f, -0.0307208f, -0.1272911f, 0.0272516f, -0.1294040f, -0.0046343f, 0.0409085f, 0.0021693f, -0.0183142f, -0.0008918f, 0.0078921f, 0.0002495f,
                             -0.0026127f, -0.0000701f, 0.0009386f, -0.0001126f, 0.0007490f, -0.0006985f, -0.0001631f, 0.0002136f, -0.0006479f, 0.0005974f, 0.0002640f, -0.0003145f, 0.0005468f, -0.0004963f, -0.0003650f, 0.0004154f, -0.0004458f, 0.0003952f, 0.0004659f, -0.0005164f, 0.0003447f,
                             -0.0002941f, -0.0005669f, 0.0006173f, -0.0002436f, 0.0001930f, 0.0006678f, -0.0007183f, 0.0001425f, -0.0000920f, -0.0007687f, -0.0014555f, 0.0014070f, 0.0016889f, -0.0042796f, -0.0050061f, 0.0084395f, 0.0136318f, -0.0190434f, -0.0296605f, 0.0494813f, -0.0160297f,
@@ -48,35 +50,48 @@ void test_max_input_buffer_size() {
   assert_complex(expected, sizeof(expected) / (2 * sizeof(float)), output, output_len);
 }
 
-void test_parital_input_buffer_size() {
-  size_t input_len = 200; // taps is 57
-  setup_filter(0, input_len, 2000);
+void test_input_cs16() {
+  size_t input_len = 2000;
+  setup_filter(input_len);
+  setup_input_cs16(&input_cs16, 0, input_len);
   float complex *output;
   size_t output_len = 0;
-  process(input, input_len, &output, &output_len, filter);
+  process_cs16(input_cs16, input_len, &output, &output_len, filter);
+  const float expected[] = {0.000026f, 0.000026f, -0.000009f, -0.000056f, 0.000009f, 0.000238f, -0.000072f, -0.000578f, 0.000183f, 0.001249f, -0.000894f, -0.003901f, 0.000864f, -0.003926f, -0.000160f, 0.001232f, 0.000087f, -0.000560f, -0.000027f, 0.000256f, -0.000009f, -0.000076f, -0.000006f, 0.000010f, 0.000017f, 0.000020f, -0.000020f, 0.000017f, -0.000016f, -0.000020f, 0.000020f, -0.000016f, 0.000016f, 0.000019f, -0.000019f, 0.000016f, -0.000016f, -0.000019f, 0.000019f, -0.000015f, 0.000015f, 0.000019f, -0.000018f, 0.000015f, -0.000015f, -0.000018f, 0.000018f, -0.000015f, 0.000014f, 0.000018f, -0.000018f, 0.000014f, -0.000014f, -0.000017f, 0.000017f, -0.000014f, 0.000014f, 0.000017f, -0.000017f, 0.000013f, -0.000013f, -0.000017f, 0.000016f, -0.000013f, 0.000013f, 0.000016f, -0.000016f, 0.000013f, -0.000012f, -0.000016f, 0.000016f, -0.000012f, 0.000012f, 0.000015f, -0.000015f, 0.000012f, -0.000012f, -0.000015f, 0.000015f, -0.000011f, 0.000011f, 0.000015f, -0.000014f, 0.000011f, -0.000011f, -0.000014f, 0.000014f, -0.000011f, 0.000010f, 0.000014f, -0.000014f, 0.000010f, -0.000010f, -0.000013f, 0.000013f, -0.000010f, 0.000010f, 0.000013f, -0.000013f, 0.000009f, -0.000009f, -0.000013f, 0.000012f, -0.000009f, 0.000009f, 0.000012f, -0.000012f, 0.000009f, -0.000008f, -0.000012f, 0.000012f, -0.000008f, 0.000008f, 0.000011f, -0.000011f, 0.000008f, -0.000008f, -0.000011f, 0.000011f, -0.000007f, 0.000007f, 0.000011f, -0.000010f, 0.000007f, -0.000007f, -0.000010f, 0.000010f, -0.000007f, 0.000007f, 0.000010f, -0.000010f, 0.000006f, -0.000006f, -0.000009f, 0.000009f, -0.000006f, 0.000006f, 0.000009f, -0.000009f, 0.000006f, -0.000005f, -0.000009f, 0.000009f, -0.000005f, 0.000005f, 0.000008f, -0.000008f, 0.000005f, -0.000005f, -0.000008f, 0.000008f, -0.000004f, 0.000004f, 0.000008f, -0.000007f, 0.000004f, -0.000004f, -0.000007f, 0.000007f, -0.000004f, 0.000003f, 0.000007f, -0.000007f, 0.000003f, -0.000003f, -0.000006f, 0.000006f, -0.000003f, 0.000003f, 0.000006f, -0.000006f, 0.000002f, -0.000002f, -0.000006f, 0.000005f, -0.000002f, 0.000002f, 0.000005f, -0.000005f, 0.000002f, -0.000001f, -0.000005f, 0.000005f, -0.000001f, 0.000001f, 0.000004f, -0.000004f, 0.000001f, -0.000001f, -0.000004f, 0.000004f, -0.000000f, 0.000000f, 0.000004f, -0.000003f, 0.000000f, 0.000000f, -0.000003f, 0.000003f, 0.000000f, -0.000001f, 0.000003f, -0.000003f, -0.000001f, 0.000001f, -0.000002f, 0.000002f, 0.000001f, -0.000001f, 0.000002f, -0.000002f, -0.000002f, 0.000002f, -0.000002f, 0.000001f, 0.000002f, -0.000002f, 0.000001f, -0.000001f, -0.000002f, 0.000003f, -0.000001f, 0.000001f, 0.000003f, -0.000003f, 0.000000f, -0.000000f, -0.000003f, 0.000003f, -0.000000f, -0.000000f, 0.000004f, -0.000004f, -0.000000f, 0.000001f, -0.000004f, 0.000004f, 0.000001f, -0.000001f, 0.000004f, -0.000005f, -0.000001f, 0.000001f, -0.000005f, 0.000005f, 0.000002f, -0.000002f, 0.000005f, -0.000005f, -0.000002f, 0.000002f, -0.000006f, 0.000006f, 0.000002f, -0.000003f, 0.000006f, -0.000006f, -0.000003f, 0.000003f, -0.000006f, 0.000007f, 0.000003f, -0.000003f, 0.000007f, -0.000007f, -0.000004f, 0.000004f, -0.000007f, 0.000007f, 0.000004f, -0.000004f, 0.000007f, -0.000008f, -0.000004f, 0.000005f, -0.000008f, 0.000008f, 0.000005f, -0.000005f, 0.000008f, -0.000008f, -0.000005f, 0.000005f, -0.000009f, 0.000009f, 0.000006f, -0.000006f, 0.000009f, -0.000009f, -0.000006f, 0.000006f, -0.000009f, 0.000010f, 0.000006f, -0.000007f, 0.000010f, -0.000010f, -0.000007f, 0.000007f, -0.000010f, 0.000010f, 0.000007f, -0.000007f, 0.000011f, -0.000011f, -0.000007f, 0.000008f, -0.000011f, 0.000011f, 0.000008f, -0.000008f, 0.000011f, -0.000012f, -0.000008f, 0.000008f, -0.000012f, 0.000012f, 0.000009f, -0.000009f, 0.000012f, -0.000012f, -0.000009f, 0.000009f, -0.000013f, 0.000013f, 0.000009f, -0.000010f, 0.000013f, -0.000013f, -0.000010f, 0.000010f, -0.000013f, 0.000014f, 0.000010f, -0.000010f, 0.000014f, -0.000014f, -0.000011f, 0.000011f, -0.000014f, 0.000014f, 0.000011f, -0.000011f, 0.000015f, -0.000015f, -0.000011f, 0.000012f, -0.000015f, 0.000015f, 0.000012f, -0.000012f, 0.000015f, -0.000016f, -0.000012f, 0.000012f, -0.000016f, 0.000016f, 0.000013f, -0.000013f, 0.000016f, -0.000016f, -0.000013f, 0.000013f, -0.000017f, 0.000017f, 0.000013f, -0.000014f, 0.000017f, -0.000017f, -0.000014f, 0.000014f, -0.000017f, 0.000018f, 0.000014f, -0.000014f, 0.000018f, -0.000018f, -0.000015f, 0.000015f, -0.000018f, 0.000018f, 0.000015f, -0.000015f, 0.000019f, -0.000019f, -0.000015f, 0.000016f, -0.000019f, 0.000019f, 0.000016f, -0.000016f, 0.000019f, -0.000020f, -0.000016f, 0.000016f, -0.000020f, 0.000020f, 0.000017f, -0.000017f, 0.000020f};
+  assert_complex(expected, sizeof(expected) / (2 * sizeof(float)), output, output_len);
+}
+
+void test_parital_input_buffer_size() {
+  size_t input_len = 200;  // taps is 57
+  setup_filter(2000);
+  setup_input_cu8(&input_cu8, 0, input_len);
+  float complex *output;
+  size_t output_len = 0;
+  process_cu8(input_cu8, input_len, &output, &output_len, filter);
   const float expected[] = {0.0008628f, 0.0008561f, -0.0003212f, -0.0018911f, 0.0005033f, 0.0077399f, -0.0025557f, -0.0186932f, 0.0062834f, 0.0407742f, -0.0307208f, -0.1272911f, 0.0272516f, -0.1294040f, -0.0046343f, 0.0409085f, 0.0021693f, -0.0183142f, -0.0008918f, 0.0078921f, 0.0002495f,
                             -0.0026127f, -0.0000701f, 0.0009386f, -0.0001126f, 0.0007490f, -0.0006985f, -0.0001631f, 0.0002136f, -0.0006479f, 0.0005974f, 0.0002640f, -0.0003145f, 0.0005468f, -0.0004963f, -0.0003650f, 0.0004154f, -0.0004458f, 0.0003952f, 0.0004659f};
   assert_complex(expected, 20, output, output_len);
-  free(input);
+  free(input_cu8);
   // another 200 inputs
-  setup_input_data(&input, 200, 200);
-  process(input, input_len, &output, &output_len, filter);
+  setup_input_cu8(&input_cu8, 200, 200);
+  process_cu8(input_cu8, input_len, &output, &output_len, filter);
   const float expectedNextBatch[] = {-0.0005164f, 0.0003447f, -0.0002941f, -0.0005669f, 0.0006173f, -0.0002436f, 0.0001930f, 0.0006678f, -0.0007183f, 0.0001425f, -0.0000920f, -0.0007687f, -0.0014555f, 0.0014070f, 0.0016889f, -0.0042796f, -0.0050061f, 0.0084395f, 0.0136318f, -0.0190434f, -0.0296605f,
                                      0.0494813f, -0.0160297f, -0.4166399f, 0.0494911f, -0.0296489f, -0.0190547f, 0.0136408f, 0.0084302f, -0.0050168f, -0.0042689f, 0.0016794f, 0.0014166f, -0.0014449f, -0.0007793f, -0.0000824f, 0.0001328f, -0.0007288f, 0.0006782f, 0.0001833f};
   assert_complex(expectedNextBatch, 20, output, output_len);
 }
 
 void test_small_input_data() {
-  size_t input_len = 198; // taps is 57
-  setup_filter(0, input_len, 2000);
+  size_t input_len = 198;  // taps is 57
+  setup_filter(2000);
+  setup_input_cu8(&input_cu8, 0, input_len);
   float complex *output;
   size_t output_len = 0;
-  process(input, input_len, &output, &output_len, filter);
-  free(input);
+  process_cu8(input_cu8, input_len, &output, &output_len, filter);
+  free(input_cu8);
   // add only 1 complex sample
   // shouldn't be enough for 1 output
-  setup_input_data(&input, 200, 2);
-  process(input, 2, &output, &output_len, filter);
+  setup_input_cu8(&input_cu8, 200, 2);
+  process_cu8(input_cu8, 2, &output, &output_len, filter);
   const float expectedNextBatch[] = {0};
   assert_complex(expectedNextBatch, 0, output, output_len);
 }
@@ -84,14 +99,14 @@ void test_small_input_data() {
 void tearDown() {
   destroy_xlating(filter);
   filter = NULL;
-  if (input != NULL) {
-    free(input);
-    input = NULL;
+  if (input_cu8 != NULL) {
+    free(input_cu8);
+    input_cu8 = NULL;
   }
 }
 
 void setUp() {
-//do nothing
+  // do nothing
 }
 
 int main(void) {
@@ -99,5 +114,6 @@ int main(void) {
   RUN_TEST(test_max_input_buffer_size);
   RUN_TEST(test_parital_input_buffer_size);
   RUN_TEST(test_small_input_data);
+  RUN_TEST(test_input_cs16);
   return UNITY_END();
 }

@@ -295,6 +295,7 @@ void handle_new_client(int client_socket, tcp_server *server) {
 	config->is_running = true;
 	config->core = server->core;
 	config->id = server->client_counter;
+	config->sdr_type = server->server_config->sdr_type;
 
 	struct linked_list_tcp_node *tcp_node = malloc(sizeof(struct linked_list_tcp_node));
 	if (tcp_node == NULL) {

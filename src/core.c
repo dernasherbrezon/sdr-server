@@ -60,16 +60,14 @@ static int rtlsdr_callback(uint8_t *buf, uint32_t buf_len, void *ctx) {
   return result;
 }
 
-static int airspy_callback(float *buf, uint32_t buf_len, void *ctx) {
+static int airspy_callback(int16_t *buf, uint32_t buf_len, void *ctx) {
   core *core = (struct core_t *)ctx;
-  // TODO check if unpacking raw is fast in libairspy
   int result = 0;
   pthread_mutex_lock(&core->mutex);
   struct linked_list_node *current_node = core->client_configs;
   while (current_node != NULL) {
     // copy to client's buffers and notify
-    //FIXME propertly handle floats
-    queue_put((uint8_t *)buf, buf_len * sizeof(float), current_node->queue);
+    queue_put((uint8_t *)buf, buf_len * sizeof(int16_t), current_node->queue);
     current_node = current_node->next;
   }
   if (core->sdr_stop_requested) {
@@ -174,7 +172,20 @@ static void *dsp_worker(void *arg) {
     if (input == NULL) {
       break;
     }
-    process(input, input_len, &filter_output, &filter_output_len, config_node->filter);
+    switch (config_node->config->sdr_type) {
+      case SDR_TYPE_RTL: {
+        process_cu8(input, input_len, &filter_output, &filter_output_len, config_node->filter);
+        break;
+      }
+      case SDR_TYPE_AIRSPY: {
+        process_cs16((const int16_t *)input, input_len / sizeof(int16_t), &filter_output, &filter_output_len, config_node->filter);
+        break;
+      }
+      default: {
+        fprintf(stderr, "<3>unsupported sdr type: %d\n", config_node->config->sdr_type);
+        break;
+      }
+    }
     int code;
     if (config_node->config->destination == REQUEST_DESTINATION_FILE) {
       code = write_to_file(config_node, filter_output, filter_output_len);
@@ -184,19 +195,12 @@ static void *dsp_worker(void *arg) {
       fprintf(stderr, "<3>unknown destination: %d\n", config_node->config->destination);
       code = -1;
     }
-
     complete_buffer_processing(config_node->queue);
-
     if (code != 0) {
-      // this would trigger client disconnect
-      // I could use "break" here, but "continue" is a bit better:
-      //   - single route for abnormal termination (i.e. disk space issue) and normal (i.e. client disconnected)
-      //   - all shutdown sequences have: stop tcp thread, then dsp thread, then rtlsdr thread
-      //   - processing the queue and writing to the already full disk is OK (I hope)
-      //   - calling "close" socket multiple times is OK (I hope)
-      close(config_node->config->client_socket);
+      break;
     }
   }
+  close(config_node->config->client_socket);
   destroy_queue(config_node->queue);
   printf("[%d] dsp_worker stopped\n", config_node->config->id);
   return (void *)0;

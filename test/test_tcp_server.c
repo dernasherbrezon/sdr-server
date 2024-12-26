@@ -182,7 +182,7 @@ void test_destination_socket() {
   assert_response(client0, TYPE_RESPONSE, RESPONSE_STATUS_SUCCESS, 0);
 
   int length = 200;
-  setup_input_data(&input, 0, length);
+  setup_input_cu8(&input, 0, length);
   setup_mock_data(input, length);
   wait_for_data_read();
 

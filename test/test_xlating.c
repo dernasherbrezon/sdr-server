@@ -103,6 +103,10 @@ void tearDown() {
     free(input_cu8);
     input_cu8 = NULL;
   }
+  if (input_cs16 != NULL) {
+    free(input_cs16);
+    input_cs16 = NULL;
+  }
 }
 
 void setUp() {

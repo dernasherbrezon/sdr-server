@@ -41,7 +41,7 @@ void assert_complex(const float expected[], size_t expected_size, float complex 
   }
 }
 
-void assert_float_array(const float expected[], size_t expected_size, float *actual, size_t actual_size) {
+void assert_float_array(const float expected[], size_t expected_size, const float *actual, size_t actual_size) {
   TEST_ASSERT_EQUAL_INT(expected_size, actual_size);
   for (size_t i = 0; i < expected_size; i++) {
     TEST_ASSERT_EQUAL_INT((int32_t)(expected[i] * 10000), (int32_t)(actual[i] * 10000));

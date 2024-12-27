@@ -8,7 +8,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <volk/volk.h>
 #include <zlib.h>
 
 #include "api.h"
@@ -133,7 +132,7 @@ int write_to_socket(struct linked_list_node *config_node, float complex *filter_
   size_t total_len = filter_output_len * sizeof(float complex);
   size_t left = total_len;
   while (left > 0) {
-    int written = write(config_node->config->client_socket, (char *)filter_output + (total_len - left), left);
+    ssize_t written = write(config_node->config->client_socket, (char *)filter_output + (total_len - left), left);
     if (written < 0) {
       return -1;
     }

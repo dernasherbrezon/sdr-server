@@ -158,5 +158,8 @@ void rtlsdr_device_destroy(void *plugin) {
   struct rtlsdr_device_t *device = (struct rtlsdr_device_t *)plugin;
   device->lib->rtlsdr_close(device->dev);
   device->dev = NULL;
+  if (device->output != NULL) {
+    free(device->output);
+  }
   free(device);
 }

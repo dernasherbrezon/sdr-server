@@ -394,6 +394,9 @@ void destroy_core(core *core) {
     return;
   }
   pthread_mutex_lock(&core->mutex);
+  if (!core->sdr_stopped) {
+    stop_sdr(core);
+  }
   if (core->dev != NULL) {
     core->dev->destroy(core->dev->plugin);
     free(core->dev);

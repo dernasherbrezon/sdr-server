@@ -26,6 +26,7 @@ void create_client_config(int id, struct client_config **client_config) {
   result->center_freq = -12000 + result->band_freq;
   result->client_socket = 0;
   result->destination = REQUEST_DESTINATION_FILE;
+  result->sdr_type = SDR_TYPE_RTL;
   *client_config = result;
 }
 
@@ -71,8 +72,8 @@ void assert_gzfile(int id, const float expected[], size_t expected_size) {
   uint8_t *buffer = malloc(expected_size_bytes);
   TEST_ASSERT(buffer != NULL);
   int code = read_gzfile_fully(f, buffer, expected_size_bytes);
-  TEST_ASSERT_EQUAL_INT(code, 0);
   gzclose(f);
+  TEST_ASSERT_EQUAL_INT(code, 0);
   size_t actual_size = expected_size;
   assert_complex(expected, expected_size, (float complex *) buffer, actual_size);
   free(buffer);
@@ -95,6 +96,7 @@ void test_gzoutput() {
   wait_for_data_read();
 
   // flush data to files and close them
+  stop_rtlsdr_mock();
   destroy_core(core_obj);
   core_obj = NULL;
 
@@ -139,6 +141,7 @@ void test_process_message() {
   remove_client(client_config1);
 
   // flush data to files and close them
+  stop_rtlsdr_mock();
   destroy_core(core_obj);
   core_obj = NULL;
 
@@ -170,6 +173,7 @@ void test_invalid_config() {
 }
 
 void tearDown() {
+  stop_rtlsdr_mock();
   destroy_core(core_obj);
   core_obj = NULL;
   destroy_server_config(config);

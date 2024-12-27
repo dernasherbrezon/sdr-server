@@ -179,10 +179,10 @@ static void *dsp_worker(void *arg) {
     }
     complete_buffer_processing(config_node->queue);
     if (code != 0) {
-      break;
+      close(config_node->config->client_socket);
     }
   }
-  close(config_node->config->client_socket);
+
   destroy_queue(config_node->queue);
   printf("[%d] dsp_worker stopped\n", config_node->config->id);
   return (void *)0;

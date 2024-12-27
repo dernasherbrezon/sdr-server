@@ -1,10 +1,10 @@
 #include <stdlib.h>
 #include <unity.h>
 
-#include "utils.h"
-#include "../src/tcp_server.h"
 #include "../src/client/tcp_client.h"
+#include "../src/tcp_server.h"
 #include "rtlsdr_lib_mock.h"
+#include "utils.h"
 
 tcp_server *server = NULL;
 core *core_obj = NULL;
@@ -218,7 +218,7 @@ void tearDown() {
 }
 
 void setUp() {
-  init_mock_librtlsdr();
+  // do nothing
 }
 
 int main(void) {
@@ -234,4 +234,3 @@ int main(void) {
   RUN_TEST(test_ping);
   return UNITY_END();
 }
-

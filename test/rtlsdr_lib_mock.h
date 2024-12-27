@@ -1,7 +1,7 @@
 #ifndef SDR_SERVER_RTLSDR_LIB_MOCK_H
 #define SDR_SERVER_RTLSDR_LIB_MOCK_H
 
-void init_mock_librtlsdr();
+#include <stdint.h>
 
 void wait_for_data_read();
 

@@ -1,11 +1,12 @@
+#include "rtlsdr_lib_mock.h"
+
+#include <errno.h>
 #include <pthread.h>
 #include <stdbool.h>
-#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "../src/sdr/rtlsdr_lib.h"
-#include "rtlsdr_lib_mock.h"
 
 struct mock_status {
   uint8_t *buffer;
@@ -22,14 +23,6 @@ struct rtlsdr_dev {
 };
 
 struct mock_status mock;
-
-void init_mock_librtlsdr() {
-  mock.mutex = (pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER;
-  mock.condition = (pthread_cond_t) PTHREAD_COND_INITIALIZER;
-  mock.stopped = false;
-  mock.data_was_read = false;
-  mock.buffer = NULL;
-}
 
 // make sure data was read
 // the core will be terminated gracefully
@@ -142,7 +135,7 @@ int rtlsdr_lib_create(rtlsdr_lib **lib) {
   if (result == NULL) {
     return -ENOMEM;
   }
-  *result = (struct rtlsdr_lib_t) {0};
+  *result = (struct rtlsdr_lib_t){0};
   result->rtlsdr_open = rtlsdr_open_mocked;
   result->rtlsdr_close = rtlsdr_close_mocked;
   result->rtlsdr_get_tuner_gains = rtlsdr_get_tuner_gains_mocked;
@@ -155,7 +148,12 @@ int rtlsdr_lib_create(rtlsdr_lib **lib) {
   result->rtlsdr_read_sync = rtlsdr_read_sync_mocked;
   result->rtlsdr_set_freq_correction = rtlsdr_set_freq_correction_mocked;
   result->rtlsdr_get_index_by_serial = rtlsdr_get_index_by_serial;
-  
+
+  mock.mutex = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
+  mock.condition = (pthread_cond_t)PTHREAD_COND_INITIALIZER;
+  mock.stopped = false;
+  mock.data_was_read = false;
+  mock.buffer = NULL;
   *lib = result;
   return 0;
 }
@@ -166,4 +164,3 @@ void rtlsdr_lib_destroy(rtlsdr_lib *lib) {
   }
   free(lib);
 }
-

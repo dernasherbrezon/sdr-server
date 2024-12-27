@@ -193,7 +193,6 @@ void tearDown() {
 }
 
 void setUp() {
-  init_mock_librtlsdr();
   //do nothing
 }
 

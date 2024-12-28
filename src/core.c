@@ -33,7 +33,6 @@ struct core_t {
   struct server_config *server_config;
   pthread_mutex_t mutex;
   pthread_cond_t sdr_stopped_condition;
-  bool sdr_stop_requested;
   bool sdr_stopped;
 
   struct linked_list_node *client_configs;
@@ -51,9 +50,6 @@ static int sdr_callback(uint8_t *buf, uint32_t buf_len, void *ctx) {
     // copy to client's buffers and notify
     queue_put(buf, buf_len, current_node->queue);
     current_node = current_node->next;
-  }
-  if (core->sdr_stop_requested) {
-    result = 1;
   }
   pthread_mutex_unlock(&core->mutex);
   return result;
@@ -100,7 +96,6 @@ int create_core(struct server_config *server_config, core **result) {
   core->mutex = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
   core->sdr_stopped_condition = (pthread_cond_t)PTHREAD_COND_INITIALIZER;
   core->sdr_stopped = true;
-  core->sdr_stop_requested = false;
   int code = core_create_sdr_library(server_config, core);
   if (code != 0) {
     destroy_core(core);
@@ -204,14 +199,11 @@ int start_sdr(struct client_config *config) {
   }
   // reset internal state
   core->sdr_stopped = false;
-  core->sdr_stop_requested = false;
   return 0;
 }
 
 void stop_sdr(core *core) {
   fprintf(stdout, "sdr is stopping\n");
-  // async shutdown request
-  core->sdr_stop_requested = true;
   // synchronous wait until all threads shutdown
   core->dev->stop_rx(core->dev->plugin);
   fprintf(stdout, "sdr stopped\n");

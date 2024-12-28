@@ -14,7 +14,7 @@ struct mock_status {
 
   pthread_mutex_t mutex;
   pthread_cond_t condition;
-  int stopped;
+  bool stopped;
   int data_was_read;
 };
 
@@ -27,7 +27,7 @@ struct mock_status mock;
 // make sure data was read
 // the core will be terminated gracefully
 // so the data will be processed
-void wait_for_data_read() {
+void rtlsdr_wait_for_data_read() {
   pthread_mutex_lock(&mock.mutex);
   while (!mock.data_was_read) {
     pthread_cond_wait(&mock.condition, &mock.mutex);
@@ -36,7 +36,7 @@ void wait_for_data_read() {
   pthread_mutex_unlock(&mock.mutex);
 }
 
-void setup_mock_data(uint8_t *buffer, int len) {
+void rtlsdr_setup_mock_data(uint8_t *buffer, int len) {
   pthread_mutex_lock(&mock.mutex);
   mock.buffer = buffer;
   mock.len = len;
@@ -44,7 +44,7 @@ void setup_mock_data(uint8_t *buffer, int len) {
   pthread_mutex_unlock(&mock.mutex);
 }
 
-void stop_rtlsdr_mock() {
+void rtlsdr_stop_mock() {
   pthread_mutex_lock(&mock.mutex);
   mock.stopped = true;
   mock.buffer = NULL;

@@ -54,7 +54,7 @@ void test_out_of_band_frequency_clients() {
   send_message(client1, PROTOCOL_VERSION, TYPE_REQUEST, 460700000, 48000, 461600000, REQUEST_DESTINATION_FILE);
   assert_response(client1, TYPE_RESPONSE, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_OUT_OF_BAND_FREQ);
   destroy_client(client1);
-  stop_rtlsdr_mock();
+  rtlsdr_stop_mock();
 
   // then the first client disconnects
   send_message(client0, PROTOCOL_VERSION, TYPE_SHUTDOWN, 0, 0, 0, 0);
@@ -176,8 +176,8 @@ void test_destination_socket() {
 
   int length = 200;
   setup_input_cu8(&input, 0, length);
-  setup_mock_data(input, length);
-  wait_for_data_read();
+  rtlsdr_setup_mock_data(input, length);
+  rtlsdr_wait_for_data_read();
 
   const float expected[] = {-0.0000000f, -0.0000000f, -0.0005348f, -0.0006878f, 0.0023769f, 0.0014759f, -0.0050460f, -0.0028901f, 0.0100345f, 0.0064948f, -0.0245430f, -0.0142574f, 0.0051531f, -0.2082227f, 0.0151599f, 0.0243944f, -0.0072941f, -0.0100809f, 0.0034306f, 0.0046447f, -0.0012999f,
                             -0.0020388f, 0.0004290f, 0.0008074f, -0.0002939f, -0.0002891f, 0.0002456f, -0.0002504f, 0.0002068f, 0.0002021f, -0.0001587f, 0.0001633f, -0.0001197f, -0.0001152f, 0.0000717f, -0.0000762f, 0.0000326f, 0.0000283f, 0.0000152f, -0.0000109f};
@@ -197,7 +197,7 @@ void test_ping() {
 }
 
 void tearDown() {
-  stop_rtlsdr_mock();
+  rtlsdr_stop_mock();
   stop_tcp_server(server);
   join_tcp_server_thread(server);
   server = NULL;

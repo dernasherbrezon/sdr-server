@@ -1,19 +1,22 @@
-#include <stdlib.h>
-#include <unity.h>
+#include <complex.h>
 #include <stdbool.h>
 #include <stdio.h>
-#include <complex.h>
+#include <stdlib.h>
+#include <unity.h>
 #include <zlib.h>
-#include "utils.h"
-#include "../src/core.h"
+
 #include "../src/api.h"
+#include "../src/core.h"
+#include "airspy_lib_mock.h"
 #include "rtlsdr_lib_mock.h"
+#include "utils.h"
 
 core *core_obj = NULL;
 struct server_config *config = NULL;
 struct client_config *client_config0 = NULL;
 struct client_config *client_config1 = NULL;
 uint8_t *input = NULL;
+int16_t *input_cs16 = NULL;
 
 void create_client_config(int id, struct client_config **client_config) {
   struct client_config *result = malloc(sizeof(struct client_config));
@@ -45,14 +48,14 @@ void assert_file(int id, const float expected[], size_t expected_size) {
   fread(buffer, 1, fsize, f);
   fclose(f);
   size_t actual_size = fsize / sizeof(float complex);
-  assert_complex(expected, expected_size, (float complex *) buffer, actual_size);
+  assert_complex(expected, expected_size, (float complex *)buffer, actual_size);
   free(buffer);
 }
 
 int read_gzfile_fully(gzFile f, void *result, size_t len) {
   size_t left = len;
   while (left > 0) {
-    int received = gzread(f, (char *) result + (len - left), left);
+    int received = gzread(f, (char *)result + (len - left), left);
     if (received <= 0) {
       perror("unable read the file");
       return -1;
@@ -73,30 +76,30 @@ void assert_gzfile(int id, const float expected[], size_t expected_size) {
   TEST_ASSERT(buffer != NULL);
   int code = read_gzfile_fully(f, buffer, expected_size_bytes);
   gzclose(f);
-  TEST_ASSERT_EQUAL_INT(code, 0);
+  TEST_ASSERT_EQUAL_INT(0, code);
   size_t actual_size = expected_size;
-  assert_complex(expected, expected_size, (float complex *) buffer, actual_size);
+  assert_complex(expected, expected_size, (float complex *)buffer, actual_size);
   free(buffer);
 }
 
 void test_gzoutput() {
   int code = create_server_config(&config, "core.config");
-  TEST_ASSERT_EQUAL_INT(code, 0);
+  TEST_ASSERT_EQUAL_INT(0, code);
   config->use_gzip = true;
   code = create_core(config, &core_obj);
-  TEST_ASSERT_EQUAL_INT(code, 0);
+  TEST_ASSERT_EQUAL_INT(0, code);
 
   create_client_config(0, &client_config0);
   code = add_client(client_config0);
-  TEST_ASSERT_EQUAL_INT(code, 0);
+  TEST_ASSERT_EQUAL_INT(0, code);
 
   int length = 200;
   setup_input_cu8(&input, 0, length);
-  setup_mock_data(input, length);
-  wait_for_data_read();
+  rtlsdr_setup_mock_data(input, length);
+  rtlsdr_wait_for_data_read();
 
   // flush data to files and close them
-  stop_rtlsdr_mock();
+  rtlsdr_stop_mock();
   destroy_core(core_obj);
   core_obj = NULL;
 
@@ -108,40 +111,67 @@ void test_gzoutput() {
 
 void test_invalid_lpf_config() {
   int code = create_server_config(&config, "core.config");
-  TEST_ASSERT_EQUAL_INT(code, 0);
+  TEST_ASSERT_EQUAL_INT(0, code);
   code = create_core(config, &core_obj);
-  TEST_ASSERT_EQUAL_INT(code, 0);
+  TEST_ASSERT_EQUAL_INT(0, code);
 
   create_client_config(0, &client_config0);
   client_config0->sampling_rate = 49000;
   code = add_client(client_config0);
-  TEST_ASSERT_EQUAL_INT(code, -1);
+  TEST_ASSERT_EQUAL_INT(-1, code);
+}
+
+void test_airspy() {
+  int length = 200;
+  setup_input_cs16(&input_cs16, 0, length);
+  airspy_setup_mock_data(input_cs16, length);
+
+  int code = create_server_config(&config, "core.config");
+  TEST_ASSERT_EQUAL_INT(0, code);
+  config->sdr_type = SDR_TYPE_AIRSPY;
+  code = create_core(config, &core_obj);
+  TEST_ASSERT_EQUAL_INT(0, code);
+
+  create_client_config(0, &client_config0);
+  client_config0->sdr_type = SDR_TYPE_AIRSPY;
+  code = add_client(client_config0);
+  TEST_ASSERT_EQUAL_INT(0, code);
+
+  airspy_wait_for_data_read();
+
+  // flush data to files and close them
+  destroy_core(core_obj);
+  core_obj = NULL;
+
+  const float expected[] = {-0.000000f, -0.000000f, -0.000000f, 0.000000f, -0.000000f, -0.000001f, 0.000000f, 0.000001f, -0.000000f, -0.000001f, 0.000000f, 0.000001f, -0.000000f, -0.000001f, 0.000001f, 0.000002f, -0.000001f, -0.000002f, 0.000001f, 0.000003f, -0.000001f, -0.000003f, 0.000001f, 0.000004f, -0.000001f, -0.000005f, 0.000002f, 0.000006f, -0.000002f, -0.000006f, 0.000002f, 0.000007f, -0.000002f, -0.000009f, 0.000003f, 0.000011f, -0.000004f, -0.000012f, 0.000004f, 0.000014f};
+  size_t expected_length = 20;
+  assert_file(0, expected, expected_length);
 }
 
 void test_process_message() {
   int code = create_server_config(&config, "core.config");
-  TEST_ASSERT_EQUAL_INT(code, 0);
+  TEST_ASSERT_EQUAL_INT(0, code);
   code = create_core(config, &core_obj);
-  TEST_ASSERT_EQUAL_INT(code, 0);
+  TEST_ASSERT_EQUAL_INT(0, code);
 
   create_client_config(0, &client_config0);
   code = add_client(client_config0);
-  TEST_ASSERT_EQUAL_INT(code, 0);
+  TEST_ASSERT_EQUAL_INT(0, code);
 
   create_client_config(1, &client_config1);
   code = add_client(client_config1);
-  TEST_ASSERT_EQUAL_INT(code, 0);
+  TEST_ASSERT_EQUAL_INT(0, code);
 
   int length = 200;
   setup_input_cu8(&input, 0, length);
-  setup_mock_data(input, length);
-  wait_for_data_read();
+  rtlsdr_setup_mock_data(input, length);
+  rtlsdr_wait_for_data_read();
 
   // just to increase code coverage
   remove_client(client_config1);
 
   // flush data to files and close them
-  stop_rtlsdr_mock();
+  rtlsdr_stop_mock();
   destroy_core(core_obj);
   core_obj = NULL;
 
@@ -154,26 +184,26 @@ void test_process_message() {
 
 void test_invalid_config() {
   int code = create_server_config(&config, "invalid.basepath.config");
-  TEST_ASSERT_EQUAL_INT(code, 0);
+  TEST_ASSERT_EQUAL_INT(0, code);
   code = create_core(config, &core_obj);
-  TEST_ASSERT_EQUAL_INT(code, 0);
+  TEST_ASSERT_EQUAL_INT(0, code);
 
   code = add_client(NULL);
-  TEST_ASSERT_EQUAL_INT(code, -1);
+  TEST_ASSERT_EQUAL_INT(-1, code);
 
   create_client_config(0, &client_config0);
   config->use_gzip = true;
   code = add_client(client_config0);
-  TEST_ASSERT_EQUAL_INT(code, -1);
+  TEST_ASSERT_EQUAL_INT(-1, code);
 
   // check both types handled properly
   config->use_gzip = false;
   code = add_client(client_config0);
-  TEST_ASSERT_EQUAL_INT(code, -1);
+  TEST_ASSERT_EQUAL_INT(-1, code);
 }
 
 void tearDown() {
-  stop_rtlsdr_mock();
+  rtlsdr_stop_mock();
   destroy_core(core_obj);
   core_obj = NULL;
   destroy_server_config(config);
@@ -193,11 +223,12 @@ void tearDown() {
 }
 
 void setUp() {
-  //do nothing
+  // do nothing
 }
 
 int main(void) {
   UNITY_BEGIN();
+  RUN_TEST(test_airspy);
   RUN_TEST(test_process_message);
   RUN_TEST(test_invalid_lpf_config);
   RUN_TEST(test_gzoutput);

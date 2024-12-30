@@ -24,8 +24,7 @@ struct rtlsdr_device_t {
   uint8_t *output;
   size_t output_len;
 
-  int (*rtlsdr_callback)(uint8_t *buf, uint32_t len, void *ctx);
-
+  void (*rtlsdr_callback)(uint8_t *buf, uint32_t len, void *ctx);
   void *ctx;
 
   rtlsdr_lib *lib;
@@ -57,8 +56,7 @@ int find_nearest_gain(struct rtlsdr_device_t *dev, int target_gain, int *nearest
   return 0;
 }
 
-int rtlsdr_device_create(uint32_t id, struct server_config *server_config, rtlsdr_lib *lib, int (*rtlsdr_callback)(uint8_t *buf, uint32_t len, void *ctx), void *ctx, sdr_device **output) {
-  fprintf(stdout, "rtl-sdr is starting\n");
+int rtlsdr_device_create(uint32_t id, struct server_config *server_config, rtlsdr_lib *lib, void (*rtlsdr_callback)(uint8_t *buf, uint32_t len, void *ctx), void *ctx, sdr_device **output) {
   struct rtlsdr_device_t *device = malloc(sizeof(struct rtlsdr_device_t));
   if (device == NULL) {
     return -ENOMEM;
@@ -110,7 +108,7 @@ int rtlsdr_device_create(uint32_t id, struct server_config *server_config, rtlsd
   result->destroy = rtlsdr_device_destroy;
   result->start_rx = rtlsdr_device_start_rx;
   result->stop_rx = rtlsdr_device_stop_rx;
-
+  fprintf(stdout, "rtl-sdr device enabled\n");
   *output = result;
   return 0;
 }
@@ -124,10 +122,7 @@ static void *rtlsdr_worker(void *arg) {
     if (code != 0) {
       break;
     }
-    code = device->rtlsdr_callback(device->output, n_read, device->ctx);
-    if (code != 0) {
-      device->running = false;
-    }
+    device->rtlsdr_callback(device->output, n_read, device->ctx);
   }
   return (void *)0;
 }
@@ -162,4 +157,5 @@ void rtlsdr_device_destroy(void *plugin) {
     free(device->output);
   }
   free(device);
+  fprintf(stdout, "rtl-sdr device disabled\n");
 }

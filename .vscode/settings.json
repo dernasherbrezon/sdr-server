@@ -10,6 +10,11 @@
         "rtlsdr_lib_mock.h": "c",
         "future": "c",
         "system_error": "c",
-        "airspy_lib.h": "c"
+        "airspy_lib.h": "c",
+        "__node_handle": "c",
+        "queue": "c",
+        "xlating.h": "c",
+        "airspy_lib_mock.h": "c",
+        "shared_mutex": "c"
     }
 }

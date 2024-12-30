@@ -1,12 +1,12 @@
 #ifndef CONFIG_H_
 #define CONFIG_H_
 
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 typedef enum {
-	SDR_TYPE_RTL = 0,
-	SDR_TYPE_AIRSPY = 1
+  SDR_TYPE_RTL = 0,
+  SDR_TYPE_AIRSPY = 1
 } sdr_type_t;
 
 typedef enum {
@@ -17,27 +17,27 @@ typedef enum {
 } airspy_gain_mode_t;
 
 struct server_config {
-	// socket settings
-	char* bind_address;
-	int port;
-	int read_timeout_seconds;
+  // socket settings
+  char *bind_address;
+  int port;
+  int read_timeout_seconds;
   int device_index;
-  char* device_serial;
+  char *device_serial;
 
-	sdr_type_t sdr_type;
+  sdr_type_t sdr_type;
 
-	// rtl-sdr settings
-	int gain_mode;
-	int gain;
-	int ppm;
-	int bias_t;
-	uint32_t buffer_size;
-	// 4GHz max
-	uint32_t band_sampling_rate;
-	int queue_size;
-	int lpf_cutoff_rate;
+  // rtl-sdr settings
+  int gain_mode;
+  int gain;
+  int ppm;
+  int bias_t;
+  uint32_t buffer_size;
+  // 4GHz max
+  uint32_t band_sampling_rate;
+  int queue_size;
+  int lpf_cutoff_rate;
 
-	//airspy settings
+  // airspy settings
   airspy_gain_mode_t airspy_gain_mode;
   int airspy_vga_gain;
   int airspy_mixer_gain;
@@ -45,9 +45,9 @@ struct server_config {
   int airspy_linearity_gain;
   int airspy_sensitivity_gain;
 
-	// output settings
-	char *base_path;
-	bool use_gzip;
+  // output settings
+  char *base_path;
+  bool use_gzip;
 };
 
 int create_server_config(struct server_config **config, const char *path);

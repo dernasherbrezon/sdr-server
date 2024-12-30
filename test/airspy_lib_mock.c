@@ -80,16 +80,13 @@ int airspy_set_sensitivity_gain(struct airspy_device *device, uint8_t value) {
 }
 
 static void *airspy_worker(void *ctx) {
-  while (true) {
-    pthread_mutex_lock(&airspy_mock.mutex);
+  pthread_mutex_lock(&airspy_mock.mutex);
+  while (!airspy_mock.stopped) {
     if (airspy_mock.data_was_read) {
       pthread_cond_broadcast(&airspy_mock.condition);
     }
     if (airspy_mock.buffer == NULL) {
       pthread_cond_wait(&airspy_mock.condition, &airspy_mock.mutex);
-      if (airspy_mock.stopped) {
-        break;
-      }
     }
     if (airspy_mock.buffer != NULL) {
       airspy_transfer transfer = {
@@ -104,8 +101,8 @@ static void *airspy_worker(void *ctx) {
       airspy_mock.data_was_read = true;
       pthread_cond_broadcast(&airspy_mock.condition);
     }
-    pthread_mutex_unlock(&airspy_mock.mutex);
   }
+  pthread_mutex_unlock(&airspy_mock.mutex);
   return (void *)0;
 }
 

@@ -15,7 +15,8 @@ endif()
 
 add_library(sdr_serverLib
 		${CMAKE_CURRENT_SOURCE_DIR}/src/config.c
-		${CMAKE_CURRENT_SOURCE_DIR}/src/core.c
+		${CMAKE_CURRENT_SOURCE_DIR}/src/sdr_worker.c
+		${CMAKE_CURRENT_SOURCE_DIR}/src/dsp_worker.c
 		${CMAKE_CURRENT_SOURCE_DIR}/src/lpf.c
 		${CMAKE_CURRENT_SOURCE_DIR}/src/queue.c
 		${CMAKE_CURRENT_SOURCE_DIR}/src/tcp_server.c

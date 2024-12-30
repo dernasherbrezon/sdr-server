@@ -17,15 +17,13 @@
 struct airspy_device_t {
   uint32_t id;
   struct airspy_device *dev;
-  int (*sdr_callback)(uint8_t *buf, uint32_t len, void *ctx);
-
+  void (*sdr_callback)(uint8_t *buf, uint32_t len, void *ctx);
   void *ctx;
 
   airspy_lib *lib;
 };
 
-int airspy_device_create(uint32_t id, struct server_config *server_config, airspy_lib *lib, int (*sdr_callback)(uint8_t *buf, uint32_t len, void *ctx), void *ctx, sdr_device **output) {
-  fprintf(stdout, "airspy is starting\n");
+int airspy_device_create(uint32_t id, struct server_config *server_config, airspy_lib *lib, void (*sdr_callback)(uint8_t *buf, uint32_t len, void *ctx), void *ctx, sdr_device **output) {
   struct airspy_device_t *device = malloc(sizeof(struct airspy_device_t));
   if (device == NULL) {
     return -ENOMEM;
@@ -79,7 +77,7 @@ int airspy_device_create(uint32_t id, struct server_config *server_config, airsp
   result->destroy = airspy_device_destroy;
   result->start_rx = airspy_device_start_rx;
   result->stop_rx = airspy_device_stop_rx;
-
+  fprintf(stdout, "airspy device enabled\n");
   *output = result;
   return 0;
 }
@@ -93,11 +91,13 @@ void airspy_device_destroy(void *plugin) {
     device->lib->airspy_close(device->dev);
   }
   free(device);
+  fprintf(stdout, "airspy device disabled\n");
 }
 
 int airspy_device_callback(airspy_transfer *transfer) {
   struct airspy_device_t *device = (struct airspy_device_t *)transfer->ctx;
-  return device->sdr_callback(transfer->samples, transfer->sample_count * 2 * sizeof(int16_t), device->ctx);
+  device->sdr_callback(transfer->samples, transfer->sample_count * 2 * sizeof(int16_t), device->ctx);
+  return 0;
 }
 
 int airspy_device_start_rx(uint32_t band_freq, void *plugin) {

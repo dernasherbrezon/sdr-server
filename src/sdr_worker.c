@@ -27,36 +27,6 @@ struct sdr_worker_t {
   void *ctx;
 };
 
-int core_create_sdr_device(struct server_config *server_config, sdr_worker *core) {
-  switch (server_config->sdr_type) {
-    case SDR_TYPE_RTL: {
-      return rtlsdr_device_create(1, server_config, core->rtllib, core->sdr_callback, core->ctx, &core->dev);
-    }
-    case SDR_TYPE_AIRSPY: {
-      return airspy_device_create(1, server_config, core->airspy, core->sdr_callback, core->ctx, &core->dev);
-    }
-    default: {
-      fprintf(stderr, "<3>unsupported sdr type: %d\n", server_config->sdr_type);
-      return -1;
-    }
-  }
-}
-
-int core_create_sdr_library(struct server_config *server_config, sdr_worker *core) {
-  switch (server_config->sdr_type) {
-    case SDR_TYPE_RTL: {
-      return rtlsdr_lib_create(&core->rtllib);
-    }
-    case SDR_TYPE_AIRSPY: {
-      return airspy_lib_create(&core->airspy);
-    }
-    default: {
-      fprintf(stderr, "<3>unsupported sdr type: %d\n", server_config->sdr_type);
-      return -1;
-    }
-  }
-}
-
 int sdr_worker_create(void (*sdr_callback)(uint8_t *buf, uint32_t buf_len, void *ctx), void *ctx, struct server_config *server_config, sdr_worker **worker) {
   struct sdr_worker_t *result = malloc(sizeof(struct sdr_worker_t));
   if (result == NULL) {
@@ -70,7 +40,22 @@ int sdr_worker_create(void (*sdr_callback)(uint8_t *buf, uint32_t buf_len, void 
   result->sdr_stopped = true;
   result->sdr_callback = sdr_callback;
   result->ctx = ctx;
-  int code = core_create_sdr_library(server_config, result);
+  int code = -1;
+  switch (server_config->sdr_type) {
+    case SDR_TYPE_RTL: {
+      code = rtlsdr_lib_create(&result->rtllib);
+      break;
+    }
+    case SDR_TYPE_AIRSPY: {
+      code = airspy_lib_create(&result->airspy);
+      break;
+    }
+    default: {
+      fprintf(stderr, "<3>unsupported sdr type: %d\n", server_config->sdr_type);
+      code = -1;
+      break;
+    }
+  }
   if (code != 0) {
     sdr_worker_destroy(result);
     return code;
@@ -79,61 +64,76 @@ int sdr_worker_create(void (*sdr_callback)(uint8_t *buf, uint32_t buf_len, void 
   return 0;
 }
 
-int sdr_worker_start(client_config *config, sdr_worker *sdr_worker) {
-  pthread_mutex_lock(&sdr_worker->mutex);
-  while (!sdr_worker->sdr_stopped) {
-    pthread_cond_wait(&sdr_worker->sdr_stopped_condition, &sdr_worker->mutex);
+int sdr_worker_start(client_config *config, sdr_worker *worker) {
+  pthread_mutex_lock(&worker->mutex);
+  while (!worker->sdr_stopped) {
+    pthread_cond_wait(&worker->sdr_stopped_condition, &worker->mutex);
   }
-  if (sdr_worker->dev == NULL) {
-    int code = core_create_sdr_device(sdr_worker->server_config, sdr_worker);
+  if (worker->dev == NULL) {
+    int code = -1;
+    switch (config->sdr_type) {
+      case SDR_TYPE_RTL: {
+        code = rtlsdr_device_create(1, worker->server_config, worker->rtllib, worker->sdr_callback, worker->ctx, &worker->dev);
+        break;
+      }
+      case SDR_TYPE_AIRSPY: {
+        code = airspy_device_create(1, worker->server_config, worker->airspy, worker->sdr_callback, worker->ctx, &worker->dev);
+        break;
+      }
+      default: {
+        fprintf(stderr, "<3>unsupported sdr type: %d\n", config->sdr_type);
+        code = -1;
+        break;
+      }
+    }
     if (code != 0) {
       fprintf(stderr, "<3>unable to create device\n");
-      pthread_mutex_unlock(&sdr_worker->mutex);
+      pthread_mutex_unlock(&worker->mutex);
       return 0x04;
     }
   }
-  int code = sdr_worker->dev->start_rx(config->band_freq, sdr_worker->dev->plugin);
+  int code = worker->dev->start_rx(config->band_freq, worker->dev->plugin);
   if (code != 0) {
     fprintf(stderr, "<3>unable to start rx\n");
-    pthread_mutex_unlock(&sdr_worker->mutex);
+    pthread_mutex_unlock(&worker->mutex);
     return 0x04;
   }
   // reset internal state
-  sdr_worker->sdr_stopped = false;
+  worker->sdr_stopped = false;
   fprintf(stdout, "sdr started\n");
-  pthread_mutex_unlock(&sdr_worker->mutex);
+  pthread_mutex_unlock(&worker->mutex);
   return 0;
 }
 
-void sdr_worker_stop(sdr_worker *sdr_worker) {
+void sdr_worker_stop(sdr_worker *worker) {
   fprintf(stdout, "sdr is stopping\n");
-  pthread_mutex_lock(&sdr_worker->mutex);
+  pthread_mutex_lock(&worker->mutex);
   // synchronous wait until all threads shutdown
-  sdr_worker->dev->stop_rx(sdr_worker->dev->plugin);
-  sdr_worker->sdr_stopped = true;
-  pthread_cond_broadcast(&sdr_worker->sdr_stopped_condition);
+  worker->dev->stop_rx(worker->dev->plugin);
+  worker->sdr_stopped = true;
+  pthread_cond_broadcast(&worker->sdr_stopped_condition);
   fprintf(stdout, "sdr stopped\n");
-  pthread_mutex_unlock(&sdr_worker->mutex);
+  pthread_mutex_unlock(&worker->mutex);
 }
 
-void sdr_worker_destroy(sdr_worker *core) {
-  if (core == NULL) {
+void sdr_worker_destroy(sdr_worker *worker) {
+  if (worker == NULL) {
     return;
   }
-  pthread_mutex_lock(&core->mutex);
-  if (!core->sdr_stopped) {
-    sdr_worker_stop(core);
+  pthread_mutex_lock(&worker->mutex);
+  if (!worker->sdr_stopped) {
+    sdr_worker_stop(worker);
   }
-  if (core->dev != NULL) {
-    core->dev->destroy(core->dev->plugin);
-    free(core->dev);
+  if (worker->dev != NULL) {
+    worker->dev->destroy(worker->dev->plugin);
+    free(worker->dev);
   }
-  if (core->rtllib != NULL) {
-    rtlsdr_lib_destroy(core->rtllib);
+  if (worker->rtllib != NULL) {
+    rtlsdr_lib_destroy(worker->rtllib);
   }
-  if (core->airspy != NULL) {
-    airspy_lib_destroy(core->airspy);
+  if (worker->airspy != NULL) {
+    airspy_lib_destroy(worker->airspy);
   }
-  pthread_mutex_unlock(&core->mutex);
-  free(core);
+  pthread_mutex_unlock(&worker->mutex);
+  free(worker);
 }

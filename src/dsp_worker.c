@@ -66,7 +66,6 @@ static void *callback(void *arg) {
         break;
       }
     }
-    printf("to write: %zu\n", filter_output_len);
     int code;
     if (config->destination == REQUEST_DESTINATION_FILE) {
       code = write_to_file(worker, filter_output, filter_output_len);

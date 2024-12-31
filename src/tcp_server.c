@@ -420,6 +420,10 @@ static void *acceptor_worker(void *arg) {
   }
   pthread_mutex_unlock(&server->mutex);
 
+  if (server->core != NULL) {
+    sdr_worker_destroy(server->core);
+  }
+
   printf("tcp server stopped\n");
   return (void *)0;
 }

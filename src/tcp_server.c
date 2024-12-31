@@ -214,6 +214,7 @@ static void *tcp_worker(void *arg) {
   struct linked_list_tcp_node *cur_node = node->server->tcp_nodes;
   struct linked_list_tcp_node *previous = NULL;
   node->config->is_running = false;
+  close(node->config->client_socket);
   int number_of_running = 0;
   while (cur_node != NULL) {
     if (cur_node->config->is_running) {
@@ -245,8 +246,15 @@ static void sdr_callback(uint8_t *buf, uint32_t buf_len, void *ctx) {
   pthread_mutex_unlock(&server->mutex);
 }
 
+static void tcp_node_final_cleanup(struct linked_list_tcp_node *cur_node) {
+  uint32_t node_id = cur_node->config->id;
+  pthread_join(cur_node->client_thread, NULL);
+  free(cur_node->config);
+  free(cur_node);
+  fprintf(stdout, "[%d] tcp_worker stopped\n", node_id);
+}
+
 static void cleanup_terminated_threads(tcp_server *server) {
-  pthread_mutex_lock(&server->mutex);
   struct linked_list_tcp_node *cur_node = server->tcp_nodes;
   struct linked_list_tcp_node *previous = NULL;
   while (cur_node != NULL) {
@@ -261,18 +269,9 @@ static void cleanup_terminated_threads(tcp_server *server) {
     } else {
       previous->next = next;
     }
-    uint32_t node_id = cur_node->config->id;
-    pthread_join(cur_node->client_thread, NULL);
-    free(cur_node->config);
-    free(cur_node);
-    fprintf(stdout, "[%d] tcp_worker stopped\n", node_id);
-
+    tcp_node_final_cleanup(cur_node);
     cur_node = next;
   }
-  if (server->tcp_nodes == NULL) {
-    server->current_band_freq = 0;
-  }
-  pthread_mutex_unlock(&server->mutex);
 }
 
 void handle_new_client(int client_socket, tcp_server *server) {
@@ -285,19 +284,6 @@ void handle_new_client(int client_socket, tcp_server *server) {
     respond_failure(client_socket, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_INVALID_REQUEST);
     free(config);
     return;
-  }
-
-  cleanup_terminated_threads(server);
-
-  if (server->current_band_freq != 0 && server->current_band_freq != config->band_freq) {
-    respond_failure(client_socket, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_OUT_OF_BAND_FREQ);
-    fprintf(stderr, "<3>[%d] requested out of band frequency: %d\n", server->client_counter, config->band_freq);
-    free(config);
-    return;
-  }
-
-  if (server->current_band_freq == 0) {
-    server->current_band_freq = config->band_freq;
   }
 
   config->is_running = true;
@@ -329,12 +315,24 @@ void handle_new_client(int client_socket, tcp_server *server) {
   }
 
   pthread_mutex_lock(&server->mutex);
+  cleanup_terminated_threads(server);
   if (server->tcp_nodes == NULL) {
+    server->current_band_freq = config->band_freq;
     code = sdr_worker_start(config, server->core);
     if (code == 0) {
       server->tcp_nodes = tcp_node;
     }
   } else {
+    if (server->current_band_freq != 0 && server->current_band_freq != config->band_freq) {
+      respond_failure(client_socket, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_OUT_OF_BAND_FREQ);
+      fprintf(stderr, "<3>[%d] requested out of band frequency: %d\n", server->client_counter, config->band_freq);
+      pthread_mutex_unlock(&server->mutex);
+      // this will shutdown the thread
+      close(tcp_node->config->client_socket);
+      // this one will close any remaning resources
+      tcp_node_final_cleanup(tcp_node);
+      return;
+    }
     struct linked_list_tcp_node *cur_node = server->tcp_nodes;
     while (cur_node->next != NULL) {
       cur_node = cur_node->next;

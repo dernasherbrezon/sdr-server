@@ -7,6 +7,8 @@
 
 static tcp_server *server = NULL;
 
+extern const char *SIMD_STATUS;
+
 void sdrserver_stop_async(int signum) {
   stop_tcp_server(server);
   server = NULL;
@@ -18,6 +20,7 @@ int main(int argc, char **argv) {
     exit(EXIT_FAILURE);
   }
   setvbuf(stdout, NULL, _IOLBF, 0);
+  printf("SIMD optimization: %s\n", SIMD_STATUS);
   struct server_config *server_config = NULL;
   int code = create_server_config(&server_config, argv[1]);
   if (code != 0) {

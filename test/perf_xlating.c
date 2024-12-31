@@ -4,7 +4,10 @@
 #include "../src/xlating.h"
 #include "../src/lpf.h"
 
+extern const char *SIMD_STATUS;
+
 int main(void) {
+	printf("SIMD optimization: %s\n", SIMD_STATUS);
 	uint32_t sampling_freq = 2016000;
 	uint32_t target_freq = 48000;
 	float *taps = NULL;
@@ -56,6 +59,10 @@ int main(void) {
 	// completed in: 0.001693 seconds
 	// tuned kernel:
 	// completed in: 0.001477 seconds
+	// NO_MANUAL_SIMD
+	// completed in: 0.001440 seconds
+	// manual simd
+	// completed in: 0.003617 seconds
 
 	// Raspberrypi 3
 	// VOLK_GENERIC=1:

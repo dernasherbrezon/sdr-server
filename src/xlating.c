@@ -38,7 +38,13 @@ void *sdrserver_aligned_alloc(size_t alignment, size_t size) {
 }
 
 #if defined(NO_MANUAL_SIMD) || (!defined(__ARM_NEON) && !defined(__AVX__))
-#pragma message("No manual SIMD")
+
+#ifdef NO_MANUAL_SIMD
+const char *SIMD_STATUS = "Manually turned off";
+#endif
+#if (!defined(__ARM_NEON) && !defined(__AVX__))
+const char *SIMD_STATUS = "Not detected";
+#endif
 
 void process_cf32(size_t input_complex_len, float complex **output, size_t *output_len, xlating *filter) {
   size_t working_len = filter->history_offset + input_complex_len;
@@ -73,7 +79,7 @@ void process_cf32(size_t input_complex_len, float complex **output, size_t *outp
 }
 
 #elif defined(__ARM_NEON)
-#pragma message("ARM NEON detected")
+const char *SIMD_STATUS = "ARM NEON";
 #include <arm_neon.h>
 
 void process_cf32(size_t input_complex_len, float complex **output, size_t *output_len, xlating *filter) {
@@ -184,7 +190,7 @@ void process_cf32(size_t input_complex_len, float complex **output, size_t *outp
 }
 
 #elif defined(__AVX__)
-#pragma message("AVX detected")
+const char *SIMD_STATUS = "AVX";
 #include <immintrin.h>
 
 void process_cf32(size_t input_complex_len, float complex **output, size_t *output_len, xlating *filter) {

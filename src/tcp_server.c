@@ -343,7 +343,8 @@ void handle_new_client(int client_socket, tcp_server *server) {
 
   if (code != 0) {
     respond_failure(client_socket, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_INTERNAL_ERROR);
-    tcp_node_destroy(tcp_node);
+    close(tcp_node->config->client_socket);
+    tcp_node_final_cleanup(tcp_node);
     return;
   }
 

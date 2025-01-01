@@ -15,6 +15,7 @@
 
 struct sdr_device_t {
   struct server_config *server_config;
+  pthread_t shutdown_thread;
   pthread_mutex_t mutex;
   pthread_cond_t sdr_stopped_condition;
   bool sdr_stopped;
@@ -78,6 +79,10 @@ int sdr_device_start(client_config *config, sdr_device *device) {
   while (!device->sdr_stopped) {
     pthread_cond_wait(&device->sdr_stopped_condition, &device->mutex);
   }
+  if (device->shutdown_thread != NULL) {
+    pthread_join(device->shutdown_thread, NULL);
+    device->shutdown_thread = NULL;
+  }
   if (device->plugin == NULL) {
     int code = -1;
     switch (config->sdr_type) {
@@ -114,14 +119,22 @@ int sdr_device_start(client_config *config, sdr_device *device) {
   return 0;
 }
 
-void sdr_device_stop(sdr_device *device) {
-  fprintf(stdout, "sdr is stopping\n");
+static void *shutdown_callback(void *arg) {
+  sdr_device *device = (sdr_device *)arg;
   pthread_mutex_lock(&device->mutex);
   // synchronous wait until all threads shutdown
   device->stop_rx(device->plugin);
   device->sdr_stopped = true;
   pthread_cond_broadcast(&device->sdr_stopped_condition);
   fprintf(stdout, "sdr stopped\n");
+  pthread_mutex_unlock(&device->mutex);
+  return (void *)0;
+}
+
+void sdr_device_stop(sdr_device *device) {
+  fprintf(stdout, "sdr is stopping\n");
+  pthread_mutex_lock(&device->mutex);
+  pthread_create(&device->shutdown_thread, NULL, &shutdown_callback, device);
   pthread_mutex_unlock(&device->mutex);
 }
 

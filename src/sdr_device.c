@@ -143,8 +143,10 @@ void sdr_device_destroy(sdr_device *device) {
     return;
   }
   pthread_mutex_lock(&device->mutex);
-  if (!device->sdr_stopped) {
-    sdr_device_stop(device);
+  // destroy is called after stop initiated
+  if (device->shutdown_thread != NULL) {
+    pthread_join(device->shutdown_thread, NULL);
+    device->shutdown_thread = NULL;
   }
   if (device->plugin != NULL) {
     device->destroy(device->plugin);

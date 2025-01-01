@@ -239,12 +239,11 @@ static void sdr_callback(uint8_t *buf, uint32_t buf_len, void *ctx) {
   pthread_mutex_lock(&server->mutex);
   struct linked_list_tcp_node *current_node = server->tcp_nodes;
   while (current_node != NULL) {
-    if (!current_node->config->is_running) {
+    if (current_node->config->is_running) {
       // current node marked for termination. that means dsp thread already terminated
-      continue;
+      // copy to client's buffers and notify
+      dsp_worker_process(buf, buf_len, current_node->dsp_worker);
     }
-    // copy to client's buffers and notify
-    dsp_worker_process(buf, buf_len, current_node->dsp_worker);
     current_node = current_node->next;
   }
   pthread_mutex_unlock(&server->mutex);

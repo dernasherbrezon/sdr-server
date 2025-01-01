@@ -4,11 +4,12 @@
 #include <pthread.h>
 #include <stdatomic.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 struct rtlsdr_device_t {
   rtlsdr_dev_t *dev;
-  pthread_t rtlsdr_worker_thread;
+  pthread_t rtlsdr_device_thread;
   atomic_bool running;
   struct server_config *server_config;
 
@@ -58,7 +59,7 @@ int find_nearest_gain(struct rtlsdr_device_t *dev, int target_gain, int *nearest
   return 0;
 }
 
-int rtlsdr_device_create(uint32_t id, struct server_config *server_config, rtlsdr_lib *lib, void (*rtlsdr_callback)(uint8_t *buf, uint32_t len, void *ctx), void *ctx, sdr_device **output) {
+int rtlsdr_device_create(uint32_t id, struct server_config *server_config, rtlsdr_lib *lib, void (*rtlsdr_callback)(uint8_t *buf, uint32_t len, void *ctx), void *ctx, void **plugin) {
   struct rtlsdr_device_t *device = malloc(sizeof(struct rtlsdr_device_t));
   if (device == NULL) {
     return -ENOMEM;
@@ -75,21 +76,12 @@ int rtlsdr_device_create(uint32_t id, struct server_config *server_config, rtlsd
   }
   memset(device->output, 0, server_config->buffer_size);
   device->server_config = server_config;
-  struct sdr_device_t *result = malloc(sizeof(struct sdr_device_t));
-  if (result == NULL) {
-    rtlsdr_device_destroy(device);
-    return -ENOMEM;
-  }
-  result->plugin = device;
-  result->destroy = rtlsdr_device_destroy;
-  result->start_rx = rtlsdr_device_start_rx;
-  result->stop_rx = rtlsdr_device_stop_rx;
-  fprintf(stdout, "rtl-sdr device enabled\n");
-  *output = result;
+  fprintf(stdout, "rtl-sdr device created\n");
+  *plugin = device;
   return 0;
 }
 
-static void *rtlsdr_worker(void *arg) {
+static void *rtlsdr_callback(void *arg) {
   struct rtlsdr_device_t *device = (struct rtlsdr_device_t *)arg;
   device->running = true;
   int n_read = 0;
@@ -134,7 +126,7 @@ int rtlsdr_device_start_rx(uint32_t band_freq, void *plugin) {
   ERROR_CHECK(lib->rtlsdr_set_bias_tee(device->dev, server_config->bias_t), "<3>unable to set bias tee");
   ERROR_CHECK(lib->rtlsdr_reset_buffer(device->dev), "<3>unable to reset buffers");
   ERROR_CHECK(lib->rtlsdr_set_center_freq(device->dev, band_freq), "<3>unable to set freq");
-  int code = pthread_create(&device->rtlsdr_worker_thread, NULL, &rtlsdr_worker, device);
+  int code = pthread_create(&device->rtlsdr_device_thread, NULL, &rtlsdr_callback, device);
   if (code != 0) {
     return 0x04;
   }
@@ -149,7 +141,7 @@ void rtlsdr_device_stop_rx(void *plugin) {
   device->lib->rtlsdr_close(device->dev);
   device->dev = NULL;
   device->running = false;
-  pthread_join(device->rtlsdr_worker_thread, NULL);
+  pthread_join(device->rtlsdr_device_thread, NULL);
 }
 
 void rtlsdr_device_destroy(void *plugin) {

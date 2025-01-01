@@ -3,9 +3,8 @@
 
 #include "../config.h"
 #include "airspy_lib.h"
-#include "sdr_device.h"
 
-int airspy_device_create(uint32_t id, struct server_config *server_config, airspy_lib *lib, void (*sdr_callback)(uint8_t *buf, uint32_t len, void *ctx), void *ctx, sdr_device **result);
+int airspy_device_create(uint32_t id, struct server_config *server_config, airspy_lib *lib, void (*sdr_callback)(uint8_t *buf, uint32_t len, void *ctx), void *ctx, void **plugin);
 
 void airspy_device_destroy(void *plugin);
 

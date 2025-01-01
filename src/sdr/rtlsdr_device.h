@@ -2,10 +2,9 @@
 #define SDR_SERVER_RTLSDR_DEVICE_H
 
 #include "rtlsdr_lib.h"
-#include "sdr_device.h"
 #include "../config.h"
 
-int rtlsdr_device_create(uint32_t id, struct server_config *server_config, rtlsdr_lib *lib, void (*sdr_callback)(uint8_t *buf, uint32_t len, void *ctx), void *ctx, sdr_device **result);
+int rtlsdr_device_create(uint32_t id, struct server_config *server_config, rtlsdr_lib *lib, void (*sdr_callback)(uint8_t *buf, uint32_t len, void *ctx), void *ctx, void **plugin);
 
 void rtlsdr_device_destroy(void *plugin);
 

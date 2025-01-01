@@ -14,7 +14,7 @@
 
 #include "api.h"
 #include "dsp_worker.h"
-#include "sdr_worker.h"
+#include "sdr_device.h"
 
 struct linked_list_tcp_node {
   struct linked_list_tcp_node *next;
@@ -28,7 +28,7 @@ struct tcp_server_t {
   int server_socket;
   volatile sig_atomic_t is_running;
   pthread_t acceptor_thread;
-  sdr_worker *core;
+  sdr_device *core;
   struct server_config *server_config;
   uint32_t client_counter;
   uint32_t current_band_freq;
@@ -224,7 +224,7 @@ static void *tcp_worker(void *arg) {
     cur_node = cur_node->next;
   }
   if (number_of_running == 0) {
-    sdr_worker_stop(node->server->core);
+    sdr_device_stop(node->server->core);
     node->server->current_band_freq = 0;
   }
   tcp_node_destroy(node);
@@ -322,7 +322,7 @@ void handle_new_client(int client_socket, tcp_server *server) {
   cleanup_terminated_threads(server);
   if (server->tcp_nodes == NULL) {
     server->current_band_freq = config->band_freq;
-    code = sdr_worker_start(config, server->core);
+    code = sdr_device_start(config, server->core);
     if (code == 0) {
       server->tcp_nodes = tcp_node;
     }
@@ -424,7 +424,7 @@ static void *acceptor_worker(void *arg) {
   pthread_mutex_unlock(&server->mutex);
 
   if (server->core != NULL) {
-    sdr_worker_destroy(server->core);
+    sdr_device_destroy(server->core);
   }
 
   printf("tcp server stopped\n");
@@ -438,7 +438,7 @@ int start_tcp_server(struct server_config *config, tcp_server **server) {
   }
   result->mutex = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
   result->tcp_nodes = NULL;
-  int code = sdr_worker_create(sdr_callback, result, config, &result->core);
+  int code = sdr_device_create(sdr_callback, result, config, &result->core);
   if (code != 0) {
     free(result);
     return -1;

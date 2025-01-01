@@ -15,6 +15,8 @@
         "queue": "c",
         "xlating.h": "c",
         "airspy_lib_mock.h": "c",
-        "shared_mutex": "c"
+        "shared_mutex": "c",
+        "__tree": "c",
+        "memory_resource": "c"
     }
 }

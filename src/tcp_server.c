@@ -38,13 +38,13 @@ struct tcp_server_t {
   pthread_cond_t terminated_condition;
 };
 
-void log_client(struct sockaddr_in *address, uint32_t id) {
+static void log_client(struct sockaddr_in *address, uint32_t id) {
   char str[INET_ADDRSTRLEN];
   const char *ptr = inet_ntop(AF_INET, &address->sin_addr, str, sizeof(str));
   printf("[%d] accepted new client from %s:%d\n", id, ptr, ntohs(address->sin_port));
 }
 
-int read_struct(int socket, void *result, size_t len) {
+static int read_struct(int socket, void *result, size_t len) {
   size_t left = len;
   while (left > 0) {
     ssize_t received = recv(socket, (char *)result + (len - left), left, 0);
@@ -75,7 +75,7 @@ int read_struct(int socket, void *result, size_t len) {
   return 0;
 }
 
-int read_client_config(int client_socket, uint32_t client_id, struct server_config *server_config, client_config **config) {
+static int read_client_config(int client_socket, uint32_t client_id, struct server_config *server_config, client_config **config) {
   client_config *result = malloc(sizeof(client_config));
   if (result == NULL) {
     return -ENOMEM;
@@ -103,7 +103,7 @@ int read_client_config(int client_socket, uint32_t client_id, struct server_conf
   return 0;
 }
 
-int validate_client_config(client_config *config, struct server_config *server_config, uint32_t client_id) {
+static int validate_client_config(client_config *config, struct server_config *server_config, uint32_t client_id) {
   if (config->center_freq == 0) {
     fprintf(stderr, "<3>[%d] missing center_freq parameter\n", client_id);
     return -1;
@@ -135,7 +135,7 @@ int validate_client_config(client_config *config, struct server_config *server_c
   return 0;
 }
 
-int write_message(int socket, uint8_t status, uint32_t details) {
+static int write_message(int socket, uint8_t status, uint32_t details) {
   struct message_header header;
   header.protocol_version = PROTOCOL_VERSION;
   header.type = TYPE_RESPONSE;
@@ -165,7 +165,7 @@ int write_message(int socket, uint8_t status, uint32_t details) {
   return 0;
 }
 
-void respond_failure(int client_socket, uint8_t status, uint32_t details) {
+static void respond_failure(int client_socket, uint8_t status, uint32_t details) {
   write_message(client_socket, status, details);  // unable to start device
   close(client_socket);
 }

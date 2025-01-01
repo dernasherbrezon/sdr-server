@@ -1,11 +1,11 @@
 #include "dsp_worker.h"
 
-#include <stdlib.h>
 #include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
 
-#include "lpf.h"
 #include "api.h"
+#include "lpf.h"
 
 static int write_to_file(dsp_worker *config, float complex *filter_output, size_t filter_output_len) {
   size_t n_written;
@@ -80,9 +80,6 @@ static void *callback(void *arg) {
       close(config->client_socket);
     }
   }
-
-  destroy_queue(worker->queue);
-  printf("[%d] dsp_worker stopped\n", config->id);
   return (void *)0;
 }
 
@@ -166,6 +163,9 @@ void dsp_worker_destroy(dsp_worker *node) {
     free(node->dsp_thread);
   }
   // cleanup everything only when thread terminates
+  if (node->queue != NULL) {
+    destroy_queue(node->queue);
+  }
   if (node->file != NULL) {
     fclose(node->file);
   }
@@ -175,6 +175,7 @@ void dsp_worker_destroy(dsp_worker *node) {
   if (node->filter != NULL) {
     destroy_xlating(node->filter);
   }
+  printf("[%d] dsp_worker stopped\n", node->config->id);
   free(node);
 }
 

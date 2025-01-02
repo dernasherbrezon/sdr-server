@@ -153,5 +153,5 @@ void rtlsdr_device_destroy(void *plugin) {
     free(device->output);
   }
   free(device);
-  fprintf(stdout, "rtl-sdr device disabled\n");
+  fprintf(stdout, "rtl-sdr device destroyed\n");
 }

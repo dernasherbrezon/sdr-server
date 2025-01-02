@@ -1,17 +1,22 @@
 cmake_minimum_required(VERSION 2.8)
 project(sdr-server)
-
+set(CMAKE_C_STANDARD 11)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -ffast-math -std=c11")
-if(CMAKE_BUILD_TYPE MATCHES Debug)
-	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --coverage ")
-endif()
+set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -ffast-math")
+set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} --coverage")
 
 if(NO_MANUAL_SIMD)
 	add_definitions(-DNO_MANUAL_SIMD)
 else()
 	remove_definitions(-DNO_MANUAL_SIMD)
 endif()
+
+if(CMAKE_BUILD_TYPE MATCHES Debug)
+	set(BUILD_COMPILATION_FLAGS "${CMAKE_C_FLAGS_DEBUG}")
+elseif(CMAKE_BUILD_TYPE MATCHES Release)
+	set(BUILD_COMPILATION_FLAGS "${CMAKE_C_FLAGS_RELEASE}")
+endif()
+add_definitions(-DCMAKE_C_FLAGS="${CMAKE_C_FLAGS} ${BUILD_COMPILATION_FLAGS}")
 
 add_library(sdr_serverLib
 		${CMAKE_CURRENT_SOURCE_DIR}/src/config.c

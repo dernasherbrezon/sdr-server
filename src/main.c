@@ -21,6 +21,7 @@ int main(int argc, char **argv) {
   }
   setvbuf(stdout, NULL, _IOLBF, 0);
   printf("SIMD optimization: %s\n", SIMD_STATUS);
+  printf("compilation flags: %s\n", CMAKE_C_FLAGS);
   struct server_config *server_config = NULL;
   int code = create_server_config(&server_config, argv[1]);
   if (code != 0) {

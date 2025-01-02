@@ -8,6 +8,7 @@ extern const char *SIMD_STATUS;
 
 int main(void) {
 	printf("SIMD optimization: %s\n", SIMD_STATUS);
+	printf("compilation flags: %s\n", CMAKE_C_FLAGS);
 	uint32_t sampling_freq = 2016000;
 	uint32_t target_freq = 48000;
 	float *taps = NULL;

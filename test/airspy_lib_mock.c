@@ -185,4 +185,5 @@ void airspy_stop_mock() {
   airspy_mock.buffer = NULL;
   pthread_cond_broadcast(&airspy_mock.condition);
   pthread_mutex_unlock(&airspy_mock.mutex);
+  pthread_join(airspy_mock.worker_thread, NULL);
 }

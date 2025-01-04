@@ -18,6 +18,7 @@
         "shared_mutex": "c",
         "__tree": "c",
         "memory_resource": "c",
-        "airspy.h": "c"
+        "airspy.h": "c",
+        "cstdlib": "c"
     }
 }

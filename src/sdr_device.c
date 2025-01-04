@@ -116,7 +116,7 @@ int sdr_device_start(client_config *config, sdr_device *device) {
   }
   // reset internal state
   device->sdr_stopped = false;
-  fprintf(stdout, "sdr started\n");
+  fprintf(stdout, "sdr created\n");
   pthread_mutex_unlock(&device->mutex);
   return 0;
 }
@@ -161,5 +161,6 @@ void sdr_device_destroy(sdr_device *device) {
     airspy_lib_destroy(device->airspy);
   }
   pthread_mutex_unlock(&device->mutex);
+  fprintf(stdout, "sdr destroyed\n");
   free(device);
 }

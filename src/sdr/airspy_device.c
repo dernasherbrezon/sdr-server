@@ -101,8 +101,8 @@ int airspy_device_start_rx(uint32_t band_freq, void *plugin) {
 
 void airspy_device_stop_rx(void *plugin) {
   struct airspy_device_t *device = (struct airspy_device_t *)plugin;
-  device->lib->airspy_stop_rx(device->dev);
   if (device->dev != NULL) {
+    device->lib->airspy_stop_rx(device->dev);
     device->lib->airspy_close(device->dev);
   }
 }

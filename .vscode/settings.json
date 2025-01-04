@@ -17,6 +17,7 @@
         "airspy_lib_mock.h": "c",
         "shared_mutex": "c",
         "__tree": "c",
-        "memory_resource": "c"
+        "memory_resource": "c",
+        "airspy.h": "c"
     }
 }

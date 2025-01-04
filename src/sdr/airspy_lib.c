@@ -59,7 +59,7 @@ int airspy_lib_create(airspy_lib **lib) {
 
   airspy_lib_version_t version;
   result->airspy_lib_version(&version);
-  fprintf(stdout, "airspy library initialized: %"PRIu32".%"PRIu32"\n", version.major_version, version.minor_version);
+  fprintf(stdout, "airspy library initialized: %"PRIu32".%"PRIu32".%"PRIu32"\n", version.major_version, version.minor_version, version.revision);
 
   *lib = result;
   return 0;

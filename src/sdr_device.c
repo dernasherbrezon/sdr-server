@@ -19,6 +19,7 @@ struct sdr_device_t {
   pthread_mutex_t mutex;
   pthread_cond_t sdr_stopped_condition;
   bool sdr_stopped;
+  bool shutdown_thread_created;
 
   rtlsdr_lib *rtllib;
   airspy_lib *airspy;
@@ -42,6 +43,7 @@ int sdr_device_create(void (*sdr_callback)(uint8_t *buf, uint32_t buf_len, void 
   result->mutex = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
   result->sdr_stopped_condition = (pthread_cond_t)PTHREAD_COND_INITIALIZER;
   result->sdr_stopped = true;
+  result->shutdown_thread_created = false;
   result->sdr_callback = sdr_callback;
   result->ctx = ctx;
   int code = -1;
@@ -79,9 +81,9 @@ int sdr_device_start(client_config *config, sdr_device *device) {
   while (!device->sdr_stopped) {
     pthread_cond_wait(&device->sdr_stopped_condition, &device->mutex);
   }
-  if (device->shutdown_thread != NULL) {
+  if (device->shutdown_thread_created) {
     pthread_join(device->shutdown_thread, NULL);
-    device->shutdown_thread = NULL;
+    device->shutdown_thread_created = false;
   }
   if (device->plugin == NULL) {
     int code = -1;
@@ -135,6 +137,7 @@ void sdr_device_stop(sdr_device *device) {
   fprintf(stdout, "sdr is stopping\n");
   pthread_mutex_lock(&device->mutex);
   pthread_create(&device->shutdown_thread, NULL, &shutdown_callback, device);
+  device->shutdown_thread_created = true;
   pthread_mutex_unlock(&device->mutex);
 }
 
@@ -144,9 +147,9 @@ void sdr_device_destroy(sdr_device *device) {
   }
   pthread_mutex_lock(&device->mutex);
   // destroy is called after stop initiated
-  if (device->shutdown_thread != NULL) {
+  if (device->shutdown_thread_created) {
     pthread_join(device->shutdown_thread, NULL);
-    device->shutdown_thread = NULL;
+    device->shutdown_thread_created = false;
   }
   if (device->plugin != NULL) {
     device->destroy(device->plugin);

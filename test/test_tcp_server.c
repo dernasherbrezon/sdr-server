@@ -241,6 +241,11 @@ void test_hackrf() {
   TEST_ASSERT_EQUAL_INT(0, read_data(actual, sizeof(expected), client0));
   assert_float_array(expected, sizeof(expected) / sizeof(float), actual, sizeof(expected) / sizeof(float));
   free(actual);
+
+  hackrf_stop_mock();
+  stop_tcp_server(server);
+  join_tcp_server_thread(server);
+  server = NULL;
 }
 
 void test_ping() {

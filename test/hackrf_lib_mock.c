@@ -68,6 +68,7 @@ int hackrf_version_string_read(hackrf_device* device, char* version, uint8_t len
   return 0;
 }
 int hackrf_usb_api_version_read(hackrf_device* device, uint16_t* version) {
+  *version = 0x102;
   return 0;
 }
 int hackrf_set_vga_gain(hackrf_device* device, uint32_t value) {

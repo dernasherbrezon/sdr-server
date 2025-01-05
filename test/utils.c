@@ -15,6 +15,16 @@ void setup_input_cu8(uint8_t **input, size_t input_offset, size_t len) {
   *input = result;
 }
 
+void setup_input_cs8(int8_t **input, size_t input_offset, size_t len) {
+  int8_t *result = malloc(sizeof(int8_t) * len);
+  TEST_ASSERT(result != NULL);
+  for (size_t i = 0; i < len; i++) {
+    // don't care about the loss of data
+    result[i] = (int8_t)(input_offset + i);
+  }
+  *input = result;
+}
+
 void setup_input_cs16(int16_t **input, size_t input_offset, size_t len) {
   int16_t *result = malloc(sizeof(int16_t) * len);
   TEST_ASSERT(result != NULL);

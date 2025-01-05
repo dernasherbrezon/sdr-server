@@ -19,6 +19,13 @@
         "__tree": "c",
         "memory_resource": "c",
         "airspy.h": "c",
-        "cstdlib": "c"
+        "cstdlib": "c",
+        "stdlib.h": "c",
+        "__locale": "c",
+        "chrono": "c",
+        "functional": "c",
+        "typeindex": "c",
+        "typeinfo": "c",
+        "text_encoding": "c"
     }
 }

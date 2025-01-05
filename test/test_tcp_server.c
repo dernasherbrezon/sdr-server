@@ -4,6 +4,7 @@
 #include "../src/client/tcp_client.h"
 #include "../src/tcp_server.h"
 #include "airspy_lib_mock.h"
+#include "hackrf_lib_mock.h"
 #include "rtlsdr_lib_mock.h"
 #include "utils.h"
 
@@ -14,6 +15,7 @@ struct tcp_client *client1 = NULL;
 struct tcp_client *client2 = NULL;
 uint8_t *input = NULL;
 int16_t *input_cs16 = NULL;
+int8_t *input_cs8 = NULL;
 
 static void reconnect_client() {
   destroy_client(client0);
@@ -218,6 +220,29 @@ void test_airspy() {
   assert_gzfile(config, 1, expected, sizeof(expected) / sizeof(float) / 2);
 }
 
+void test_hackrf() {
+  TEST_ASSERT_EQUAL_INT(0, create_server_config(&config, "tcp_server.config"));
+  config->sdr_type = SDR_TYPE_HACKRF;
+  config->band_sampling_rate = 48000;
+  TEST_ASSERT_EQUAL_INT(0, start_tcp_server(config, &server));
+
+  TEST_ASSERT_EQUAL_INT(0, create_client(config->bind_address, config->port, &client0));
+  send_message(client0, PROTOCOL_VERSION, TYPE_REQUEST, -12000 + 460100200, 9600, 460100200, REQUEST_DESTINATION_SOCKET);
+  assert_response(client0, TYPE_RESPONSE, RESPONSE_STATUS_SUCCESS, 0);
+
+  int length = 200;
+  setup_input_cs8(&input_cs8, 0, length);
+  hackrf_setup_mock_data(input_cs8, length);
+  hackrf_wait_for_data_read();
+
+  const float expected[] = {0.000000f, 0.000000f, -0.000030f, 0.000040f, -0.000028f, -0.000109f, 0.000032f, 0.000072f, 0.000170f, -0.000192f, -0.000235f, 0.000763f, -0.002799f, -0.001175f, 0.000693f, -0.000469f, -0.000052f, 0.000338f, -0.000086f, 0.000122f, -0.000271f, -0.000188f, 0.000256f, -0.000252f, 0.000261f, 0.000265f, 0.000758f, 0.001372f, -0.001510f, -0.003988f, 0.004179f, 0.011403f, -0.009369f, -0.025508f, 0.019858f, 0.054053f, -0.060386f, -0.139357f, 0.042227f, -0.358664f};
+  float *actual = malloc(sizeof(expected));
+  TEST_ASSERT(actual != NULL);
+  TEST_ASSERT_EQUAL_INT(0, read_data(actual, sizeof(expected), client0));
+  assert_float_array(expected, sizeof(expected) / sizeof(float), actual, sizeof(expected) / sizeof(float));
+  free(actual);
+}
+
 void test_ping() {
   create_and_init_tcpserver();
 
@@ -246,6 +271,10 @@ void tearDown() {
     free(input_cs16);
     input_cs16 = NULL;
   }
+  if (input_cs8 != NULL) {
+    free(input_cs8);
+    input_cs8 = NULL;
+  }
 }
 
 void setUp() {
@@ -262,6 +291,7 @@ int main(void) {
   RUN_TEST(test_disconnect_client);
   RUN_TEST(test_rtlsdr);
   RUN_TEST(test_airspy);
+  RUN_TEST(test_hackrf);
   RUN_TEST(test_out_of_band_frequency_clients);
   RUN_TEST(test_ping);
   return UNITY_END();

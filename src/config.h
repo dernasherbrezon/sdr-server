@@ -6,7 +6,8 @@
 
 typedef enum {
   SDR_TYPE_RTL = 0,
-  SDR_TYPE_AIRSPY = 1
+  SDR_TYPE_AIRSPY = 1,
+  SDR_TYPE_HACKRF = 2
 } sdr_type_t;
 
 typedef enum {
@@ -21,12 +22,12 @@ struct server_config {
   char *bind_address;
   int port;
   int read_timeout_seconds;
-  int device_index;
   char *device_serial;
 
   sdr_type_t sdr_type;
 
   // rtl-sdr settings
+  int device_index;
   int gain_mode;
   int gain;
   int ppm;
@@ -44,6 +45,12 @@ struct server_config {
   int airspy_lna_gain;
   int airspy_linearity_gain;
   int airspy_sensitivity_gain;
+
+  // hackrf settings
+  uint8_t hackrf_bias_t;
+  int hackrf_amp;
+  int hackrf_lna_gain;
+  int hackrf_vga_gain;
 
   // output settings
   char *base_path;

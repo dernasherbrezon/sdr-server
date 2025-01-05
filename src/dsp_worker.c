@@ -53,6 +53,10 @@ static void *callback(void *arg) {
       break;
     }
     switch (config->sdr_type) {
+      case SDR_TYPE_HACKRF: {
+        process_cs8((const int8_t *)input, input_len, &filter_output, &filter_output_len, worker->filter);
+        break;
+      }
       case SDR_TYPE_RTL: {
         process_cu8(input, input_len, &filter_output, &filter_output_len, worker->filter);
         break;

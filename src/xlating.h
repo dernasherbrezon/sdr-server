@@ -11,6 +11,8 @@ int create_frequency_xlating_filter(uint32_t decimation, float *taps, size_t tap
 
 void process_cu8(const uint8_t *input, size_t input_len, float complex **output, size_t *output_len, xlating *filter);
 
+void process_cs8(const int8_t *input, size_t input_len, float complex **output, size_t *output_len, xlating *filter);
+
 void process_cs16(const int16_t *input, size_t input_len, float complex **output, size_t *output_len, xlating *filter);
 
 void destroy_xlating(xlating *filter);

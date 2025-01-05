@@ -286,6 +286,16 @@ void process_cu8(const uint8_t *input, size_t input_len, float complex **output,
   process_cf32(input_complex_len, output, output_len, filter);
 }
 
+void process_cs8(const int8_t *input, size_t input_len, float complex **output, size_t *output_len, xlating *filter) {
+  size_t input_complex_len = input_len / 2;
+  for (size_t i = 0; i < input_complex_len; i++) {
+    float real = input[2 * i] / 128.0F;
+    float imag = input[2 * i + 1] / 128.0F;
+    filter->working_buffer[i + filter->history_offset] = real + imag * I;
+  }
+  process_cf32(input_complex_len, output, output_len, filter);
+}
+
 void process_cs16(const int16_t *input, size_t input_len, float complex **output, size_t *output_len, xlating *filter) {
   size_t input_complex_len = input_len / 2;
   for (size_t i = 0; i < input_complex_len; i++) {

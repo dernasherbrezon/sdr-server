@@ -1,33 +1,33 @@
-#include <libconfig.h>
-#include <errno.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-
 #include "config.h"
+
+#include <errno.h>
+#include <libconfig.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #define AIRSPY_BUFFER_SIZE 262144
 
 char *read_and_copy_str(const config_setting_t *setting, const char *default_value) {
-    const char *value;
-      if (setting == NULL) {
-        if (default_value == NULL) {
-          return NULL;
-        }
-        value = default_value;
-    } else {
-        value = config_setting_get_string(setting);
+  const char *value;
+  if (setting == NULL) {
+    if (default_value == NULL) {
+      return NULL;
     }
-    char *bind_address;
-    size_t length = strlen(value);
-    char *str_bind_address = malloc(sizeof(char) * length + 1);
-    if (str_bind_address == NULL) {
-        return NULL;
-    }
-    strncpy(str_bind_address, value, length);
-    str_bind_address[length] = '\0';
-    bind_address = str_bind_address;
-    return bind_address;
+    value = default_value;
+  } else {
+    value = config_setting_get_string(setting);
+  }
+  char *bind_address;
+  size_t length = strlen(value);
+  char *str_bind_address = malloc(sizeof(char) * length + 1);
+  if (str_bind_address == NULL) {
+    return NULL;
+  }
+  strncpy(str_bind_address, value, length);
+  str_bind_address[length] = '\0';
+  bind_address = str_bind_address;
+  return bind_address;
 }
 
 int config_read_int(config_t *libconfig, const char *config_name, int default_value) {
@@ -48,7 +48,7 @@ float config_read_float(config_t *libconfig, const char *config_name, float defa
   if (setting == NULL) {
     result = default_value;
   } else {
-    result = (float) config_setting_get_float(setting);
+    result = (float)config_setting_get_float(setting);
   }
   fprintf(stdout, "%s: %f\n", config_name, result);
   return result;
@@ -72,7 +72,7 @@ uint32_t config_read_uint32_t(config_t *libconfig, const char *config_name, uint
   if (setting == NULL) {
     result = default_value;
   } else {
-    result = (uint32_t) config_setting_get_int(setting);
+    result = (uint32_t)config_setting_get_int(setting);
   }
   fprintf(stdout, "%s: %d\n", config_name, result);
   return result;
@@ -84,7 +84,7 @@ int create_server_config(struct server_config **config, const char *path) {
   if (result == NULL) {
     return -ENOMEM;
   }
-  *result = (struct server_config) {0};
+  *result = (struct server_config){0};
 
   config_t libconfig;
   config_init(&libconfig);
@@ -100,7 +100,7 @@ int create_server_config(struct server_config **config, const char *path) {
   result->sdr_type = config_read_int(&libconfig, "sdr_type", 0);
   result->bias_t = config_read_int(&libconfig, "bias_t", 0);
   result->gain_mode = config_read_int(&libconfig, "gain_mode", 0);
-  result->gain = (int) (config_read_float(&libconfig, "gain", 0) * 10);
+  result->gain = (int)(config_read_float(&libconfig, "gain", 0) * 10);
   result->ppm = config_read_int(&libconfig, "ppm", 0);
 
   result->airspy_gain_mode = config_read_int(&libconfig, "airspy_gain_mode", AIRSPY_GAIN_MANUAL);
@@ -140,6 +140,29 @@ int create_server_config(struct server_config **config, const char *path) {
     return -1;
   }
 
+  result->hackrf_bias_t = config_read_int(&libconfig, "hackrf_bias_t", 0);
+  result->hackrf_amp = config_read_int(&libconfig, "hackrf_amp", 0);
+  if (result->hackrf_amp > 1) {
+    fprintf(stderr, "<3>hackrf_amp is either turned on (1) or off (0)\n");
+    config_destroy(&libconfig);
+    free(result);
+    return -1;
+  }
+  result->hackrf_lna_gain = config_read_int(&libconfig, "hackrf_lna_gain", 16);
+  if (result->hackrf_lna_gain < 0 || result->hackrf_lna_gain > 40) {
+    fprintf(stderr, "<3>invalid hackrf_lna_gain configuration\n");
+    config_destroy(&libconfig);
+    free(result);
+    return -1;
+  }
+  result->hackrf_vga_gain = config_read_int(&libconfig, "hackrf_vga_gain", 16);
+  if (result->hackrf_vga_gain < 0 || result->hackrf_vga_gain > 62) {
+    fprintf(stderr, "<3>invalid hackrf_vga_gain configuration\n");
+    config_destroy(&libconfig);
+    free(result);
+    return -1;
+  }
+
   result->queue_size = config_read_int(&libconfig, "queue_size", 64);
   if (result->queue_size <= 0) {
     fprintf(stderr, "<3>queue size should be positive: %d\n", result->queue_size);
@@ -148,25 +171,25 @@ int create_server_config(struct server_config **config, const char *path) {
     return -1;
   }
 
-    const config_setting_t *setting = config_lookup(&libconfig, "band_sampling_rate");
-    if (setting == NULL) {
-        fprintf(stderr, "<3>missing required configuration: band_sampling_rate\n");
-        config_destroy(&libconfig);
-        free(result);
-        return -1;
-    }
-    uint32_t band_sampling_rate = (uint32_t) config_setting_get_int(setting);
-    fprintf(stdout, "band sampling rate: %d\n", band_sampling_rate);
-    result->band_sampling_rate = band_sampling_rate;
+  const config_setting_t *setting = config_lookup(&libconfig, "band_sampling_rate");
+  if (setting == NULL) {
+    fprintf(stderr, "<3>missing required configuration: band_sampling_rate\n");
+    config_destroy(&libconfig);
+    free(result);
+    return -1;
+  }
+  uint32_t band_sampling_rate = (uint32_t)config_setting_get_int(setting);
+  fprintf(stdout, "band sampling rate: %d\n", band_sampling_rate);
+  result->band_sampling_rate = band_sampling_rate;
 
-    result->device_index = config_read_int(&libconfig, "device_index", 0);
-    result->device_serial = read_and_copy_str(config_lookup(&libconfig, "device_serial"), NULL);
-    if (result->device_serial != NULL) {
-        fprintf(stdout, "device_serial: %s\n", result->device_serial);
-    }
+  result->device_index = config_read_int(&libconfig, "device_index", 0);
+  result->device_serial = read_and_copy_str(config_lookup(&libconfig, "device_serial"), NULL);
+  if (result->device_serial != NULL) {
+    fprintf(stdout, "device_serial: %s\n", result->device_serial);
+  }
 
   result->buffer_size = config_read_uint32_t(&libconfig, "buffer_size", 262144);
-  if( result->sdr_type == SDR_TYPE_AIRSPY && result->buffer_size != AIRSPY_BUFFER_SIZE ) {
+  if (result->sdr_type == SDR_TYPE_AIRSPY && result->buffer_size != AIRSPY_BUFFER_SIZE) {
     result->buffer_size = AIRSPY_BUFFER_SIZE;
     fprintf(stdout, "force airspy buffer_size to: %d\n", result->buffer_size);
   }
@@ -216,17 +239,17 @@ int create_server_config(struct server_config **config, const char *path) {
 }
 
 void destroy_server_config(struct server_config *config) {
-    if (config == NULL) {
-        return;
-    }
-    if (config->bind_address != NULL) {
-      free(config->bind_address);
-    }
-    if (config->base_path != NULL) {
-      free(config->base_path);
-    }
-    if (config->device_serial != NULL) {
-      free(config->device_serial);
-    }
-    free(config);
+  if (config == NULL) {
+    return;
+  }
+  if (config->bind_address != NULL) {
+    free(config->bind_address);
+  }
+  if (config->base_path != NULL) {
+    free(config->base_path);
+  }
+  if (config->device_serial != NULL) {
+    free(config->device_serial);
+  }
+  free(config);
 }

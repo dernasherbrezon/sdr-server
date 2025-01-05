@@ -24,7 +24,7 @@ jobs:
       - name: install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libconfig-dev valgrind cmake pkg-config libairspy-dev librtlsdr-dev
+          sudo apt-get install -y libconfig-dev valgrind cmake pkg-config libairspy-dev libhackrf-dev librtlsdr-dev
       - name: Run build-wrapper
         run: |
           mkdir build

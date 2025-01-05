@@ -64,6 +64,7 @@ const char* hackrf_error_name(enum hackrf_error errcode) {
   return "unknown";
 }
 int hackrf_version_string_read(hackrf_device* device, char* version, uint8_t length) {
+  snprintf(version, length, "test\0");
   return 0;
 }
 int hackrf_usb_api_version_read(hackrf_device* device, uint16_t* version) {

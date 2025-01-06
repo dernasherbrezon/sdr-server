@@ -117,7 +117,7 @@ target_link_libraries(perf_xlating sdr_serverLib)
 
 if(CMAKE_BUILD_TYPE MATCHES Debug)
 	add_custom_target("coverage")
-	add_custom_command(TARGET "coverage" COMMAND gcov ${CMAKE_BINARY_DIR}/CMakeFiles/sdr_serverLib.dir/src/*.c.o)
+	add_custom_command(TARGET "coverage" COMMAND gcov ${CMAKE_BINARY_DIR}/CMakeFiles/sdr_serverLib.dir/src/*.c.o ${CMAKE_BINARY_DIR}/CMakeFiles/sdr_serverLib.dir/src/sdr/*.c.o)
 endif()
 
 set(CPACK_GENERATOR "DEB")

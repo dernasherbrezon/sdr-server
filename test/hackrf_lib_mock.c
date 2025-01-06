@@ -90,6 +90,7 @@ int hackrf_set_sample_rate(hackrf_device* device, const double freq_hz) {
   return 0;
 }
 int hackrf_stop_rx(hackrf_device* device) {
+  hackrf_stop_mock();
   return 0;
 }
 int hackrf_close(hackrf_device* device) {

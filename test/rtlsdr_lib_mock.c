@@ -76,6 +76,7 @@ int rtlsdr_read_sync_mocked(rtlsdr_dev_t *dev, void *buf, int len, int *n_read) 
 }
 
 int rtlsdr_close_mocked(rtlsdr_dev_t *dev) {
+  rtlsdr_stop_mock();
   if (dev != NULL) {
     free(dev);
   }

@@ -50,7 +50,6 @@ void test_out_of_band_frequency_clients() {
   send_message(client1, PROTOCOL_VERSION, TYPE_REQUEST, 460700000, 48000, 461600000, REQUEST_DESTINATION_FILE);
   assert_response(client1, TYPE_RESPONSE, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_OUT_OF_BAND_FREQ);
   destroy_client(client1);
-  rtlsdr_stop_mock();
 
   // then the first client disconnects
   send_message(client0, PROTOCOL_VERSION, TYPE_SHUTDOWN, 0, 0, 0, 0);

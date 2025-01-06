@@ -225,7 +225,6 @@ static void *tcp_worker(void *arg) {
   }
   if (number_of_running == 0) {
     sdr_device_stop(node->server->core);
-    node->server->current_band_freq = 0;
   }
   tcp_node_destroy(node);
   pthread_cond_broadcast(&node->server->terminated_condition);

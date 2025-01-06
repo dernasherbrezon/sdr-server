@@ -53,8 +53,6 @@ include_directories(${PC_LIBAIRSPY_INCLUDE_DIRS})
 pkg_check_modules(PC_LIBHACKRF REQUIRED libhackrf)
 include_directories(${PC_LIBHACKRF_INCLUDE_DIRS})
 
-message("${PC_LIBHACKRF_INCLUDE_DIRS}")
-
 pkg_check_modules(PC_ZLIB REQUIRED zlib)
 include_directories(${PC_ZLIB_INCLUDE_DIRS})
 link_directories(${PC_ZLIB_LIBRARY_DIRS})

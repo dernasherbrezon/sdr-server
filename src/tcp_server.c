@@ -330,7 +330,7 @@ void handle_new_client(int client_socket, tcp_server *server) {
       fprintf(stderr, "<3>[%d] requested out of band frequency: %d\n", server->client_counter, config->band_freq);
       pthread_mutex_unlock(&server->mutex);
       // this will shutdown the thread
-      shutdown(tcp_node->config->client_socket, SHUT_RDWR);
+      close(tcp_node->config->client_socket);
       // this one will close any remaning resources
       tcp_node_final_cleanup(tcp_node);
       return;

@@ -60,6 +60,8 @@ Is good. Some numbers in ```test/perf_xlating.c```
 sdr-server depends on several libraries:
 
  * [librtlsdr](https://github.com/dernasherbrezon/librtlsdr). Version >=0.5.4 is required.
+ * [libairspy](https://github.com/airspy/airspyone_host/)
+ * [libhackrf](https://github.com/greatscottgadgets/hackrf)
  * [libconfig](https://hyperrealm.github.io/libconfig/libconfig_manual.html)
  * libz. Should be installed in every operational system
  * libm. Same

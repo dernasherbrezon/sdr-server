@@ -331,7 +331,7 @@ void handle_new_client(int client_socket, tcp_server *server) {
       fprintf(stderr, "<3>[%d] requested out of band frequency: %d\n", server->client_counter, config->band_freq);
       pthread_mutex_unlock(&server->mutex);
       // this will shutdown the thread
-      close(tcp_node->config->client_socket);
+      shutdown(tcp_node->config->client_socket, SHUT_RDWR);
       // this one will close any remaning resources
       tcp_node_final_cleanup(tcp_node);
       return;
@@ -408,7 +408,7 @@ static void *acceptor_worker(void *arg) {
   struct linked_list_tcp_node *cur_node = server->tcp_nodes;
   while (cur_node != NULL) {
     struct linked_list_tcp_node *next = cur_node->next;
-    close(cur_node->config->client_socket);
+    shutdown(cur_node->config->client_socket, SHUT_RDWR);
     uint32_t node_id = cur_node->config->id;
     while (cur_node->config->is_running) {
       pthread_cond_wait(&server->terminated_condition, &server->mutex);

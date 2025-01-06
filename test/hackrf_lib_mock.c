@@ -40,7 +40,7 @@ static void* hackrf_worker(void* ctx) {
       hackrf_transfer transfer = {
           .rx_ctx = ctx,
           .device = NULL,
-          .buffer = hackrf_mock.buffer,
+          .buffer = (uint8_t *)hackrf_mock.buffer,
           .buffer_length = hackrf_mock.len};
       hackrf_mock.callback(&transfer);
       hackrf_mock.buffer = NULL;
@@ -64,7 +64,7 @@ const char* hackrf_error_name(enum hackrf_error errcode) {
   return "unknown";
 }
 int hackrf_version_string_read(hackrf_device* device, char* version, uint8_t length) {
-  snprintf(version, length, "test\0");
+  snprintf(version, length, "test");
   return 0;
 }
 int hackrf_usb_api_version_read(hackrf_device* device, uint16_t* version) {

@@ -140,7 +140,7 @@ int create_server_config(struct server_config **config, const char *path) {
     return -1;
   }
 
-  result->hackrf_bias_t = config_read_int(&libconfig, "hackrf_bias_t", 0);
+  result->hackrf_bias_t = (uint8_t)config_read_int(&libconfig, "hackrf_bias_t", 0);
   result->hackrf_amp = config_read_int(&libconfig, "hackrf_amp", 0);
   if (result->hackrf_amp > 1) {
     fprintf(stderr, "<3>hackrf_amp is either turned on (1) or off (0)\n");

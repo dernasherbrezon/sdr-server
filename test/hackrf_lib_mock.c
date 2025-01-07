@@ -21,7 +21,7 @@ struct mock_status {
   int data_was_read;
 };
 
-struct rtlsdr_dev {
+struct hackrf_device {
   int dummy;
 };
 
@@ -40,7 +40,7 @@ static void* hackrf_worker(void* ctx) {
       hackrf_transfer transfer = {
           .rx_ctx = ctx,
           .device = NULL,
-          .buffer = (uint8_t *)hackrf_mock.buffer,
+          .buffer = (uint8_t*)hackrf_mock.buffer,
           .buffer_length = hackrf_mock.len};
       hackrf_mock.callback(&transfer);
       hackrf_mock.buffer = NULL;
@@ -100,6 +100,7 @@ int hackrf_exit() {
   return 0;
 }
 int hackrf_open(hackrf_device** device) {
+  *device = malloc(sizeof(hackrf_device*));
   return 0;
 }
 int hackrf_open_by_serial(const char* const desired_serial_number, hackrf_device** device) {

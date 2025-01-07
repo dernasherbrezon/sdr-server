@@ -94,6 +94,7 @@ int hackrf_stop_rx(hackrf_device* device) {
   return 0;
 }
 int hackrf_close(hackrf_device* device) {
+  free(device);
   return 0;
 }
 int hackrf_exit() {

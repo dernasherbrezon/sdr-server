@@ -7,7 +7,7 @@
 #include "api.h"
 #include "lpf.h"
 
-static int write_to_file(dsp_worker *config, float complex *filter_output, size_t filter_output_len) {
+static int write_to_file(dsp_worker *config, const float complex *filter_output, size_t filter_output_len) {
   size_t n_written;
   if (config->file != NULL) {
     n_written = fwrite(filter_output, sizeof(float complex), filter_output_len, config->file);
@@ -25,7 +25,7 @@ static int write_to_file(dsp_worker *config, float complex *filter_output, size_
   }
 }
 
-static int write_to_socket(int client_socket, float complex *filter_output, size_t filter_output_len) {
+static int write_to_socket(int client_socket, const float complex *filter_output, size_t filter_output_len) {
   size_t total_len = filter_output_len * sizeof(float complex);
   size_t left = total_len;
   while (left > 0) {

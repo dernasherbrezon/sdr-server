@@ -98,15 +98,15 @@ int sdr_device_start(client_config *config, sdr_device *device) {
     int code = -1;
     switch (config->sdr_type) {
       case SDR_TYPE_RTL: {
-        code = rtlsdr_device_create(1, device->server_config, device->rtllib, device->sdr_callback, device->ctx, &device->plugin);
+        code = rtlsdr_device_create(device->server_config, device->rtllib, device->sdr_callback, device->ctx, &device->plugin);
         break;
       }
       case SDR_TYPE_AIRSPY: {
-        code = airspy_device_create(1, device->server_config, device->airspy, device->sdr_callback, device->ctx, &device->plugin);
+        code = airspy_device_create(device->server_config, device->airspy, device->sdr_callback, device->ctx, &device->plugin);
         break;
       }
       case SDR_TYPE_HACKRF: {
-        code = hackrf_device_create(1, device->server_config, device->hackrf, device->sdr_callback, device->ctx, &device->plugin);
+        code = hackrf_device_create(device->server_config, device->hackrf, device->sdr_callback, device->ctx, &device->plugin);
         break;
       }
       default: {

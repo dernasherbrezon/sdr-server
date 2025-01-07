@@ -59,7 +59,7 @@ int find_nearest_gain(struct rtlsdr_device_t *dev, int target_gain, int *nearest
   return 0;
 }
 
-int rtlsdr_device_create(uint32_t id, struct server_config *server_config, rtlsdr_lib *lib, void (*rtlsdr_callback)(uint8_t *buf, uint32_t len, void *ctx), void *ctx, void **plugin) {
+int rtlsdr_device_create(struct server_config *server_config, rtlsdr_lib *lib, void (*rtlsdr_callback)(uint8_t *buf, uint32_t len, void *ctx), void *ctx, void **plugin) {
   struct rtlsdr_device_t *device = malloc(sizeof(struct rtlsdr_device_t));
   if (device == NULL) {
     return -ENOMEM;

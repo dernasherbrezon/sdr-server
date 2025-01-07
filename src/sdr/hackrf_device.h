@@ -4,7 +4,7 @@
 #include "../config.h"
 #include "hackrf_lib.h"
 
-int hackrf_device_create(uint32_t id, struct server_config *server_config, hackrf_lib *lib, void (*sdr_callback)(uint8_t *buf, uint32_t len, void *ctx), void *ctx, void **plugin);
+int hackrf_device_create(struct server_config *server_config, hackrf_lib *lib, void (*sdr_callback)(uint8_t *buf, uint32_t len, void *ctx), void *ctx, void **plugin);
 
 void hackrf_device_destroy(void *plugin);
 

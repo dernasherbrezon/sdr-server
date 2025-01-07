@@ -27,7 +27,7 @@ struct airspy_device_t {
   airspy_lib *lib;
 };
 
-int airspy_device_create(uint32_t id, struct server_config *server_config, airspy_lib *lib, void (*sdr_callback)(uint8_t *buf, uint32_t len, void *ctx), void *ctx, void **plugin) {
+int airspy_device_create(struct server_config *server_config, airspy_lib *lib, void (*sdr_callback)(uint8_t *buf, uint32_t len, void *ctx), void *ctx, void **plugin) {
   struct airspy_device_t *device = malloc(sizeof(struct airspy_device_t));
   if (device == NULL) {
     return -ENOMEM;

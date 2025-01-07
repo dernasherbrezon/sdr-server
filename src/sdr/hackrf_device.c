@@ -24,7 +24,12 @@ typedef struct {
   hackrf_lib *lib;
 } hackrf_wrapper;
 
-int hackrf_device_create(uint32_t id, struct server_config *server_config, hackrf_lib *lib, void (*sdr_callback)(uint8_t *buf, uint32_t len, void *ctx), void *ctx, void **plugin) {
+int hackrf_device_create(struct server_config *server_config, hackrf_lib *lib, void (*sdr_callback)(uint8_t *buf, uint32_t len, void *ctx), void *ctx, void **plugin) {
+  int code = lib->hackrf_init();
+  if (code != 0) {
+    fprintf(stderr, "<3>unable to initialize hackrf library: %s (%d)\n", lib->hackrf_error_name(code), code);
+    return code;
+  }
   hackrf_wrapper *wrapper = malloc(sizeof(hackrf_wrapper));
   if (wrapper == NULL) {
     return -ENOMEM;
@@ -34,7 +39,6 @@ int hackrf_device_create(uint32_t id, struct server_config *server_config, hackr
   wrapper->sdr_callback = sdr_callback;
   wrapper->ctx = ctx;
   wrapper->server_config = server_config;
-  ERROR_CHECK(lib->hackrf_init(), "<3>unable to initialize hackrf library");
   fprintf(stdout, "hackrf device created\n");
   *plugin = wrapper;
   return 0;

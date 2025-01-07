@@ -147,8 +147,8 @@ static void *shutdown_callback(void *arg) {
 }
 
 void sdr_device_stop(sdr_device *device) {
-  fprintf(stdout, "sdr is stopping\n");
   pthread_mutex_lock(&device->mutex);
+  fprintf(stdout, "sdr is stopping\n");
   pthread_create(&device->shutdown_thread, NULL, &shutdown_callback, device);
   device->shutdown_thread_created = true;
   pthread_mutex_unlock(&device->mutex);
@@ -176,7 +176,7 @@ void sdr_device_destroy(sdr_device *device) {
   if (device->hackrf != NULL) {
     hackrf_lib_destroy(device->hackrf);
   }
-  pthread_mutex_unlock(&device->mutex);
   fprintf(stdout, "sdr destroyed\n");
+  pthread_mutex_unlock(&device->mutex);
   free(device);
 }

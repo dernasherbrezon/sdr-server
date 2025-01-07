@@ -9,6 +9,7 @@
     int __err_rc = (x);                                                                \
     if (__err_rc != HACKRF_SUCCESS) {                                                  \
       fprintf(stderr, "%s: %s (%d)\n", y, lib->hackrf_error_name(__err_rc), __err_rc); \
+      hackrf_device_stop_rx(wrapper);                                                  \
       return __err_rc;                                                                 \
     }                                                                                  \
   } while (0)
@@ -24,18 +25,18 @@ typedef struct {
 } hackrf_wrapper;
 
 int hackrf_device_create(uint32_t id, struct server_config *server_config, hackrf_lib *lib, void (*sdr_callback)(uint8_t *buf, uint32_t len, void *ctx), void *ctx, void **plugin) {
-  ERROR_CHECK(lib->hackrf_init(), "<3>unable to initialize hackrf library");
-  hackrf_wrapper *device = malloc(sizeof(hackrf_wrapper));
-  if (device == NULL) {
+  hackrf_wrapper *wrapper = malloc(sizeof(hackrf_wrapper));
+  if (wrapper == NULL) {
     return -ENOMEM;
   }
-  *device = (hackrf_wrapper){0};
-  device->lib = lib;
-  device->sdr_callback = sdr_callback;
-  device->ctx = ctx;
-  device->server_config = server_config;
+  *wrapper = (hackrf_wrapper){0};
+  wrapper->lib = lib;
+  wrapper->sdr_callback = sdr_callback;
+  wrapper->ctx = ctx;
+  wrapper->server_config = server_config;
+  ERROR_CHECK(lib->hackrf_init(), "<3>unable to initialize hackrf library");
   fprintf(stdout, "hackrf device created\n");
-  *plugin = device;
+  *plugin = wrapper;
   return 0;
 }
 
@@ -88,5 +89,6 @@ void hackrf_device_stop_rx(void *plugin) {
   if (wrapper->dev != NULL) {
     wrapper->lib->hackrf_stop_rx(wrapper->dev);
     wrapper->lib->hackrf_close(wrapper->dev);
+    wrapper->dev = NULL;
   }
 }

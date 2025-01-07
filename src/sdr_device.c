@@ -148,9 +148,11 @@ static void *shutdown_callback(void *arg) {
 
 void sdr_device_stop(sdr_device *device) {
   pthread_mutex_lock(&device->mutex);
-  fprintf(stdout, "sdr is stopping\n");
-  pthread_create(&device->shutdown_thread, NULL, &shutdown_callback, device);
-  device->shutdown_thread_created = true;
+  if (!device->shutdown_thread_created) {
+    fprintf(stdout, "sdr is stopping\n");
+    pthread_create(&device->shutdown_thread, NULL, &shutdown_callback, device);
+    device->shutdown_thread_created = true;
+  }
   pthread_mutex_unlock(&device->mutex);
 }
 

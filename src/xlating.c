@@ -30,7 +30,7 @@ struct xlating_t {
   float complex phase_incr;
 };
 
-void *sdrserver_aligned_alloc(size_t alignment, size_t size) {
+static void *sdrserver_aligned_alloc(size_t alignment, size_t size) {
   if (size % alignment != 0) {
     size = ((size / alignment) + 1) * alignment;
   }
@@ -306,7 +306,7 @@ void process_cs16(const int16_t *input, size_t input_len, float complex **output
   process_cf32(input_complex_len, output, output_len, filter);
 }
 
-int create_aligned_taps(xlating *filter, float complex *bpfTaps, size_t taps_len) {
+static int create_aligned_taps(xlating *filter, float complex *bpfTaps, size_t taps_len) {
   size_t number_of_aligned = fmax((size_t)1, filter->alignment / sizeof(float complex));
   // Make a set of taps at all possible alignments
   float complex **result = malloc(number_of_aligned * sizeof(float complex *));

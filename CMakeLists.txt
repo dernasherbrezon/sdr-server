@@ -26,6 +26,7 @@ add_library(sdr_serverLib
 		${CMAKE_CURRENT_SOURCE_DIR}/src/queue.c
 		${CMAKE_CURRENT_SOURCE_DIR}/src/tcp_server.c
 		${CMAKE_CURRENT_SOURCE_DIR}/src/xlating.c
+		${CMAKE_CURRENT_SOURCE_DIR}/src/xlating_cs16.c
 		${CMAKE_CURRENT_SOURCE_DIR}/src/client/tcp_client.c
 		${CMAKE_CURRENT_SOURCE_DIR}/src/sdr/airspy_device.c
 		${CMAKE_CURRENT_SOURCE_DIR}/src/sdr/rtlsdr_device.c

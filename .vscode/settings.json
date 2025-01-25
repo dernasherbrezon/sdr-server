@@ -26,6 +26,8 @@
         "functional": "c",
         "typeindex": "c",
         "typeinfo": "c",
-        "text_encoding": "c"
+        "text_encoding": "c",
+        "ccomplex": "cpp",
+        "xlating_cs16.h": "c"
     }
 }

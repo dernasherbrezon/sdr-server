@@ -54,15 +54,15 @@ static void *callback(void *arg) {
     }
     switch (config->sdr_type) {
       case SDR_TYPE_HACKRF: {
-        process_cs8((const int8_t *)input, input_len, &filter_output, &filter_output_len, worker->filter);
+        process_optimized_cs8_cf32((const int8_t *)input, input_len, &filter_output, &filter_output_len, worker->filter);
         break;
       }
       case SDR_TYPE_RTL: {
-        process_cu8(input, input_len, &filter_output, &filter_output_len, worker->filter);
+        process_optimized_cu8_cf32(input, input_len, &filter_output, &filter_output_len, worker->filter);
         break;
       }
       case SDR_TYPE_AIRSPY: {
-        process_cs16((const int16_t *)input, input_len / sizeof(int16_t), &filter_output, &filter_output_len, worker->filter);
+        process_optimized_cs16_cf32((const int16_t *)input, input_len / sizeof(int16_t), &filter_output, &filter_output_len, worker->filter);
         break;
       }
       default: {

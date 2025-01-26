@@ -4,7 +4,6 @@
 
 #include "../src/lpf.h"
 #include "../src/xlating.h"
-#include "../src/xlating_cs16.h"
 
 #ifndef CMAKE_C_FLAGS
 #define CMAKE_C_FLAGS ""
@@ -29,11 +28,6 @@ int main(void) {
   if (code != 0) {
     exit(EXIT_FAILURE);
   }
-  xlating_cs16 *filter_cs16 = NULL;
-  code = create_frequency_xlating_cs16_filter((int)(sampling_freq / target_freq), taps, len, -12000, sampling_freq, max_input, &filter_cs16);
-  if (code != 0) {
-    exit(EXIT_FAILURE);
-  }
   uint8_t *input = NULL;
   input = malloc(sizeof(float) * max_input);
   if (input == NULL) {
@@ -50,25 +44,34 @@ int main(void) {
   for (int i = 0; i < total_executions; i++) {
     float complex *output;
     size_t output_len = 0;
-    process_cu8(input, max_input, &output, &output_len, filter);
+    process_native_cu8_cf32(input, max_input, &output, &output_len, filter);
   }
   clock_t end = clock();
   double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
-  printf("completed in: %f seconds\n", time_spent / total_executions);
+  printf("native_cu8_cs32: %f seconds\n", time_spent / total_executions);
+  begin = clock();
+  for (int i = 0; i < total_executions; i++) {
+    float complex *output;
+    size_t output_len = 0;
+    process_optimized_cu8_cf32(input, max_input, &output, &output_len, filter);
+  }
+  end = clock();
+  time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+  printf("optimized_cu8_cf32: %f seconds\n", time_spent / total_executions);
 
   begin = clock();
   for (int i = 0; i < total_executions; i++) {
     int16_t *output;
     size_t output_len = 0;
-    process_cu8_cs16(input, max_input, &output, &output_len, filter_cs16);
+    process_native_cu8_cs16(input, max_input, &output, &output_len, filter);
   }
   end = clock();
   time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
-  printf("cs16 completed in: %f seconds\n", time_spent / total_executions);
+  printf("native_cu8_cs16: %f seconds\n", time_spent / total_executions);
 
   // MacBook Air
   // VOLK_GENERIC=1:
-  // completed in: 0.005615 seconds
+  // completed in: 0.005615 seconds // process_native_cu8_cs32
   // tuned kernel:
   // completed in: 0.002649 seconds
   // tuned cu8 -> cf32:

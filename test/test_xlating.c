@@ -3,11 +3,9 @@
 
 #include "../src/lpf.h"
 #include "../src/xlating.h"
-#include "../src/xlating_cs16.h"
 #include "utils.h"
 
 xlating *filter = NULL;
-xlating_cs16 *filter_cs16 = NULL;
 uint8_t *input_cu8 = NULL;
 int16_t *input_cs16 = NULL;
 
@@ -18,9 +16,6 @@ static void setup_filter(size_t max_input) {
   size_t len;
   TEST_ASSERT_EQUAL_INT(0, create_low_pass_filter(1.0f, sampling_freq, target_freq / 2, 2000, &taps, &len));
   TEST_ASSERT_EQUAL_INT(0, create_frequency_xlating_filter((int)(sampling_freq / target_freq), taps, len, -12000, sampling_freq, max_input, &filter));
-  // create taps twice because destroy_* will free them up
-  TEST_ASSERT_EQUAL_INT(0, create_low_pass_filter(1.0f, sampling_freq, target_freq / 2, 2000, &taps, &len));
-  TEST_ASSERT_EQUAL_INT(0, create_frequency_xlating_cs16_filter((int)(sampling_freq / target_freq), taps, len, -12000, sampling_freq, max_input, &filter_cs16));
 }
 
 void test_max_input_buffer_size() {
@@ -29,7 +24,7 @@ void test_max_input_buffer_size() {
   setup_input_cu8(&input_cu8, 0, input_len);
   float complex *output;
   size_t output_len = 0;
-  process_cu8(input_cu8, input_len, &output, &output_len, filter);
+  process_native_cu8_cf32(input_cu8, input_len, &output, &output_len, filter);
   const float expected[] = {0.0008628f, 0.0008561f, -0.0003212f, -0.0018911f, 0.0005033f, 0.0077399f, -0.0025557f, -0.0186932f, 0.0062834f, 0.0407742f, -0.0307208f, -0.1272911f, 0.0272516f, -0.1294040f, -0.0046343f, 0.0409085f, 0.0021693f, -0.0183142f, -0.0008918f, 0.0078921f, 0.0002495f,
                             -0.0026127f, -0.0000701f, 0.0009386f, -0.0001126f, 0.0007490f, -0.0006985f, -0.0001631f, 0.0002136f, -0.0006479f, 0.0005974f, 0.0002640f, -0.0003145f, 0.0005468f, -0.0004963f, -0.0003650f, 0.0004154f, -0.0004458f, 0.0003952f, 0.0004659f, -0.0005164f, 0.0003447f,
                             -0.0002941f, -0.0005669f, 0.0006173f, -0.0002436f, 0.0001930f, 0.0006678f, -0.0007183f, 0.0001425f, -0.0000920f, -0.0007687f, -0.0014555f, 0.0014070f, 0.0016889f, -0.0042796f, -0.0050061f, 0.0084395f, 0.0136318f, -0.0190434f, -0.0296605f, 0.0494813f, -0.0160297f,
@@ -54,7 +49,7 @@ void test_max_input_buffer_size() {
 
   int16_t *output_cs16;
   output_len = 0;
-  process_cu8_cs16(input_cu8, input_len, &output_cs16, &output_len, filter_cs16);
+  process_native_cu8_cs16(input_cu8, input_len, &output_cs16, &output_len, filter);
   assert_complex_cs16(expected, sizeof(expected) / (2 * sizeof(float)), output_cs16, output_len);
 }
 
@@ -64,14 +59,14 @@ void test_parital_input_buffer_size() {
   setup_input_cu8(&input_cu8, 0, input_len);
   float complex *output;
   size_t output_len = 0;
-  process_cu8(input_cu8, input_len, &output, &output_len, filter);
+  process_native_cu8_cf32(input_cu8, input_len, &output, &output_len, filter);
   const float expected[] = {0.0008628f, 0.0008561f, -0.0003212f, -0.0018911f, 0.0005033f, 0.0077399f, -0.0025557f, -0.0186932f, 0.0062834f, 0.0407742f, -0.0307208f, -0.1272911f, 0.0272516f, -0.1294040f, -0.0046343f, 0.0409085f, 0.0021693f, -0.0183142f, -0.0008918f, 0.0078921f, 0.0002495f,
                             -0.0026127f, -0.0000701f, 0.0009386f, -0.0001126f, 0.0007490f, -0.0006985f, -0.0001631f, 0.0002136f, -0.0006479f, 0.0005974f, 0.0002640f, -0.0003145f, 0.0005468f, -0.0004963f, -0.0003650f, 0.0004154f, -0.0004458f, 0.0003952f, 0.0004659f};
   assert_complex(expected, 20, output, output_len);
   free(input_cu8);
   // another 200 inputs
   setup_input_cu8(&input_cu8, 200, 200);
-  process_cu8(input_cu8, input_len, &output, &output_len, filter);
+  process_native_cu8_cf32(input_cu8, input_len, &output, &output_len, filter);
   const float expectedNextBatch[] = {-0.0005164f, 0.0003447f, -0.0002941f, -0.0005669f, 0.0006173f, -0.0002436f, 0.0001930f, 0.0006678f, -0.0007183f, 0.0001425f, -0.0000920f, -0.0007687f, -0.0014555f, 0.0014070f, 0.0016889f, -0.0042796f, -0.0050061f, 0.0084395f, 0.0136318f, -0.0190434f, -0.0296605f,
                                      0.0494813f, -0.0160297f, -0.4166399f, 0.0494911f, -0.0296489f, -0.0190547f, 0.0136408f, 0.0084302f, -0.0050168f, -0.0042689f, 0.0016794f, 0.0014166f, -0.0014449f, -0.0007793f, -0.0000824f, 0.0001328f, -0.0007288f, 0.0006782f, 0.0001833f};
   assert_complex(expectedNextBatch, 20, output, output_len);
@@ -83,12 +78,12 @@ void test_small_input_data() {
   setup_input_cu8(&input_cu8, 0, input_len);
   float complex *output;
   size_t output_len = 0;
-  process_cu8(input_cu8, input_len, &output, &output_len, filter);
+  process_native_cu8_cf32(input_cu8, input_len, &output, &output_len, filter);
   free(input_cu8);
   // add only 1 complex sample
   // shouldn't be enough for 1 output
   setup_input_cu8(&input_cu8, 200, 2);
-  process_cu8(input_cu8, 2, &output, &output_len, filter);
+  process_native_cu8_cf32(input_cu8, 2, &output, &output_len, filter);
   const float expectedNextBatch[] = {0};
   assert_complex(expectedNextBatch, 0, output, output_len);
 }
@@ -96,8 +91,6 @@ void test_small_input_data() {
 void tearDown() {
   destroy_xlating(filter);
   filter = NULL;
-  destroy_xlating_cs16(filter_cs16);
-  filter_cs16 = NULL;
   if (input_cu8 != NULL) {
     free(input_cu8);
     input_cu8 = NULL;

@@ -10,7 +10,7 @@ uint8_t *input_cu8 = NULL;
 int16_t *input_cs16 = NULL;
 float complex *output_cf32;
 size_t output_len = 0;
-int16_t *output_cs16;
+int16_t *output_cs16 = NULL;
 
 static void setup_filter(size_t max_input) {
   uint32_t sampling_freq = 48000;

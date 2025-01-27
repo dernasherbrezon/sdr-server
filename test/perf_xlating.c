@@ -48,7 +48,7 @@ int main(void) {
   }
   clock_t end = clock();
   double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
-  printf("native_cu8_cs32: %f seconds\n", time_spent / total_executions);
+  printf("native         cu8_cf32: %f seconds\n", time_spent / total_executions);
   begin = clock();
   for (int i = 0; i < total_executions; i++) {
     float complex *output;
@@ -57,7 +57,7 @@ int main(void) {
   }
   end = clock();
   time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
-  printf("optimized_cu8_cf32: %f seconds\n", time_spent / total_executions);
+  printf("optimized      cu8_cf32: %f seconds\n", time_spent / total_executions);
 
   begin = clock();
   for (int i = 0; i < total_executions; i++) {
@@ -67,60 +67,50 @@ int main(void) {
   }
   end = clock();
   time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
-  printf("native_cu8_cs16: %f seconds\n", time_spent / total_executions);
+  printf("native         cu8_cs16: %f seconds\n", time_spent / total_executions);
+
+  begin = clock();
+  for (int i = 0; i < total_executions; i++) {
+    int16_t *output;
+    size_t output_len = 0;
+    process_optimized_cu8_cs16(input, max_input, &output, &output_len, filter);
+  }
+  end = clock();
+  time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+  printf("optimized      cu8_cs16: %f seconds\n", time_spent / total_executions);
 
   // MacBook Air
-  // VOLK_GENERIC=1:
-  // completed in: 0.005615 seconds // process_native_cu8_cs32
-  // tuned kernel:
-  // completed in: 0.002649 seconds
-  // tuned cu8 -> cf32:
-  // completed in: 0.002038 seconds
-  // NO_MANUAL_SIMD
-  // completed in: 0.002902 seconds
-  // manual simd (avx)
-  // completed in: 0.002093 seconds
+  // volk_generic   cu8_cf32: 0.005615 seconds
+  // volk optimized cu8_cf32: 0.002649 seconds
+  // optimized      cu8_cf32: 0.002038 seconds
+  // native         cu8_cf32: 0.002902 seconds
 
   // MacBook Air M1
-  // VOLK_GENERIC=1:
-  // completed in: 0.001693 seconds
-  // tuned kernel:
-  // completed in: 0.001477 seconds
-  // NO_MANUAL_SIMD
-  // completed in: 0.001440 seconds
-  // manual simd
-  // completed in: 0.003617 seconds
+  // volk_generic   cu8_cf32: 0.001693 seconds
+  // volk optimized cu8_cf32: 0.001477 seconds
+  // native         cu8_cf32: 0.001440 seconds
+  // optimized      cu8_cf32: 0.003617 seconds
+  // native         cu8_cs16: 0.001161 seconds
+  // optimized      cu8_cs16: 0.001161 seconds
 
   // Raspberrypi 3
-  // VOLK_GENERIC=1:
-  // completed in: 0.073828 seconds
-  // tuned kernel:
-  // completed in: 0.024855 seconds
+  // volk_generic   cu8_cf32: 0.073828 seconds
+  // volk optimized cu8_cf32: 0.024855 seconds
 
   // Raspberrypi 4
-  // VOLK_GENERIC=1:
-  // completed in: 0.041116 seconds
-  // tuned kernel:
-  // completed in: 0.013621 seconds
-  // NO_MANUAL_SIMD
-  // completed in: 0.039529 seconds
-  // manual simd
-  // completed in: 0.011978 seconds
+  // volk_generic   cu8_cf32: 0.041116 seconds
+  // volk optimized cu8_cf32: 0.013621 seconds
+  // native         cu8_cf32: 0.039529 seconds
+  // optimized      cu8_cf32: 0.011978 seconds
 
   // Raspberrypi 1
-  // VOLK_GENERIC=1:
-  // completed in: 0.291598 seconds
-  // tuned kernel:
-  // completed in: 0.332934 seconds
+  // volk_generic   cu8_cf32: 0.291598 seconds
+  // volk optimized cu8_cf32: 0.332934 seconds
 
   // Intel(R) Core(TM) i5-7500 CPU @ 3.40GHz
-  // VOLK_GENERIC=1:
-  // completed in: 0.003249 seconds
-  // tuned kernel:
-  // completed in: 0.001609 seconds
-  // NO_MANUAL_SIMD
-  // completed in: 0.001603 seconds
-  // manual simd
-  // completed in: 0.001605 seconds
+  // volk_generic   cu8_cf32: 0.003249 seconds
+  // volk optimized cu8_cf32: 0.001609 seconds
+  // native         cu8_cf32: 0.001603 seconds
+  // optimized      cu8_cf32: 0.001605 seconds
   return 0;
 }

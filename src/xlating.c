@@ -413,21 +413,21 @@ void process_native_cs16_cf32(const int16_t *input, size_t input_len, float comp
 
 void process_native_cu8_cs16(const uint8_t *input, size_t input_len, int16_t **output, size_t *output_len, xlating *filter) {
   for (size_t i = 0; i < input_len; i++) {
-    filter->working_buffer_cs16[i + filter->history_offset] = (((int16_t)input[i]) - 127) << 8;
+    filter->working_buffer_cs16[i + 2 * filter->history_offset] = (((int16_t)input[i]) - 128) << 8;
   }
   process_native_cs16(input_len / 2, output, output_len, filter);
 }
 
 void process_native_cs8_cs16(const int8_t *input, size_t input_len, int16_t **output, size_t *output_len, xlating *filter) {
   for (size_t i = 0; i < input_len; i++) {
-    filter->working_buffer_cs16[i + filter->history_offset] = ((int16_t)input[i]) << 8;
+    filter->working_buffer_cs16[i + 2 * filter->history_offset] = ((int16_t)input[i]) << 8;
   }
   process_native_cs16(input_len / 2, output, output_len, filter);
 }
 
 void process_native_cs16_cs16(const int16_t *input, size_t input_len, int16_t **output, size_t *output_len, xlating *filter) {
   for (size_t i = 0; i < input_len; i++) {
-    filter->working_buffer_cs16[i + filter->history_offset] = input[i];
+    filter->working_buffer_cs16[i + 2 * filter->history_offset] = input[i];
   }
   process_native_cs16(input_len / 2, output, output_len, filter);
 }
@@ -542,7 +542,7 @@ int create_frequency_xlating_filter(uint32_t decimation, float *taps, size_t tap
   result->phase_incr = cexpf(0.0f + -fwT0 * decimation * I);
 
   result->phase_real = INT16_MAX;  // 1.0f
-  result->phase_imag = 0;                   // 0.0f
+  result->phase_imag = 0;          // 0.0f
   result->phase_incr_real = (int16_t)(crealf(result->phase_incr) * INT16_MAX);
   result->phase_incr_imag = (int16_t)(cimagf(result->phase_incr) * INT16_MAX);
 

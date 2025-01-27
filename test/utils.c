@@ -43,10 +43,10 @@ void assert_complex(const float expected[], size_t expected_size, float complex 
   }
 }
 
-void assert_complex_cs16(const float expected[], size_t expected_size, int16_t *actual, size_t actual_size) {
+void assert_complex_cs16(const int16_t expected[], size_t expected_size, int16_t *actual, size_t actual_size) {
   TEST_ASSERT_EQUAL_INT(expected_size, actual_size);
   for (size_t i = 0; i < expected_size * 2; i++) {
-    TEST_ASSERT_EQUAL_INT((int32_t)(expected[i] * 10000), (int32_t)(((float)actual[i] / (1 << 15)) * 10000));
+    TEST_ASSERT_EQUAL_INT(expected[i], actual[i]);
   }
 }
 

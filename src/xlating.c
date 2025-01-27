@@ -277,7 +277,7 @@ static void process_optimized_cf32(size_t input_complex_len, float complex **out
     for (; current_index < max_index; current_index += filter->decimation, produced++) {
       const float complex *buf = (const float complex *)(filter->working_buffer_cf32 + current_index);
 
-      const float complex *aligned_buffer = (const float complex *)((size_t)buf & ~(filter->alignment - 1));
+      const float complex *aligned_buffer = (const float complex *)((size_t)buf & ~(filter->alignment_cf32 - 1));
       unsigned align_index = buf - aligned_buffer;
 
       float *pSrcA = (float *)aligned_buffer;

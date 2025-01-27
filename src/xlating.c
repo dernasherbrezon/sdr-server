@@ -148,7 +148,7 @@ const char *SIMD_STATUS = "Not detected";
 #endif
 
 static void process_optimized_cf32(size_t input_complex_len, float complex **output, size_t *output_len, xlating *filter) {
-  process_native_cf32(input_complex_len, complex, output, output_len, filter);
+  process_native_cf32(input_complex_len, output, output_len, filter);
 }
 
 #elif defined(__ARM_NEON)

@@ -35,7 +35,7 @@ void setup_input_cs16(int16_t **input, size_t input_offset, size_t len) {
   *input = result;
 }
 
-void assert_complex(const float expected[], size_t expected_size, float complex *actual, size_t actual_size) {
+void assert_cf32(const float expected[], size_t expected_size, float complex *actual, size_t actual_size) {
   TEST_ASSERT_EQUAL_INT(expected_size, actual_size);
   for (size_t i = 0, j = 0; i < expected_size * 2; i += 2, j++) {
     TEST_ASSERT_EQUAL_INT((int32_t)(expected[i] * 10000), (int32_t)(crealf(actual[j]) * 10000));
@@ -43,7 +43,7 @@ void assert_complex(const float expected[], size_t expected_size, float complex 
   }
 }
 
-void assert_complex_cs16(const int16_t expected[], size_t expected_size, int16_t *actual, size_t actual_size) {
+void assert_cs16(const int16_t expected[], size_t expected_size, int16_t *actual, size_t actual_size) {
   TEST_ASSERT_EQUAL_INT(expected_size, actual_size);
   for (size_t i = 0; i < expected_size * 2; i++) {
     TEST_ASSERT_EQUAL_INT(expected[i], actual[i]);
@@ -72,7 +72,7 @@ void assert_file(struct server_config *config, int id, const float expected[], s
   fread(buffer, 1, fsize, f);
   fclose(f);
   size_t actual_size = fsize / sizeof(float complex);
-  assert_complex(expected, expected_size, (float complex *)buffer, actual_size);
+  assert_cf32(expected, expected_size, (float complex *)buffer, actual_size);
   free(buffer);
 }
 
@@ -102,6 +102,6 @@ void assert_gzfile(struct server_config *config, int id, const float expected[],
   gzclose(f);
   TEST_ASSERT_EQUAL_INT(0, code);
   size_t actual_size = expected_size;
-  assert_complex(expected, expected_size, (float complex *)buffer, actual_size);
+  assert_cf32(expected, expected_size, (float complex *)buffer, actual_size);
   free(buffer);
 }

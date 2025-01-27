@@ -8,7 +8,7 @@
 xlating *filter = NULL;
 uint8_t *input_cu8 = NULL;
 int16_t *input_cs16 = NULL;
-float complex *output_cf32;
+float complex *output_cf32 = NULL;
 size_t output_len = 0;
 int16_t *output_cs16 = NULL;
 

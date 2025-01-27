@@ -111,6 +111,8 @@ int main(void) {
   // volk_generic   cu8_cf32: 0.003249 seconds
   // volk optimized cu8_cf32: 0.001609 seconds
   // native         cu8_cf32: 0.001603 seconds
-  // optimized      cu8_cf32: 0.001605 seconds
+  // optimized      cu8_cf32: 0.001609 seconds
+  // native         cu8_cs16: 0.003384 seconds
+  // optimized      cu8_cs16: 0.003382 seconds
   return 0;
 }

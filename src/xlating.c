@@ -331,7 +331,7 @@ static void process_optimized_cf32(size_t input_complex_len, float complex **out
         blkCnt--;
       }
       float complex sum_temp = real_sum + I * imag_sum;
-      filter->output[produced] = (sum_temp + store[0] + store[1] + store[2] + store[3]) * filter->phase;
+      filter->output_cf32[produced] = (sum_temp + store[0] + store[1] + store[2] + store[3]) * filter->phase;
       filter->phase = filter->phase * filter->phase_incr;
     }
   }
@@ -341,7 +341,7 @@ static void process_optimized_cf32(size_t input_complex_len, float complex **out
     memmove(filter->working_buffer_cf32, filter->working_buffer_cf32 + current_index, sizeof(float complex) * filter->history_offset);
   }
 
-  *output = filter->output;
+  *output = filter->output_cf32;
   *output_len = produced;
 }
 

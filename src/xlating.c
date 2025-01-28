@@ -560,6 +560,7 @@ int create_frequency_xlating_filter(uint32_t decimation, float *taps, size_t tap
     destroy_xlating(result);
     return -ENOMEM;
   }
+  memset(result->working_buffer_cs16, 0, sizeof(int16_t) * 2 * result->working_buffer_len_samples);
 
   // +1 for case when round-up needed.
   result->output_len_sampls = max_input_buffer_length / 2 / decimation + 1;

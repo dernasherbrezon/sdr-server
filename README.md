@@ -22,7 +22,6 @@
 
  * Each client has its own dsp thread
  * Each dsp thread executes [Frequency Xlating FIR Filter](http://blog.sdr.hu/grblocks/xlating-fir.html)
- * [Libvolk](https://www.libvolk.org) is used for SIMD optimizations
  * Only RTL-SDRs are supported
  
 ## API
@@ -60,21 +59,21 @@ Is good. Some numbers in ```test/perf_xlating.c```
 
 sdr-server depends on several libraries:
 
- * [libvolk](https://www.libvolk.org). It is recommended to use the latest version (Currently it is 2.x). After libvolk [installed or built](https://github.com/gnuradio/volk#building-on-most-x86-32-bit-and-64-bit-platforms), it needs to detect optimal kernels. Run the command ```volk_profile``` to generate and save profile.
  * [librtlsdr](https://github.com/dernasherbrezon/librtlsdr). Version >=0.5.4 is required.
+ * [libairspy](https://github.com/airspy/airspyone_host/)
+ * [libhackrf](https://github.com/greatscottgadgets/hackrf)
  * [libconfig](https://hyperrealm.github.io/libconfig/libconfig_manual.html)
  * libz. Should be installed in every operational system
  * libm. Same
- * [libcheck](https://libcheck.github.io/check/) for tests (Optional)
  
 All dependencies can be easily installed from [leosatdata APT repository](https://leosatdata.com/apt):
 
 ```
-sudo apt-get install dirmngr lsb-release
-sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys A5A70917
-sudo bash -c "echo \"deb http://s3.amazonaws.com/r2cloud $(lsb_release --codename --short) main\" > /etc/apt/sources.list.d/r2cloud.list"
+sudo apt-get install curl lsb-release
+curl -fsSL https://leosatdata.com/r2cloud.gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/r2cloud.gpg
+sudo bash -c "echo 'deb [signed-by=/usr/share/keyrings/r2cloud.gpg] http://apt.leosatdata.com $(lsb_release --codename --short) main' > /etc/apt/sources.list.d/r2cloud.list"
 sudo apt-get update
-sudo apt-get install libvolk2-dev librtlsdr-dev libconfig-dev check
+sudo apt-get install librtlsdr-dev libconfig-dev
 ```
 
 ## Build

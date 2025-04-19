@@ -58,3 +58,7 @@ Debug
 /build/
 /dbg/
 /cmake-build-debug/
+/cmake-build-debug-system/
+/cmake-build-release/
+.cache
+/release/

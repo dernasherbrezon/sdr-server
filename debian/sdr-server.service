@@ -3,7 +3,6 @@
 
     [Service]
     WorkingDirectory=/etc/sdr-server
-    Environment="VOLK_CONFIGPATH=/etc/sdr-server"
     ExecStart=/usr/bin/sdr_server /etc/sdr-server/config.conf
     Restart=always
 

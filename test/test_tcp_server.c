@@ -1,68 +1,55 @@
 #include <stdlib.h>
-#include <check.h>
+#include <unity.h>
 
-#include "utils.h"
-#include "mock_librtlsdr.c"
-#include "../src/tcp_server.h"
 #include "../src/client/tcp_client.h"
-
-extern void init_mock_librtlsdr();
-
-extern void wait_for_data_read();
-
-extern void setup_mock_data(uint8_t *buffer, int len);
-
-extern void stop_rtlsdr_mock();
+#include "../src/tcp_server.h"
+#include "airspy_lib_mock.h"
+#include "hackrf_lib_mock.h"
+#include "rtlsdr_lib_mock.h"
+#include "utils.h"
 
 tcp_server *server = NULL;
-core *core_obj = NULL;
 struct server_config *config = NULL;
 struct tcp_client *client0 = NULL;
 struct tcp_client *client1 = NULL;
 struct tcp_client *client2 = NULL;
 uint8_t *input = NULL;
+int16_t *input_cs16 = NULL;
+int8_t *input_cs8 = NULL;
 
-void reconnect_client() {
+static void reconnect_client() {
   destroy_client(client0);
   client0 = NULL;
-  int code = create_client(config->bind_address, config->port, &client0);
-  ck_assert_int_eq(code, 0);
+  TEST_ASSERT_EQUAL_INT(0, create_client(config->bind_address, config->port, &client0));
 }
 
-void create_and_init_tcpserver() {
-  int code = create_server_config(&config, "tcp_server.config");
-  ck_assert_int_eq(code, 0);
-  code = create_core(config, &core_obj);
-  ck_assert_int_eq(code, 0);
-  code = start_tcp_server(config, core_obj, &server);
-  ck_assert_int_eq(code, 0);
+static void create_and_init_tcpserver() {
+  TEST_ASSERT_EQUAL_INT(0, create_server_config(&config, "tcp_server.config"));
+  TEST_ASSERT_EQUAL_INT(0, start_tcp_server(config, &server));
   reconnect_client();
 }
 
-void assert_response(struct tcp_client *client, uint8_t type, uint8_t status, uint8_t details) {
+static void assert_response(struct tcp_client *client, uint8_t type, uint8_t status, uint8_t details) {
   struct message_header *response_header = NULL;
   struct response *resp = NULL;
-  int code = read_response(&response_header, &resp, client);
-  ck_assert_int_eq(code, 0);
-  ck_assert_int_eq(response_header->type, type);
-  ck_assert_int_eq(resp->status, status);
-  ck_assert_int_eq(resp->details, details);
+  TEST_ASSERT_EQUAL_INT(0, read_response(&response_header, &resp, client));
+  TEST_ASSERT_EQUAL_INT(type, response_header->type);
+  TEST_ASSERT_EQUAL_INT(status, resp->status);
+  TEST_ASSERT_EQUAL_INT(details, resp->details);
   free(resp);
   free(response_header);
 }
 
-START_TEST (test_out_of_band_frequency_clients) {
+void test_out_of_band_frequency_clients() {
   create_and_init_tcpserver();
 
   send_message(client0, PROTOCOL_VERSION, TYPE_REQUEST, 460700000, 48000, 460600000, REQUEST_DESTINATION_FILE);
   assert_response(client0, TYPE_RESPONSE, RESPONSE_STATUS_SUCCESS, 0);
 
-  int code = create_client(config->bind_address, config->port, &client1);
-  ck_assert_int_eq(code, 0);
+  TEST_ASSERT_EQUAL_INT(0, create_client(config->bind_address, config->port, &client1));
   send_message(client1, PROTOCOL_VERSION, TYPE_REQUEST, 460700000, 48000, 461600000, REQUEST_DESTINATION_FILE);
   assert_response(client1, TYPE_RESPONSE, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_OUT_OF_BAND_FREQ);
   destroy_client(client1);
-  stop_rtlsdr_mock();
 
   // then the first client disconnects
   send_message(client0, PROTOCOL_VERSION, TYPE_SHUTDOWN, 0, 0, 0, 0);
@@ -70,32 +57,24 @@ START_TEST (test_out_of_band_frequency_clients) {
   client0 = NULL;
 
   // now band freq is available
-  code = create_client(config->bind_address, config->port, &client1);
-  ck_assert_int_eq(code, 0);
+  TEST_ASSERT_EQUAL_INT(0, create_client(config->bind_address, config->port, &client1));
   send_message(client1, PROTOCOL_VERSION, TYPE_REQUEST, 460700000, 48000, 461600000, REQUEST_DESTINATION_FILE);
   assert_response(client1, TYPE_RESPONSE, RESPONSE_STATUS_SUCCESS, 2);
 }
 
-END_TEST
-
 // this test will ensure tcp server stops
 // if client connected and didn't send anything
-START_TEST (test_connect_and_keep_quiet) {
+void test_connect_and_keep_quiet() {
   create_and_init_tcpserver();
 }
 
-END_TEST
-
-START_TEST (test_partial_request) {
+void test_partial_request() {
   create_and_init_tcpserver();
   uint8_t buffer[] = {PROTOCOL_VERSION};
-  int code = write_data(buffer, sizeof(buffer), client0);
-  ck_assert_int_eq(code, 0);
+  TEST_ASSERT_EQUAL_INT(0, write_data(buffer, sizeof(buffer), client0));
 }
 
-END_TEST
-
-START_TEST (test_invalid_request) {
+void test_invalid_request() {
   create_and_init_tcpserver();
 
   send_message(client0, PROTOCOL_VERSION, TYPE_REQUEST, 460700000, 48000, 0, REQUEST_DESTINATION_FILE);
@@ -134,24 +113,20 @@ START_TEST (test_invalid_request) {
   assert_response(client0, TYPE_RESPONSE, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_INVALID_REQUEST);
 }
 
-END_TEST
-
-START_TEST (test_connect_disconnect) {
+void test_connect_disconnect() {
   create_and_init_tcpserver();
 
   send_message(client0, PROTOCOL_VERSION, TYPE_REQUEST, 460700000, 48000, 460600000, REQUEST_DESTINATION_FILE);
   assert_response(client0, TYPE_RESPONSE, RESPONSE_STATUS_SUCCESS, 0);
 
-  int code = create_client(config->bind_address, config->port, &client1);
-  ck_assert_int_eq(code, 0);
+  TEST_ASSERT_EQUAL_INT(0, create_client(config->bind_address, config->port, &client1));
   send_message(client1, PROTOCOL_VERSION, TYPE_REQUEST, 460700000, 48000, 460600000, REQUEST_DESTINATION_FILE);
   assert_response(client1, TYPE_RESPONSE, RESPONSE_STATUS_SUCCESS, 1);
 
   send_message(client0, PROTOCOL_VERSION, TYPE_SHUTDOWN, 0, 0, 0, 0);
   // no response here is expected
 
-  code = create_client(config->bind_address, config->port, &client2);
-  ck_assert_int_eq(code, 0);
+  TEST_ASSERT_EQUAL_INT(0, create_client(config->bind_address, config->port, &client2));
   send_message(client2, PROTOCOL_VERSION, TYPE_REQUEST, 460700000, 48000, 460600000, REQUEST_DESTINATION_FILE);
   assert_response(client2, TYPE_RESPONSE, RESPONSE_STATUS_SUCCESS, 2);
 
@@ -159,18 +134,14 @@ START_TEST (test_connect_disconnect) {
   // no response here is expected
 }
 
-END_TEST
-
-START_TEST (test_connect_disconnect_single_client) {
+void test_connect_disconnect_single_client() {
   create_and_init_tcpserver();
 
   send_message(client0, PROTOCOL_VERSION, TYPE_REQUEST, 460700000, 48000, 460600000, REQUEST_DESTINATION_FILE);
   assert_response(client0, TYPE_RESPONSE, RESPONSE_STATUS_SUCCESS, 0);
 }
 
-END_TEST
-
-START_TEST (test_disconnect_client) {
+void test_disconnect_client() {
   create_and_init_tcpserver();
 
   send_message(client0, PROTOCOL_VERSION, TYPE_REQUEST, 460700000, 48000, 460600000, REQUEST_DESTINATION_FILE);
@@ -180,56 +151,114 @@ START_TEST (test_disconnect_client) {
   client0 = NULL;
 }
 
-END_TEST
-
-START_TEST (test_destination_socket) {
-  // make input/output compatible with test_core
-  int code = create_server_config(&config, "tcp_server.config");
-  ck_assert_int_eq(code, 0);
+void test_rtlsdr() {
+  TEST_ASSERT_EQUAL_INT(0, create_server_config(&config, "tcp_server.config"));
+  config->sdr_type = SDR_TYPE_RTL;
   config->band_sampling_rate = 48000;
-  code = create_core(config, &core_obj);
-  ck_assert_int_eq(code, 0);
-  code = start_tcp_server(config, core_obj, &server);
-  ck_assert_int_eq(code, 0);
-  reconnect_client();
+  TEST_ASSERT_EQUAL_INT(0, start_tcp_server(config, &server));
 
+  TEST_ASSERT_EQUAL_INT(0, create_client(config->bind_address, config->port, &client0));
+  send_message(client0, PROTOCOL_VERSION, TYPE_REQUEST, -12000 + 460100200, 9600, 460100200, REQUEST_DESTINATION_SOCKET);
+  assert_response(client0, TYPE_RESPONSE, RESPONSE_STATUS_SUCCESS, 0);
+
+  TEST_ASSERT_EQUAL_INT(0, create_client(config->bind_address, config->port, &client1));
+  send_message(client1, PROTOCOL_VERSION, TYPE_REQUEST, -12000 + 460100200, 9600, 460100200, REQUEST_DESTINATION_FILE);
+  assert_response(client1, TYPE_RESPONSE, RESPONSE_STATUS_SUCCESS, 1);
+
+  int length = 200;
+  setup_input_cu8(&input, 0, length);
+  rtlsdr_setup_mock_data(input, length);
+  rtlsdr_wait_for_data_read();
+
+  const float expected[] = {-0.0000000f, -0.0000000f, -0.0005348f, -0.0006878f, 0.0023769f, 0.0014759f, -0.0050460f, -0.0028901f, 0.0100345f, 0.0064948f, -0.0245430f, -0.0142574f, 0.0051531f, -0.2082227f, 0.0151599f, 0.0243944f, -0.0072941f, -0.0100809f, 0.0034306f, 0.0046447f, -0.0012999f,
+                            -0.0020388f, 0.0004290f, 0.0008074f, -0.0002939f, -0.0002891f, 0.0002456f, -0.0002504f, 0.0002068f, 0.0002021f, -0.0001587f, 0.0001633f, -0.0001197f, -0.0001152f, 0.0000717f, -0.0000762f, 0.0000326f, 0.0000283f, 0.0000152f, -0.0000109f};
+  float *actual = malloc(sizeof(expected));
+  TEST_ASSERT(actual != NULL);
+  TEST_ASSERT_EQUAL_INT(0, read_data(actual, sizeof(expected), client0));
+  assert_float_array(expected, sizeof(expected) / sizeof(float), actual, sizeof(expected) / sizeof(float));
+  free(actual);
+
+  rtlsdr_stop_mock();
+  stop_tcp_server(server);
+  join_tcp_server_thread(server);
+  server = NULL;
+  assert_file(config, 1, expected, sizeof(expected) / sizeof(float) / 2);
+}
+
+void test_airspy() {
+  TEST_ASSERT_EQUAL_INT(0, create_server_config(&config, "tcp_server.config"));
+  config->sdr_type = SDR_TYPE_AIRSPY;
+  config->band_sampling_rate = 48000;
+  config->use_gzip = true;
+  TEST_ASSERT_EQUAL_INT(0, start_tcp_server(config, &server));
+
+  TEST_ASSERT_EQUAL_INT(0, create_client(config->bind_address, config->port, &client0));
+  send_message(client0, PROTOCOL_VERSION, TYPE_REQUEST, -12000 + 460100200, 9600, 460100200, REQUEST_DESTINATION_SOCKET);
+  assert_response(client0, TYPE_RESPONSE, RESPONSE_STATUS_SUCCESS, 0);
+
+  TEST_ASSERT_EQUAL_INT(0, create_client(config->bind_address, config->port, &client1));
+  send_message(client1, PROTOCOL_VERSION, TYPE_REQUEST, -12000 + 460100200, 9600, 460100200, REQUEST_DESTINATION_FILE);
+  assert_response(client1, TYPE_RESPONSE, RESPONSE_STATUS_SUCCESS, 1);
+
+  int length = 200;
+  setup_input_cs16(&input_cs16, 0, length);
+  airspy_setup_mock_data(input_cs16, length);
+  airspy_wait_for_data_read();
+
+  const float expected[] = {-0.000000f, -0.000000f, -0.000002f, -0.000002f, 0.000007f, 0.000004f, -0.000015f, -0.000009f, 0.000031f, 0.000020f, -0.000075f, -0.000043f, 0.000013f, -0.000639f, 0.000047f, 0.000074f, -0.000022f, -0.000031f, 0.000010f, 0.000014f, -0.000004f, -0.000006f, 0.000002f, 0.000002f, -0.000001f, -0.000001f, 0.000000f, -0.000001f, 0.000000f, 0.000000f, -0.000000f, 0.000000f, 0.000000f, 0.000000f, -0.000000f, 0.000000f, -0.000000f, -0.000000f, 0.000001f, -0.000001f};
+  float *actual = malloc(sizeof(expected));
+  TEST_ASSERT(actual != NULL);
+  TEST_ASSERT_EQUAL_INT(0, read_data(actual, sizeof(expected), client0));
+  assert_float_array(expected, sizeof(expected) / sizeof(float), actual, sizeof(expected) / sizeof(float));
+  free(actual);
+
+  airspy_stop_mock();
+  stop_tcp_server(server);
+  join_tcp_server_thread(server);
+  server = NULL;
+  assert_gzfile(config, 1, expected, sizeof(expected) / sizeof(float) / 2);
+}
+
+void test_hackrf() {
+  TEST_ASSERT_EQUAL_INT(0, create_server_config(&config, "tcp_server.config"));
+  config->sdr_type = SDR_TYPE_HACKRF;
+  config->band_sampling_rate = 48000;
+  TEST_ASSERT_EQUAL_INT(0, start_tcp_server(config, &server));
+
+  TEST_ASSERT_EQUAL_INT(0, create_client(config->bind_address, config->port, &client0));
   send_message(client0, PROTOCOL_VERSION, TYPE_REQUEST, -12000 + 460100200, 9600, 460100200, REQUEST_DESTINATION_SOCKET);
   assert_response(client0, TYPE_RESPONSE, RESPONSE_STATUS_SUCCESS, 0);
 
   int length = 200;
-  setup_input_data(&input, 0, length);
-  setup_mock_data(input, length);
-  wait_for_data_read();
+  setup_input_cs8(&input_cs8, 0, length);
+  hackrf_setup_mock_data(input_cs8, length);
+  hackrf_wait_for_data_read();
 
-  const float expected[] = {0.0000000f, 0.0000000f, -0.0000305f, 0.0000397f, -0.0000284f, -0.0001087f, 0.0000315f, 0.0000721f, 0.0001696f, -0.0001918f, -0.0002347f, 0.0007635f, -0.0027987f, -0.0011748f, 0.0006935f, -0.0004690f, -0.0000522f, 0.0003383f, -0.0000859f, 0.0001224f, -0.0002705f,
-                            -0.0001877f, 0.0002557f, -0.0002522f, 0.0002613f, 0.0002652f, 0.0007585f, 0.0013720f, -0.0015104f, -0.0039876f, 0.0041792f, 0.0114027f, -0.0093692f, -0.0255084f, 0.0198582f, 0.0540531f, -0.0603861f, -0.1393571f, 0.0422274f, -0.3586643f};
-
+  const float expected[] = {0.000000f, 0.000000f, -0.000030f, 0.000040f, -0.000028f, -0.000109f, 0.000032f, 0.000072f, 0.000170f, -0.000192f, -0.000235f, 0.000763f, -0.002799f, -0.001175f, 0.000693f, -0.000469f, -0.000052f, 0.000338f, -0.000086f, 0.000122f, -0.000271f, -0.000188f, 0.000256f, -0.000252f, 0.000261f, 0.000265f, 0.000758f, 0.001372f, -0.001510f, -0.003988f, 0.004179f, 0.011403f, -0.009369f, -0.025508f, 0.019858f, 0.054053f, -0.060386f, -0.139357f, 0.042227f, -0.358664f};
   float *actual = malloc(sizeof(expected));
-  ck_assert(actual != NULL);
-  code = read_data(actual, sizeof(expected), client0);
-  ck_assert_int_eq(code, 0);
+  TEST_ASSERT(actual != NULL);
+  TEST_ASSERT_EQUAL_INT(0, read_data(actual, sizeof(expected), client0));
   assert_float_array(expected, sizeof(expected) / sizeof(float), actual, sizeof(expected) / sizeof(float));
   free(actual);
+
+  hackrf_stop_mock();
+  stop_tcp_server(server);
+  join_tcp_server_thread(server);
+  server = NULL;
 }
 
-END_TEST
-
-START_TEST (test_ping) {
+void test_ping() {
   create_and_init_tcpserver();
 
   send_message(client0, PROTOCOL_VERSION, TYPE_PING, 0, 0, 0, 0);
   assert_response(client0, TYPE_RESPONSE, RESPONSE_STATUS_SUCCESS, 0);
 }
 
-END_TEST
-
-void teardown() {
-  stop_rtlsdr_mock();
+void tearDown() {
+  rtlsdr_stop_mock();
   stop_tcp_server(server);
   join_tcp_server_thread(server);
   server = NULL;
-  destroy_core(core_obj);
-  core_obj = NULL;
   destroy_server_config(config);
   config = NULL;
   destroy_client(client0);
@@ -242,49 +271,32 @@ void teardown() {
     free(input);
     input = NULL;
   }
+  if (input_cs16 != NULL) {
+    free(input_cs16);
+    input_cs16 = NULL;
+  }
+  if (input_cs8 != NULL) {
+    free(input_cs8);
+    input_cs8 = NULL;
+  }
 }
 
-void setup() {
-  init_mock_librtlsdr();
-}
-
-Suite *common_suite(void) {
-  Suite *s;
-  TCase *tc_core;
-
-  s = suite_create("tcp_server");
-
-  /* Core test case */
-  tc_core = tcase_create("Core");
-
-  tcase_add_test(tc_core, test_connect_disconnect);
-  tcase_add_test(tc_core, test_invalid_request);
-  tcase_add_test(tc_core, test_partial_request);
-  tcase_add_test(tc_core, test_connect_and_keep_quiet);
-  tcase_add_test(tc_core, test_connect_disconnect_single_client);
-  tcase_add_test(tc_core, test_disconnect_client);
-  tcase_add_test(tc_core, test_destination_socket);
-  tcase_add_test(tc_core, test_out_of_band_frequency_clients);
-  tcase_add_test(tc_core, test_ping);
-
-  tcase_add_checked_fixture(tc_core, setup, teardown);
-  suite_add_tcase(s, tc_core);
-
-  return s;
+void setUp() {
+  // do nothing
 }
 
 int main(void) {
-  int number_failed;
-  Suite *s;
-  SRunner *sr;
-
-  s = common_suite();
-  sr = srunner_create(s);
-
-  srunner_set_fork_status(sr, CK_NOFORK);
-  srunner_run_all(sr, CK_NORMAL);
-  number_failed = srunner_ntests_failed(sr);
-  srunner_free(sr);
-  return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
+  UNITY_BEGIN();
+  RUN_TEST(test_connect_disconnect);
+  RUN_TEST(test_invalid_request);
+  RUN_TEST(test_partial_request);
+  RUN_TEST(test_connect_and_keep_quiet);
+  RUN_TEST(test_connect_disconnect_single_client);
+  RUN_TEST(test_disconnect_client);
+  RUN_TEST(test_rtlsdr);
+  RUN_TEST(test_airspy);
+  RUN_TEST(test_hackrf);
+  RUN_TEST(test_out_of_band_frequency_clients);
+  RUN_TEST(test_ping);
+  return UNITY_END();
 }
-

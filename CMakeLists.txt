@@ -49,9 +49,13 @@ include_directories(${PC_RTLSDR_INCLUDE_DIRS})
 
 pkg_check_modules(PC_LIBAIRSPY REQUIRED libairspy)
 include_directories(${PC_LIBAIRSPY_INCLUDE_DIRS})
+# libairspy pkg config was invalid at some point
+include_directories("/usr/include/libairspy/")
 
 pkg_check_modules(PC_LIBHACKRF REQUIRED libhackrf)
 include_directories(${PC_LIBHACKRF_INCLUDE_DIRS})
+# libhackrf pkg config was invalid at some point
+include_directories("/usr/include/libhackrf/")
 
 pkg_check_modules(PC_ZLIB REQUIRED zlib)
 include_directories(${PC_ZLIB_INCLUDE_DIRS})

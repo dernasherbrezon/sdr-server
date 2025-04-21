@@ -28,7 +28,7 @@ struct tcp_server_t {
   int server_socket;
   volatile sig_atomic_t is_running;
   pthread_t acceptor_thread;
-  sdr_device *core;
+  sdr_device *device;
   struct server_config *server_config;
   uint32_t client_counter;
   uint32_t current_band_freq;
@@ -36,6 +36,11 @@ struct tcp_server_t {
   struct linked_list_tcp_node *tcp_nodes;
   pthread_mutex_t mutex;
   pthread_cond_t terminated_condition;
+
+  pthread_t shutdown_thread;
+  pthread_cond_t sdr_stopped_condition;
+  bool sdr_stopped;
+  bool shutdown_thread_created;
 };
 
 static void log_client(struct sockaddr_in *address, uint32_t id) {
@@ -182,6 +187,19 @@ static void tcp_node_destroy(struct linked_list_tcp_node *node) {
   }
 }
 
+static void *shutdown_callback(void *arg) {
+  tcp_server *server = (tcp_server *)arg;
+  fprintf(stdout, "sdr is stopping\n");
+  // synchronous wait until all threads shutdown
+  sdr_device_stop(server->device);
+  pthread_mutex_lock(&server->mutex);
+  server->sdr_stopped = true;
+  pthread_cond_broadcast(&server->sdr_stopped_condition);
+  fprintf(stdout, "sdr stopped\n");
+  pthread_mutex_unlock(&server->mutex);
+  return (void *)0;
+}
+
 static void *tcp_worker(void *arg) {
   struct linked_list_tcp_node *node = (struct linked_list_tcp_node *)arg;
   uint32_t node_id = node->config->id;
@@ -224,7 +242,10 @@ static void *tcp_worker(void *arg) {
     cur_node = cur_node->next;
   }
   if (number_of_running == 0) {
-    sdr_device_stop(node->server->core);
+    if (!node->server->shutdown_thread_created) {
+      pthread_create(&node->server->shutdown_thread, NULL, &shutdown_callback, node->server);
+      node->server->shutdown_thread_created = true;
+    }
   }
   tcp_node_destroy(node);
   pthread_cond_broadcast(&node->server->terminated_condition);
@@ -320,9 +341,17 @@ void handle_new_client(int client_socket, tcp_server *server) {
   cleanup_terminated_threads(server);
   if (server->tcp_nodes == NULL) {
     server->current_band_freq = config->band_freq;
-    code = sdr_device_start(config, server->core);
+    while (!server->sdr_stopped) {
+      pthread_cond_wait(&server->sdr_stopped_condition, &server->mutex);
+    }
+    if (server->shutdown_thread_created) {
+      pthread_join(server->shutdown_thread, NULL);
+      server->shutdown_thread_created = false;
+    }
+    code = sdr_device_start(config, server->device);
     if (code == 0) {
       server->tcp_nodes = tcp_node;
+      server->sdr_stopped = false;
     }
   } else {
     if (server->current_band_freq != 0 && server->current_band_freq != config->band_freq) {
@@ -419,11 +448,17 @@ static void *acceptor_worker(void *arg) {
     server->tcp_nodes = next;
     cur_node = next;
   }
-  pthread_mutex_unlock(&server->mutex);
-
-  if (server->core != NULL) {
-    sdr_device_destroy(server->core);
+  while (!server->sdr_stopped) {
+    pthread_cond_wait(&server->sdr_stopped_condition, &server->mutex);
   }
+  if (server->shutdown_thread_created) {
+    pthread_join(server->shutdown_thread, NULL);
+    server->shutdown_thread_created = false;
+  }
+  if (server->device != NULL) {
+    sdr_device_destroy(server->device);
+  }
+  pthread_mutex_unlock(&server->mutex);
 
   printf("tcp server stopped\n");
   return (void *)0;
@@ -436,7 +471,7 @@ int start_tcp_server(struct server_config *config, tcp_server **server) {
   }
   result->mutex = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
   result->tcp_nodes = NULL;
-  int code = sdr_device_create(sdr_callback, result, config, &result->core);
+  int code = sdr_device_create(sdr_callback, result, config, &result->device);
   if (code != 0) {
     free(result);
     return -1;
@@ -455,6 +490,9 @@ int start_tcp_server(struct server_config *config, tcp_server **server) {
   result->client_counter = -1;
   result->current_band_freq = 0;
   result->terminated_condition = (pthread_cond_t)PTHREAD_COND_INITIALIZER;
+  result->sdr_stopped_condition = (pthread_cond_t)PTHREAD_COND_INITIALIZER;
+  result->sdr_stopped = true;
+  result->shutdown_thread_created = false;
   int opt = 1;
   if (setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt))) {
     free(result);

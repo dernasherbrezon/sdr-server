@@ -184,6 +184,7 @@ static void tcp_node_destroy(struct linked_list_tcp_node *node) {
   }
   if (node->dsp_worker != NULL) {
     dsp_worker_destroy(node->dsp_worker);
+    node->dsp_worker = NULL;
   }
 }
 
@@ -323,14 +324,14 @@ void handle_new_client(int client_socket, tcp_server *server) {
   tcp_node->next = NULL;
   tcp_node->server = server;
 
-  int code = pthread_create(&tcp_node->client_thread, NULL, &tcp_worker, tcp_node);
+  int code = dsp_worker_start(config, server->server_config, &tcp_node->dsp_worker);
   if (code != 0) {
     respond_failure(client_socket, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_INTERNAL_ERROR);
     tcp_node_destroy(tcp_node);
     return;
   }
 
-  code = dsp_worker_start(config, server->server_config, &tcp_node->dsp_worker);
+  code = pthread_create(&tcp_node->client_thread, NULL, &tcp_worker, tcp_node);
   if (code != 0) {
     respond_failure(client_socket, RESPONSE_STATUS_FAILURE, RESPONSE_DETAILS_INTERNAL_ERROR);
     tcp_node_destroy(tcp_node);

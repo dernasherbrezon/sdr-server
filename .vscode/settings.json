@@ -29,6 +29,7 @@
         "text_encoding": "c",
         "ccomplex": "cpp",
         "xlating_cs16.h": "c",
-        "complex.h": "c"
+        "complex.h": "c",
+        "api.h": "c"
     }
 }

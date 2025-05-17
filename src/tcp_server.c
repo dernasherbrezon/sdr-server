@@ -192,8 +192,8 @@ static void *shutdown_callback(void *arg) {
   tcp_server *server = (tcp_server *)arg;
   fprintf(stdout, "sdr is stopping\n");
   // synchronous wait until all threads shutdown
-  sdr_device_stop(server->device);
   pthread_mutex_lock(&server->mutex);
+  sdr_device_stop(server->device);
   server->sdr_stopped = true;
   pthread_cond_broadcast(&server->sdr_stopped_condition);
   fprintf(stdout, "sdr stopped\n");

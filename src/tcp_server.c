@@ -191,9 +191,9 @@ static void tcp_node_destroy(struct linked_list_tcp_node *node) {
 static void *shutdown_callback(void *arg) {
   tcp_server *server = (tcp_server *)arg;
   fprintf(stdout, "sdr is stopping\n");
+  sdr_device_stop(server->device);
   // synchronous wait until all threads shutdown
   pthread_mutex_lock(&server->mutex);
-  sdr_device_stop(server->device);
   server->sdr_stopped = true;
   pthread_cond_broadcast(&server->sdr_stopped_condition);
   fprintf(stdout, "sdr stopped\n");

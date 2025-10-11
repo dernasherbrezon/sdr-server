@@ -17,12 +17,18 @@ typedef enum {
   AIRSPY_GAIN_MANUAL = 3
 } airspy_gain_mode_t;
 
+typedef enum {
+  NATIVE_CF32,
+  OPTIMIZED_CF32
+} cpu_optimization;
+
 struct server_config {
   // socket settings
   char *bind_address;
   int port;
   int read_timeout_seconds;
   char *device_serial;
+  cpu_optimization optimization;
 
   sdr_type_t sdr_type;
 

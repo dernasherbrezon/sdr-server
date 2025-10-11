@@ -48,7 +48,7 @@ float config_read_float(config_t *libconfig, const char *config_name, float defa
   if (setting == NULL) {
     result = default_value;
   } else {
-    result = (float)config_setting_get_float(setting);
+    result = (float) config_setting_get_float(setting);
   }
   fprintf(stdout, "%s: %f\n", config_name, result);
   return result;
@@ -72,10 +72,27 @@ uint32_t config_read_uint32_t(config_t *libconfig, const char *config_name, uint
   if (setting == NULL) {
     result = default_value;
   } else {
-    result = (uint32_t)config_setting_get_int(setting);
+    result = (uint32_t) config_setting_get_int(setting);
   }
   fprintf(stdout, "%s: %d\n", config_name, result);
   return result;
+}
+
+static cpu_optimization config_parse_cpu_optimization(const char *str) {
+  if (strcmp(str, "NATIVE_CF32") == 0) return NATIVE_CF32;
+  if (strcmp(str, "OPTIMIZED_CF32") == 0) return OPTIMIZED_CF32;
+  return -1;
+}
+
+static const char *config_format_cpu_optimization(cpu_optimization value) {
+  switch (value) {
+    case NATIVE_CF32:
+      return "NATIVE_CF32";
+    case OPTIMIZED_CF32:
+      return "OPTIMIZED_CF32";
+    default:
+      return "UNKNOWN";
+  }
 }
 
 int create_server_config(struct server_config **config, const char *path) {
@@ -84,7 +101,7 @@ int create_server_config(struct server_config **config, const char *path) {
   if (result == NULL) {
     return -ENOMEM;
   }
-  *result = (struct server_config){0};
+  *result = (struct server_config) {0};
 
   config_t libconfig;
   config_init(&libconfig);
@@ -100,7 +117,7 @@ int create_server_config(struct server_config **config, const char *path) {
   result->sdr_type = config_read_int(&libconfig, "sdr_type", 0);
   result->bias_t = config_read_int(&libconfig, "bias_t", 0);
   result->gain_mode = config_read_int(&libconfig, "gain_mode", 0);
-  result->gain = (int)(config_read_float(&libconfig, "gain", 0) * 10);
+  result->gain = (int) (config_read_float(&libconfig, "gain", 0) * 10);
   result->ppm = config_read_int(&libconfig, "ppm", 0);
 
   result->airspy_gain_mode = config_read_int(&libconfig, "airspy_gain_mode", AIRSPY_GAIN_MANUAL);
@@ -140,7 +157,7 @@ int create_server_config(struct server_config **config, const char *path) {
     return -1;
   }
 
-  result->hackrf_bias_t = (uint8_t)config_read_int(&libconfig, "hackrf_bias_t", 0);
+  result->hackrf_bias_t = (uint8_t) config_read_int(&libconfig, "hackrf_bias_t", 0);
   result->hackrf_amp = config_read_int(&libconfig, "hackrf_amp", 0);
   if (result->hackrf_amp > 1) {
     fprintf(stderr, "<3>hackrf_amp is either turned on (1) or off (0)\n");
@@ -178,7 +195,7 @@ int create_server_config(struct server_config **config, const char *path) {
     free(result);
     return -1;
   }
-  uint32_t band_sampling_rate = (uint32_t)config_setting_get_int(setting);
+  uint32_t band_sampling_rate = (uint32_t) config_setting_get_int(setting);
   fprintf(stdout, "band sampling rate: %d\n", band_sampling_rate);
   result->band_sampling_rate = band_sampling_rate;
 
@@ -224,13 +241,28 @@ int create_server_config(struct server_config **config, const char *path) {
   char *base_path = read_and_copy_str(setting, default_folder);
   if (base_path == NULL) {
     config_destroy(&libconfig);
-    free(result);
+    destroy_server_config(result);
     return -ENOMEM;
   }
   result->base_path = base_path;
   fprintf(stdout, "base path for storing results: %s\n", result->base_path);
 
   result->use_gzip = config_read_bool(&libconfig, "use_gzip", true);
+
+  setting = config_lookup(&libconfig, "cpu_optimization");
+  if (setting != NULL) {
+    const char *cpu_optimization_str = config_setting_get_string(setting);
+    result->optimization = config_parse_cpu_optimization(cpu_optimization_str);
+    if (result->optimization == -1) {
+      fprintf(stderr, "<3>invalid cpu_optimization: %s\n", cpu_optimization_str);
+      config_destroy(&libconfig);
+      destroy_server_config(result);
+      return -1;
+    }
+  } else {
+    result->optimization = NATIVE_CF32;
+  }
+  fprintf(stdout, "cpu_optimization: %s\n", config_format_cpu_optimization(result->optimization));
 
   config_destroy(&libconfig);
 

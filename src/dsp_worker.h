@@ -25,6 +25,12 @@ typedef struct {
 typedef struct {
   client_config *config;
 
+  void (*xlating_process_cu8)(const uint8_t *, size_t, float complex **, size_t *, xlating *);
+
+  void (*xlating_process_cs8)(const int8_t *, size_t, float complex **, size_t *, xlating *);
+
+  void (*xlating_process_cs16)(const int16_t *, size_t, float complex **, size_t *, xlating *);
+
   queue *queue;
   xlating *filter;
   pthread_t *dsp_thread;

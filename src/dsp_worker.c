@@ -29,7 +29,7 @@ static int write_to_socket(int client_socket, const float complex *filter_output
   size_t total_len = filter_output_len * sizeof(float complex);
   size_t left = total_len;
   while (left > 0) {
-    ssize_t written = write(client_socket, (char *)filter_output + (total_len - left), left);
+    ssize_t written = write(client_socket, (char *) filter_output + (total_len - left), left);
     if (written < 0) {
       return -1;
     }
@@ -39,7 +39,7 @@ static int write_to_socket(int client_socket, const float complex *filter_output
 }
 
 static void *callback(void *arg) {
-  dsp_worker *worker = (dsp_worker *)arg;
+  dsp_worker *worker = (dsp_worker *) arg;
   client_config *config = worker->config;
   fprintf(stdout, "[%d] dsp_worker started\n", config->id);
   uint8_t *input = NULL;
@@ -54,15 +54,15 @@ static void *callback(void *arg) {
     }
     switch (config->sdr_type) {
       case SDR_TYPE_HACKRF: {
-        process_optimized_cs8_cf32((const int8_t *)input, input_len, &filter_output, &filter_output_len, worker->filter);
+        worker->xlating_process_cs8((const int8_t *) input, input_len, &filter_output, &filter_output_len, worker->filter);
         break;
       }
       case SDR_TYPE_RTL: {
-        process_optimized_cu8_cf32(input, input_len, &filter_output, &filter_output_len, worker->filter);
+        worker->xlating_process_cu8(input, input_len, &filter_output, &filter_output_len, worker->filter);
         break;
       }
       case SDR_TYPE_AIRSPY: {
-        process_optimized_cs16_cf32((const int16_t *)input, input_len / sizeof(int16_t), &filter_output, &filter_output_len, worker->filter);
+        worker->xlating_process_cs16((const int16_t *) input, input_len / sizeof(int16_t), &filter_output, &filter_output_len, worker->filter);
         break;
       }
       default: {
@@ -84,12 +84,12 @@ static void *callback(void *arg) {
       close(config->client_socket);
     }
   }
-  return (void *)0;
+  return (void *) 0;
 }
 
 int dsp_worker_start(client_config *config, struct server_config *server_config, dsp_worker **worker) {
   dsp_worker *result = malloc(sizeof(dsp_worker));
-  *result = (dsp_worker){0};
+  *result = (dsp_worker) {0};
   result->config = config;
 
   // setup taps
@@ -101,10 +101,26 @@ int dsp_worker_start(client_config *config, struct server_config *server_config,
     return code;
   }
   // setup xlating frequency filter
-  code = create_frequency_xlating_filter(server_config->band_sampling_rate / config->sampling_rate, taps, len, (int64_t)config->center_freq - (int64_t)config->band_freq, server_config->band_sampling_rate, server_config->buffer_size, &result->filter);
+  code = create_frequency_xlating_filter(server_config->band_sampling_rate / config->sampling_rate, taps, len, (int64_t) config->center_freq - (int64_t) config->band_freq, server_config->band_sampling_rate, server_config->buffer_size, &result->filter);
   if (code != 0) {
     dsp_worker_destroy(result);
     return code;
+  }
+
+  switch (server_config->optimization) {
+    case NATIVE_CF32:
+      result->xlating_process_cu8 = process_native_cu8_cf32;
+      result->xlating_process_cs8 = process_native_cs8_cf32;
+      result->xlating_process_cs16 = process_native_cs16_cf32;
+      break;
+    case OPTIMIZED_CF32:
+      result->xlating_process_cu8 = process_optimized_cu8_cf32;
+      result->xlating_process_cs8 = process_optimized_cs8_cf32;
+      result->xlating_process_cs16 = process_optimized_cs16_cf32;
+      break;
+    default:
+      dsp_worker_destroy(result);
+      return -1;
   }
 
   if (server_config->use_gzip) {

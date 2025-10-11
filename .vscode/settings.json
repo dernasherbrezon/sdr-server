@@ -30,6 +30,8 @@
         "ccomplex": "cpp",
         "xlating_cs16.h": "c",
         "complex.h": "c",
-        "api.h": "c"
+        "api.h": "c",
+        "tcp_server.h": "c",
+        "config.h": "c"
     }
 }

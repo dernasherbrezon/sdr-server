@@ -70,6 +70,7 @@ static void process_native_cf32(size_t input_len_samples, float complex **output
       filter->output_cf32[produced] = temp * filter->phase;
       filter->phase = filter->phase * filter->phase_incr;
     }
+    filter->phase /= hypotf(crealf(filter->phase), cimagf(filter->phase));
   }
   // preserve history for the next execution
   filter->history_offset = working_len - current_index;
@@ -251,6 +252,7 @@ static void process_optimized_cf32(size_t input_len_samples, float complex **out
       filter->output_cf32[produced] = sum_temp * filter->phase;
       filter->phase = filter->phase * filter->phase_incr;
     }
+    filter->phase /= hypotf(crealf(filter->phase), cimagf(filter->phase));
   }
   // preserve history for the next execution
   filter->history_offset = working_len - current_index;
@@ -350,13 +352,13 @@ static void process_optimized_cf32(size_t input_complex_len, float complex **out
 void process_optimized_cu8_cf32(const uint8_t *input, size_t input_len, float complex **output, size_t *output_len, xlating *filter) {
   // input_len cannot be more than (working_len_total - history_offset)
   // convert to [-1.0;1.0] working buffer
-  size_t input_len_samples = input_len / 2;
-  for (size_t i = 0; i < input_len_samples; i++) {
+  size_t input_complex_len = input_len / 2;
+  for (size_t i = 0; i < input_complex_len; i++) {
     float real = ((float)input[2 * i] - 127.5F) / 128.0F;
     float imag = ((float)input[2 * i + 1] - 127.5F) / 128.0F;
     filter->working_buffer_cf32[i + filter->history_offset] = real + imag * I;
   }
-  process_optimized_cf32(input_len_samples, output, output_len, filter);
+  process_optimized_cf32(input_complex_len, output, output_len, filter);
 }
 
 void process_optimized_cs8_cf32(const int8_t *input, size_t input_len, float complex **output, size_t *output_len, xlating *filter) {

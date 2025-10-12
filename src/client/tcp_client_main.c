@@ -108,15 +108,17 @@ int main(int argc, char **argv) {
   size_t buffer_length = 262144;
   uint8_t *buffer = malloc(buffer_length);
   if (buffer == NULL) {
+    fclose(output);
     destroy_client(client);
     return -ENOMEM;
   }
+  int status_code = EXIT_SUCCESS;
   while (!do_exit) {
     int code = read_data(buffer, buffer_length, client);
     if (code != 0) {
       fprintf(stderr, "unable to read data. shutdown\n");
-      destroy_client(client);
-      return EXIT_FAILURE;
+      status_code = EXIT_FAILURE;
+      break;
     }
 
     size_t left = buffer_length;
@@ -124,12 +126,20 @@ int main(int argc, char **argv) {
       size_t written = fwrite(buffer + (buffer_length - left), sizeof(uint8_t), left, output);
       if (written == 0) {
         perror("unable to write the message");
-        destroy_client(client);
-        return EXIT_FAILURE;
+        status_code = EXIT_FAILURE;
+        break;
       }
       left -= written;
     }
+
+    if (status_code == EXIT_FAILURE) {
+      break;
+    }
   }
 
-  return EXIT_SUCCESS;
+  fclose(output);
+  destroy_client(client);
+  free(buffer);
+
+  return status_code;
 }

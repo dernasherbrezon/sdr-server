@@ -3,7 +3,7 @@ pipeline {
     parameters {
         string(name: 'BASE_VERSION', defaultValue: '1.1', description: 'From https://github.com/dernasherbrezon/sdr-server/actions')
         string(name: 'BUILD_NUMBER', defaultValue: '77', description: 'From https://github.com/dernasherbrezon/sdr-server/actions')
-        choice(name: 'DOCKER_IMAGE', choices: ['debian:stretch-slim', 'debian:buster-slim', 'debian:bullseye-slim', 'debian:bookworm-slim', 'ubuntu:jammy', 'ubuntu:bionic', 'ubuntu:focal'], description: 'From https://github.com/dernasherbrezon/sdr-server/actions')
+        choice(name: 'DOCKER_IMAGE', choices: ['debian:stretch-slim', 'debian:buster-slim', 'debian:bullseye-slim', 'debian:bookworm-slim', 'debian:trixie-slim', 'ubuntu:jammy', 'ubuntu:bionic', 'ubuntu:focal'], description: 'From https://github.com/dernasherbrezon/sdr-server/actions')
         choice(name: 'OS_ARCHITECTURE', choices: ['armhf', 'arm64', 'amd64'], description: 'From https://github.com/dernasherbrezon/sdr-server/actions')
     }
 

@@ -6,6 +6,12 @@ pipeline {
         choice(name: 'DOCKER_IMAGE', choices: ['debian:stretch-slim', 'debian:buster-slim', 'debian:bullseye-slim', 'debian:bookworm-slim', 'ubuntu:jammy', 'ubuntu:bionic', 'ubuntu:focal'], description: 'From https://github.com/dernasherbrezon/sdr-server/actions')
         choice(name: 'OS_ARCHITECTURE', choices: ['armhf', 'arm64', 'amd64'], description: 'From https://github.com/dernasherbrezon/sdr-server/actions')
     }
+
+    env {
+        GPG_KEYNAME="${DOCKER_IMAGE == 'debian:trixie-slim' ? '10E3EAED21238672' : 'F2DCBFDCA5A70917' }"
+        GPG_FILE="gpg${DOCKER_IMAGE == 'debian:trixie-slim' ? '-sha512' : ''}"
+        GPG_PASSPHRASE="gpg_passphrase${DOCKER_IMAGE == 'debian:trixie-slim' ? '-sha512' : ''}"
+    }
     stages {
         stage('Checkout') {
             steps {
@@ -49,9 +55,8 @@ pipeline {
         stage('deploy') {
             steps {
                 withCredentials([
-                    usernamePassword(credentialsId: 'gpg_pass', usernameVariable: 'gpg_pass_keyid', passwordVariable: 'gpg_pass'),
-                    file(credentialsId: 'gpg', variable: 'gpg_file'),
-                    file(credentialsId: 'gpg_passphrase', variable: 'gpg_passphrase'),
+                    file(credentialsId: "${GPG_FILE}", variable: 'gpg_file'),
+                    file(credentialsId: "${GPG_PASSPHRASE}", variable: 'gpg_passphrase'),
                     aws(credentialsId: 'aws')]) {
                     sh '''#!/bin/bash
                         set -e
@@ -62,7 +67,7 @@ pipeline {
                           mv ${APT_CLI_VERSION}.jar.temp ${HOME}/${APT_CLI_VERSION}.jar
                         fi
 
-                        java -jar ${HOME}/${APT_CLI_VERSION}.jar --url s3://${BUCKET} --component main --codename ${OS_CODENAME} --gpg-keyfile ${gpg_file} --gpg-keyname ${gpg_pass_keyid} --gpg-passphrase-file ${gpg_passphrase} save --patterns ./build/*.deb,./build/*.ddeb
+                        java -jar ${HOME}/${APT_CLI_VERSION}.jar --url s3://${BUCKET} --component main --codename ${OS_CODENAME} --gpg-keyfile ${gpg_file} --gpg-keyname ${GPG_KEYNAME} --gpg-passphrase-file ${gpg_passphrase} save --patterns ./build/*.deb,./build/*.ddeb
 
                     '''
                 }

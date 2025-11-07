@@ -7,16 +7,20 @@ pipeline {
         choice(name: 'OS_ARCHITECTURE', choices: ['armhf', 'arm64', 'amd64'], description: 'From https://github.com/dernasherbrezon/sdr-server/actions')
     }
 
-    env {
-        GPG_KEYNAME="${DOCKER_IMAGE == 'debian:trixie-slim' ? '10E3EAED21238672' : 'F2DCBFDCA5A70917' }"
-        GPG_FILE="gpg${DOCKER_IMAGE == 'debian:trixie-slim' ? '-sha512' : ''}"
-        GPG_PASSPHRASE="gpg_passphrase${DOCKER_IMAGE == 'debian:trixie-slim' ? '-sha512' : ''}"
-    }
     stages {
         stage('Checkout') {
             steps {
                 script {
                     env.OS_CODENAME = "${DOCKER_IMAGE}".split(':')[1].split('-')[0]
+                    if( env.OS_CODENAME == "trixie" ) {
+                        env.GPG_KEYNAME = '10E3EAED21238672'
+                        env.GPG_FILE = 'gpg-sha512'
+                        env.GPG_PASSPHRASE = 'gpg_passphrase-sha512'
+                    } else {
+                        env.GPG_KEYNAME = 'F2DCBFDCA5A70917'
+                        env.GPG_FILE = 'gpg'
+                        env.GPG_PASSPHRASE = 'gpg_passphrase'
+                    }
                 }
                 git(url: 'git@github.com:dernasherbrezon/sdr-server.git', branch: "${OS_CODENAME}", credentialsId: 'github', changelog: false)
                 sh '''

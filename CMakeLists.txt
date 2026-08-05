@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.5)
 project(sdr-server)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
@@ -84,8 +84,25 @@ add_executable(sdr_server_client
 		${CMAKE_CURRENT_SOURCE_DIR}/src/client/tcp_client_main.c
 )
 
+add_executable(sdr_spectrogram
+		${CMAKE_CURRENT_SOURCE_DIR}/src/spectrogram/spectrogram_main.c
+		${CMAKE_CURRENT_SOURCE_DIR}/src/spectrogram/png_util.c
+)
+
+pkg_check_modules(PC_FFTW REQUIRED fftw3f)
+include_directories(${PC_FFTW_INCLUDE_DIRS})
+link_directories(${PC_FFTW_LIBRARY_DIRS})
+target_link_libraries(sdr_spectrogram ${PC_FFTW_LIBRARIES})
+
+find_package(PNG REQUIRED)
+include_directories(${PNG_INCLUDE_DIR})
+target_link_libraries(sdr_spectrogram ${PNG_LIBRARY})
+
+target_link_libraries(sdr_spectrogram ${PC_ZLIB_LIBRARIES})
+
 install(TARGETS sdr_server DESTINATION /usr/bin/)
 install(TARGETS sdr_server_client DESTINATION /usr/bin/)
+install(TARGETS sdr_spectrogram DESTINATION /usr/bin/)
 install(FILES src/resources/config.conf DESTINATION /etc/sdr-server/)
 install(FILES debian/sdr-server.service DESTINATION /lib/systemd/system/)
 

@@ -109,6 +109,10 @@ int main(int argc, char **argv) {
   }
   float normalization_factor = 1.0f / width;
 
+  signal(SIGINT, sighandler);
+  signal(SIGHUP, sighandler);
+  signal(SIGTERM, sighandler);
+
   fftwf_complex *in = fftwf_malloc(sizeof(fftwf_complex) * width);
   fftwf_complex *out = fftwf_malloc(sizeof(fftwf_complex) * width);
   fftwf_plan p = fftwf_plan_dft_1d(width, in, out, FFTW_FORWARD, FFTW_ESTIMATE); // TODO switch to FFTW_MEASURE

@@ -113,6 +113,11 @@ int main(int argc, char **argv) {
     return -ENOMEM;
   }
   int status_code = EXIT_SUCCESS;
+
+  signal(SIGINT, sighandler);
+  signal(SIGHUP, sighandler);
+  signal(SIGTERM, sighandler);
+
   while (!do_exit) {
     int code = read_data(buffer, buffer_length, client);
     if (code != 0) {

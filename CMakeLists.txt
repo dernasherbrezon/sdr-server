@@ -93,7 +93,7 @@ add_executable(sdr_spectrogram
 pkg_check_modules(PC_FFTW REQUIRED fftw3f)
 include_directories(${PC_FFTW_INCLUDE_DIRS})
 link_directories(${PC_FFTW_LIBRARY_DIRS})
-target_link_libraries(sdr_spectrogram ${PC_FFTW_LIBRARIES})
+target_link_libraries(sdr_spectrogram m ${PC_FFTW_LIBRARIES})
 
 find_package(PNG REQUIRED)
 include_directories(${PNG_INCLUDE_DIR})

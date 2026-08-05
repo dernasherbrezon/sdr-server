@@ -9,6 +9,7 @@ typedef struct {
   gzFile gz;
   FILE *fp;
   char *data_format;
+  long gz_file_number_of_bytes;
 } iq_file;
 
 int iq_file_create(char *filename, char *data_format, iq_file **result);

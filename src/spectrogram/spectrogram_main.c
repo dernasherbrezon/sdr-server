@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <complex.h> // should go before fftw3.h
 #include <fftw3.h>
+#include <signal.h>
 
 #include <string.h>
 #include <math.h>

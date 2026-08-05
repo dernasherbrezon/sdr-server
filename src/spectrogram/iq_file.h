@@ -4,6 +4,7 @@
 #include <zlib.h>
 #include <stdio.h>
 #include <fftw3.h>
+#include <stdint.h>
 
 typedef struct {
   gzFile gz;

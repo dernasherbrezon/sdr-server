@@ -2,7 +2,7 @@
 #include <stdlib.h>
 
 int png_util_init(uint32_t width, uint32_t height, FILE *fp, png_util **png) {
-  png_util *result = (png_util *) malloc(sizeof(png_util));
+  png_util *result = malloc(sizeof(png_util));
   if (result == NULL) {
     return 1;
   }

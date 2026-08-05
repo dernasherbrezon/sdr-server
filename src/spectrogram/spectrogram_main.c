@@ -5,14 +5,14 @@
 #include <stdlib.h>
 #include <complex.h> // should go before fftw3.h
 #include <fftw3.h>
-#include <zlib.h>
+
 #include <string.h>
 #include <math.h>
 #include "png_util.h"
+#include "iq_file.h"
 
 volatile sig_atomic_t do_exit = 0;
-gzFile gz = NULL;
-FILE *fp = NULL;
+iq_file *file = NULL;
 png_util *png = NULL;
 
 static void sighandler(int signum) {
@@ -28,34 +28,6 @@ void usage() {
   printf("  -d <data_format> data format: cu8, cf32 (default: cu8)\n");
   printf("  -i <input_file> I/Q input file\n");
   printf("  -o <output_file> spectrogram output\n");
-}
-
-// FIXME data format
-static int read_fully(fftwf_complex *in, int width) {
-  if (fp != NULL) {
-    size_t actually_read = fread(in, sizeof(fftwf_complex), width, fp);
-    if (actually_read != width) {
-      return EXIT_FAILURE;
-    }
-  }
-  return EXIT_SUCCESS;
-}
-
-static int skip(uint32_t samples_to_skip) {
-  if (fp != NULL) {
-    fseek(fp, sizeof(fftwf_complex) * samples_to_skip, SEEK_CUR);
-  }
-  return 0;
-}
-
-static int calculate_height(uint32_t *samples) {
-  if (fp != NULL) {
-    fseek(fp, 0L, SEEK_END);
-    long number_of_bytes = ftell(fp);
-    *samples = number_of_bytes / sizeof(float) / 2;
-    rewind(fp);
-  }
-  return 0;
 }
 
 int main(int argc, char **argv) {
@@ -102,18 +74,10 @@ int main(int argc, char **argv) {
     return EXIT_FAILURE;
   }
 
-  if (strstr(input_file, ".gz") != NULL) {
-    gz = gzopen(input_file, "rb");
-    if (gz == NULL) {
-      fprintf(stderr, "unable to read input file %s\n", input_file);
-      return EXIT_FAILURE;
-    }
-  } else {
-    fp = fopen(input_file, "rb");
-    if (fp == NULL) {
-      fprintf(stderr, "unable to read input file %s\n", input_file);
-      return EXIT_FAILURE;
-    }
+  int code = iq_file_create(input_file, data_format, &file);
+  if (code != 0) {
+    //FIXME
+    return EXIT_FAILURE;
   }
 
   uint32_t numberOfFftPerRow = sampling_rate / width;
@@ -121,11 +85,7 @@ int main(int argc, char **argv) {
   int half_width = width / 2;
 
   uint32_t samples = 0;
-  int code = calculate_height(&samples);
-  if (code != 0) {
-    //FIXME
-    return EXIT_FAILURE;
-  }
+  iq_file_get_samples(&samples, file);
 
   uint32_t height = samples / sampling_rate;
 
@@ -158,7 +118,7 @@ int main(int argc, char **argv) {
     }
 
     for (int i = 0; i < numberOfFftPerRow; i++) {
-      code = read_fully(in, width);
+      code = iq_file_read(in, width, file);
       if (code != 0) {
         break;
       }
@@ -178,7 +138,7 @@ int main(int argc, char **argv) {
 
     png_util_set_data(current_row, temp, png);
 
-    skip(skipPerRow);
+    iq_file_skip(skipPerRow, file);
     current_row++;
   }
 

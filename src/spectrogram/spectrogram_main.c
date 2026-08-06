@@ -75,7 +75,7 @@ int main(int argc, char **argv) {
     return EXIT_FAILURE;
   }
 
-  int code = iq_file_create(input_file, data_format, &file);
+  int code = iq_file_create(input_file, width, data_format, &file);
   if (code != 0) {
     //FIXME
     return EXIT_FAILURE;
@@ -123,7 +123,7 @@ int main(int argc, char **argv) {
     }
 
     for (int i = 0; i < numberOfFftPerRow; i++) {
-      code = iq_file_read(in, width, file);
+      code = iq_file_read(in, file);
       if (code != 0) {
         break;
       }

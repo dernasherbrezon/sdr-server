@@ -31,6 +31,15 @@ void usage() {
   printf("  -o <output_file> spectrogram output\n");
 }
 
+static void shutdown() {
+  if (file != NULL) {
+    iq_file_destroy(file);
+  }
+  if (png != NULL) {
+    png_util_destroy(png);
+  }
+}
+
 int main(int argc, char **argv) {
   uint32_t sampling_rate = 48000;
   int width = 1024;
@@ -77,7 +86,7 @@ int main(int argc, char **argv) {
 
   int code = iq_file_create(input_file, width, data_format, &file);
   if (code != 0) {
-    //FIXME
+    shutdown();
     return EXIT_FAILURE;
   }
 
@@ -92,19 +101,20 @@ int main(int argc, char **argv) {
 
   FILE *png_fp = fopen(output_file, "wb");
   if (png_fp == NULL) {
-    //FIXME
+    fprintf(stderr, "unable to write to output: %s\n", output_file);
+    shutdown();
     return EXIT_FAILURE;
   }
 
   code = png_util_init(width, height, png_fp, &png);
   if (code != 0) {
-    png_util_destroy(png);
-    //FIXME more de-init
+    shutdown();
     return EXIT_FAILURE;
   }
 
   float *temp = malloc(sizeof(float) * width);
   if (temp == NULL) {
+    shutdown();
     return EXIT_FAILURE;
   }
   float normalization_factor = 1.0f / width;
@@ -148,7 +158,8 @@ int main(int argc, char **argv) {
   }
 
   png_util_write_image(png);
-  png_util_destroy(png);
+
+  shutdown();
 
   fftwf_destroy_plan(p);
   fftwf_free(in);

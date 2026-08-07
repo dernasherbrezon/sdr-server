@@ -38,6 +38,7 @@ int iq_file_create(char *filename, uint32_t samples, char *data_format, iq_file 
     }
     uint8_t buf[4];
     if (fread(buf, 1, 4, fp) != 4) {
+      fprintf(stderr, "premature end of file %s\n", filename);
       fclose(fp);
       iq_file_destroy(result);
       return EXIT_FAILURE;

@@ -12,17 +12,20 @@ int png_util_init(uint32_t width, uint32_t height, FILE *fp, png_util **png) {
 
   result->png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
   if (result->png_ptr == NULL) {
+    fprintf(stderr, "unable to initialize png\n");
     png_util_destroy(result);
     return EXIT_FAILURE;
   }
 
   result->info_ptr = png_create_info_struct(result->png_ptr);
   if (result->info_ptr == NULL) {
+    fprintf(stderr, "unable to initialize png info\n");
     png_util_destroy(result);
     return EXIT_FAILURE;
   }
 
   if (setjmp(png_jmpbuf(result->png_ptr))) {
+    fprintf(stderr, "unable to setjmp\n");
     png_util_destroy(result);
     return EXIT_FAILURE;
   }

@@ -156,14 +156,14 @@ int main(int argc, char **argv) {
       fftwf_execute(p);
       for (int j = 0; j < width; j++) {
         fftwf_complex cur = out[j] * normalization_factor;
-        float power = 10 * log10f(crealf(cur) * crealf(cur) + cimagf(cur) * cimagf(cur) + 1e-20f);
+        float power = crealf(cur) * crealf(cur) + cimagf(cur) * cimagf(cur) + 1e-20f;
         temp[j] = fmaxf(temp[j], power);
       }
     }
 
     for (int j = 0; j < half_width; j++) {
-      float cur = temp[j];
-      temp[j] = temp[half_width + j];
+      float cur = 10 * log10f(temp[j]);
+      temp[j] = 10 * log10f(temp[half_width + j]);
       temp[half_width + j] = cur;
     }
 

@@ -149,8 +149,10 @@ int iq_file_read(fftwf_complex *in, iq_file *file) {
       return 1;
     }
     for (size_t i = 0; i < file->width; i++) {
-      float real = ((float) ((int16_t) (file->temp[4 * i + 1] << 8) | file->temp[4 * i])) / 2048.0F;
-      float imag = ((float) ((int16_t) (file->temp[4 * i + 3] << 8) | file->temp[4 * i + 2])) / 2048.0F;
+      int16_t v1 = (int16_t) ((file->temp[4 * i + 1] << 8) | file->temp[4 * i]);
+      int16_t v2 = (int16_t) ((file->temp[4 * i + 3] << 8) | file->temp[4 * i + 2]);
+      float real = ((float) v1) / 32768.0F;
+      float imag = ((float) v2) / 32768.0F;
       in[i] = real + imag * I;
     }
     return 0;

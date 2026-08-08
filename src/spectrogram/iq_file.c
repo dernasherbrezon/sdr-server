@@ -11,13 +11,20 @@ int iq_file_create(char *filename, uint32_t samples, char *data_format, iq_file 
   result->width = samples;
   if (strcmp(data_format, "cu8") == 0) {
     result->data_format = CU8_FORMAT;
-    result->cu8_temp = malloc(2 * sizeof(uint8_t) * result->width);
-    if (result->cu8_temp == NULL) {
+    result->temp = malloc(2 * sizeof(uint8_t) * result->width);
+    if (result->temp == NULL) {
       iq_file_destroy(result);
       return EXIT_FAILURE;
     }
   } else if (strcmp(data_format, "cf32") == 0) {
     result->data_format = CF32_FORMAT;
+  } else if (strcmp(data_format, "cs16") == 0) {
+    result->data_format = CS16_FORMAT;
+    result->temp = malloc(2 * sizeof(int16_t) * result->width);
+    if (result->temp == NULL) {
+      iq_file_destroy(result);
+      return EXIT_FAILURE;
+    }
   } else {
     fprintf(stderr, "unsupported data format %s\n", data_format);
     iq_file_destroy(result);
@@ -71,8 +78,10 @@ void iq_file_skip(uint32_t samples_to_skip, iq_file *file) {
   long bytes_to_skip;
   if (file->data_format == CF32_FORMAT) {
     bytes_to_skip = (long) (sizeof(fftwf_complex) * samples_to_skip);
+  } else if (file->data_format == CS16_FORMAT) {
+    bytes_to_skip = (long) (sizeof(int16_t) * 2 * samples_to_skip);
   } else if (file->data_format == CU8_FORMAT) {
-    bytes_to_skip = (long) (sizeof(char) * 2 * samples_to_skip);
+    bytes_to_skip = (long) (sizeof(uint8_t) * 2 * samples_to_skip);
   } else {
     return;
   }
@@ -104,13 +113,13 @@ int iq_file_read(fftwf_complex *in, iq_file *file) {
   }
   if (file->data_format == CU8_FORMAT) {
     if (file->fp != NULL) {
-      size_t actually_read = fread(file->cu8_temp, 2 * sizeof(uint8_t), file->width, file->fp);
+      size_t actually_read = fread(file->temp, 2 * sizeof(uint8_t), file->width, file->fp);
       if (actually_read != file->width) {
         return 1;
       }
     } else if (file->gz != NULL) {
       int expected = (int) (2 * sizeof(uint8_t) * file->width);
-      int actually_read = gzread(file->gz, file->cu8_temp, expected);
+      int actually_read = gzread(file->gz, file->temp, expected);
       if (actually_read != expected) {
         return 1;
       }
@@ -118,8 +127,30 @@ int iq_file_read(fftwf_complex *in, iq_file *file) {
       return 1;
     }
     for (size_t i = 0; i < file->width; i++) {
-      float real = ((float) file->cu8_temp[2 * i] - 127.5F) / 128.0F;
-      float imag = ((float) file->cu8_temp[2 * i + 1] - 127.5F) / 128.0F;
+      float real = ((float) file->temp[2 * i] - 127.5F) / 128.0F;
+      float imag = ((float) file->temp[2 * i + 1] - 127.5F) / 128.0F;
+      in[i] = real + imag * I;
+    }
+    return 0;
+  }
+  if (file->data_format == CS16_FORMAT) {
+    if (file->fp != NULL) {
+      size_t actually_read = fread(file->temp, 2 * sizeof(int16_t), file->width, file->fp);
+      if (actually_read != file->width) {
+        return 1;
+      }
+    } else if (file->gz != NULL) {
+      int expected = (int) (2 * sizeof(int16_t) * file->width);
+      int actually_read = gzread(file->gz, file->temp, expected);
+      if (actually_read != expected) {
+        return 1;
+      }
+    } else {
+      return 1;
+    }
+    for (size_t i = 0; i < file->width; i++) {
+      float real = ((float) ((int16_t) (file->temp[4 * i + 1] << 8) | file->temp[4 * i])) / 2048.0F;
+      float imag = ((float) ((int16_t) (file->temp[4 * i + 3] << 8) | file->temp[4 * i + 2])) / 2048.0F;
       in[i] = real + imag * I;
     }
     return 0;
@@ -133,6 +164,8 @@ void iq_file_get_samples(uint32_t *samples, iq_file *file) {
     sample_size = sizeof(fftwf_complex);
   } else if (file->data_format == CU8_FORMAT) {
     sample_size = 2 * sizeof(uint8_t);
+  } else if (file->data_format == CS16_FORMAT) {
+    sample_size = 2 * sizeof(int16_t);
   } else {
     *samples = 0;
     return;
@@ -153,8 +186,8 @@ void iq_file_destroy(iq_file *file) {
     return;
   }
 
-  if (file->cu8_temp != NULL) {
-    free(file->cu8_temp);
+  if (file->temp != NULL) {
+    free(file->temp);
   }
   if (file->fp != NULL) {
     fclose(file->fp);

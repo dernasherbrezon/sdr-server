@@ -26,9 +26,10 @@ void usage() {
   printf("  -h  print help\n");
   printf("  -w <width> image width (default: 1024)\n");
   printf("  -s <sampling_rate> sampling rate (default: 48000)\n");
-  printf("  -d <data_format> data format: cu8, cf32 (default: cu8)\n");
+  printf("  -d <data_format> data format: cu8, cs16, cf32 (default: cu8)\n");
   printf("  -i <input_file> I/Q input file\n");
   printf("  -o <output_file> spectrogram output\n");
+  printf("  -f <fftw_flags> supported values: FFTW_ESTIMATE (quick start, but not optimal for large files), FFTW_MEASURE (slow to start, but more efficient on large files). Default: FFTW_MEASURE\n");
 }
 
 static void shutdown() {
@@ -40,15 +41,27 @@ static void shutdown() {
   }
 }
 
+static unsigned int convert_flags(char *fftw_flags) {
+  if (strcmp(fftw_flags, "FFTW_MEASURE") == 0) {
+    return FFTW_MEASURE;
+  }
+  if (strcmp(fftw_flags, "FFTW_ESTIMATE") == 0) {
+    return FFTW_ESTIMATE;
+  }
+  fprintf(stderr, "unsupported fftw flag: %s fallback to FFTW_ESTIMATE\n", fftw_flags);
+  return FFTW_ESTIMATE;
+}
+
 int main(int argc, char **argv) {
   uint32_t sampling_rate = 48000;
   int width = 1024;
   char *data_format = "cu8";
   char *input_file = NULL;
   char *output_file = NULL;
+  char *fftw_flags = "FFTW_MEASURE";
 
   int dopt;
-  while ((dopt = getopt(argc, argv, "hw:s:d:i:o:")) != EOF) {
+  while ((dopt = getopt(argc, argv, "hw:s:d:i:o:f:")) != EOF) {
     switch (dopt) {
       case 'h':
         usage();
@@ -67,6 +80,9 @@ int main(int argc, char **argv) {
         break;
       case 'o':
         output_file = optarg;
+        break;
+      case 'f':
+        fftw_flags = optarg;
         break;
       default:
         exit(EXIT_FAILURE);
@@ -125,7 +141,7 @@ int main(int argc, char **argv) {
 
   fftwf_complex *in = fftwf_malloc(sizeof(fftwf_complex) * width);
   fftwf_complex *out = fftwf_malloc(sizeof(fftwf_complex) * width);
-  fftwf_plan p = fftwf_plan_dft_1d(width, in, out, FFTW_FORWARD, FFTW_ESTIMATE); // TODO switch to FFTW_MEASURE
+  fftwf_plan p = fftwf_plan_dft_1d(width, in, out, FFTW_FORWARD, convert_flags(fftw_flags));
   uint32_t current_row = 0;
   while (!do_exit && current_row < height) {
     for (int j = 0; j < width; j++) {

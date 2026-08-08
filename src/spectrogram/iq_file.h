@@ -8,14 +8,15 @@
 #include <stdint.h>
 
 #define CU8_FORMAT 0
-#define CF32_FORMAT 1
+#define CS16_FORMAT 1
+#define CF32_FORMAT 2
 
 typedef struct {
   gzFile gz;
   FILE *fp;
   int data_format;
   long gz_file_number_of_bytes;
-  uint8_t *cu8_temp;
+  uint8_t *temp;
   uint32_t width;
 } iq_file;
 

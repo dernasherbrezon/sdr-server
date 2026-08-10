@@ -56,7 +56,7 @@ int png_util_init(uint32_t width, uint32_t height, FILE *fp, png_util **png) {
 }
 
 void png_util_set_data(const float *data, png_util *png) {
-  for (int i = 0; i < png->width; i++) {
+  for (uint32_t i = 0; i < png->width; i++) {
     int pixel = (int) (data[i] + 255);
     if (pixel > 255) {
       pixel = 255;

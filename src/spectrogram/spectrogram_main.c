@@ -145,17 +145,17 @@ int main(int argc, char **argv) {
   fftwf_plan p = fftwf_plan_dft_1d(width, in, out, FFTW_FORWARD, spectrogram_convert_flags(fftw_flags));
   uint32_t current_row = 0;
   while (!do_exit && current_row < height) {
-    for (int j = 0; j < width; j++) {
+    for (uint32_t j = 0; j < width; j++) {
       temp[j] = -255.0f;
     }
 
-    for (int i = 0; i < fft_per_row; i++) {
+    for (uint32_t i = 0; i < fft_per_row; i++) {
       code = iq_file_read(in, file);
       if (code != 0) {
         break;
       }
       fftwf_execute(p);
-      for (int j = 0; j < width; j++) {
+      for (uint32_t j = 0; j < width; j++) {
         fftwf_complex cur = out[j] * normalization_factor;
         float power = crealf(cur) * crealf(cur) + cimagf(cur) * cimagf(cur) + 1e-20f;
         temp[j] = fmaxf(temp[j], power);
@@ -166,7 +166,7 @@ int main(int argc, char **argv) {
     if (code != 0) {
       break;
     }
-    for (int j = 0; j < half_width; j++) {
+    for (uint32_t j = 0; j < half_width; j++) {
       float cur = 10 * log10f(temp[j]);
       temp[j] = 10 * log10f(temp[half_width + j]);
       temp[half_width + j] = cur;

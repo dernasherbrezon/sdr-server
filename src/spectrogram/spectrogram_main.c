@@ -109,6 +109,7 @@ int main(int argc, char **argv) {
   uint32_t numberOfFftPerRow = sampling_rate / width;
   uint32_t skipPerRow = sampling_rate % width;
   int half_width = width / 2;
+  int odd_width = width % 2;
 
   uint32_t samples = 0;
   iq_file_get_samples(&samples, file);
@@ -169,6 +170,9 @@ int main(int argc, char **argv) {
       float cur = 10 * log10f(temp[j]);
       temp[j] = 10 * log10f(temp[half_width + j]);
       temp[half_width + j] = cur;
+    }
+    if (odd_width) {
+      temp[width - 1] = 10 * log10f(temp[width - 1]);
     }
 
     png_util_set_data(temp, png);

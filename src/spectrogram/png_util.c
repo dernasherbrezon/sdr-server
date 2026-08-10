@@ -26,13 +26,6 @@ int png_util_init(uint32_t width, uint32_t height, FILE *fp, png_util **png) {
     return -ENOMEM;
   }
 
-  int code = setjmp(png_jmpbuf(result->png_ptr));
-  if (code != 0) {
-    fprintf(stderr, "unable to setjmp\n");
-    png_util_destroy(result);
-    return code;
-  }
-
   png_set_IHDR(result->png_ptr,
                result->info_ptr,
                width,

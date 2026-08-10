@@ -129,6 +129,13 @@ int main(int argc, char **argv) {
     return EXIT_FAILURE;
   }
 
+  code = setjmp(png_jmpbuf(png->png_ptr));
+  if (code != 0) {
+    fprintf(stderr, "unable to process png file. exit\n");
+    spectrogram_shutdown();
+    return EXIT_FAILURE;
+  }
+
   float *temp = malloc(sizeof(float) * width);
   if (temp == NULL) {
     spectrogram_shutdown();

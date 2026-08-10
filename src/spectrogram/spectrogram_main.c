@@ -106,8 +106,8 @@ int main(int argc, char **argv) {
     return EXIT_FAILURE;
   }
 
-  uint32_t numberOfFftPerRow = sampling_rate / width;
-  uint32_t skipPerRow = sampling_rate % width;
+  uint32_t fft_per_row = sampling_rate / width;
+  uint32_t skip_per_row = sampling_rate % width;
   int half_width = width / 2;
   int odd_width = width % 2;
 
@@ -149,7 +149,7 @@ int main(int argc, char **argv) {
       temp[j] = -255.0f;
     }
 
-    for (int i = 0; i < numberOfFftPerRow; i++) {
+    for (int i = 0; i < fft_per_row; i++) {
       code = iq_file_read(in, file);
       if (code != 0) {
         break;
@@ -177,7 +177,7 @@ int main(int argc, char **argv) {
 
     png_util_set_data(temp, png);
 
-    iq_file_skip(skipPerRow, file);
+    iq_file_skip(skip_per_row, file);
     current_row++;
   }
 

@@ -61,6 +61,10 @@ int iq_file_create(char *filename, uint32_t samples, char *data_format, iq_file 
       iq_file_destroy(result);
       return EXIT_FAILURE;
     }
+    int code = gzbuffer(result->gz, 128 * 1024);
+    if (code != 0) {
+      fprintf(stderr, "unable to increase zlib buffer. continue with default 8Kb\n");
+    }
   } else {
     result->fp = fopen(filename, "rb");
     if (result->fp == NULL) {

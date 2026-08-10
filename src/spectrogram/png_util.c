@@ -1,10 +1,11 @@
 #include "png_util.h"
 #include <stdlib.h>
+#include <errno.h>
 
 int png_util_init(uint32_t width, uint32_t height, FILE *fp, png_util **png) {
   png_util *result = malloc(sizeof(png_util));
   if (result == NULL) {
-    return 1;
+    return -ENOMEM;
   }
   *result = (png_util){0};
   result->width = width;
@@ -15,20 +16,21 @@ int png_util_init(uint32_t width, uint32_t height, FILE *fp, png_util **png) {
   if (result->png_ptr == NULL) {
     fprintf(stderr, "unable to initialize png\n");
     png_util_destroy(result);
-    return EXIT_FAILURE;
+    return -ENOMEM;
   }
 
   result->info_ptr = png_create_info_struct(result->png_ptr);
   if (result->info_ptr == NULL) {
     fprintf(stderr, "unable to initialize png info\n");
     png_util_destroy(result);
-    return EXIT_FAILURE;
+    return -ENOMEM;
   }
 
-  if (setjmp(png_jmpbuf(result->png_ptr))) {
+  int code = setjmp(png_jmpbuf(result->png_ptr));
+  if (code != 0) {
     fprintf(stderr, "unable to setjmp\n");
     png_util_destroy(result);
-    return EXIT_FAILURE;
+    return code;
   }
 
   png_set_IHDR(result->png_ptr,
@@ -45,7 +47,7 @@ int png_util_init(uint32_t width, uint32_t height, FILE *fp, png_util **png) {
   if (result->row == NULL) {
     fprintf(stderr, "unable to initialize temp buffer for png row\n");
     png_util_destroy(result);
-    return EXIT_FAILURE;
+    return -ENOMEM;
   }
 
   png_init_io(result->png_ptr, fp);

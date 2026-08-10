@@ -79,6 +79,9 @@ int iq_file_create(char *filename, uint32_t samples, char *data_format, iq_file 
 }
 
 void iq_file_skip(uint32_t samples_to_skip, iq_file *file) {
+  if (samples_to_skip == 0) {
+    return;
+  }
   long bytes_to_skip;
   if (file->data_format == CF32_FORMAT) {
     bytes_to_skip = (long) (sizeof(fftwf_complex) * samples_to_skip);

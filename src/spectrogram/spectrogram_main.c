@@ -160,7 +160,11 @@ int main(int argc, char **argv) {
         temp[j] = fmaxf(temp[j], power);
       }
     }
-
+    // no more data in the file
+    // or file cannot be read
+    if (code != 0) {
+      break;
+    }
     for (int j = 0; j < half_width; j++) {
       float cur = 10 * log10f(temp[j]);
       temp[j] = 10 * log10f(temp[half_width + j]);

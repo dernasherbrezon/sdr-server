@@ -167,7 +167,7 @@ int main(int argc, char **argv) {
       temp[half_width + j] = cur;
     }
 
-    png_util_set_data(current_row, temp, png);
+    png_util_set_data(temp, png);
 
     iq_file_skip(skipPerRow, file);
     current_row++;

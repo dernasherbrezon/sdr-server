@@ -16,12 +16,12 @@ volatile sig_atomic_t do_exit = 0;
 iq_file *file = NULL;
 png_util *png = NULL;
 
-static void sighandler(int signum) {
+static void spectrogram_sighandler(int signum) {
   fprintf(stderr, "Signal caught, exiting!\n");
   do_exit = 1;
 }
 
-void usage() {
+static void spectrogram_usage() {
   printf("Usage:\n");
   printf("  -h  print help\n");
   printf("  -w <width> image width (default: 1024)\n");
@@ -32,7 +32,7 @@ void usage() {
   printf("  -f <fftw_flags> supported values: FFTW_ESTIMATE (quick start, but not optimal for large files), FFTW_MEASURE (slow to start, but more efficient on large files). Default: FFTW_MEASURE\n");
 }
 
-static void shutdown() {
+static void spectrogram_shutdown() {
   if (file != NULL) {
     iq_file_destroy(file);
   }
@@ -41,7 +41,7 @@ static void shutdown() {
   }
 }
 
-static unsigned int convert_flags(char *fftw_flags) {
+static unsigned int spectrogram_convert_flags(char *fftw_flags) {
   if (strcmp(fftw_flags, "FFTW_MEASURE") == 0) {
     return FFTW_MEASURE;
   }
@@ -64,7 +64,7 @@ int main(int argc, char **argv) {
   while ((dopt = getopt(argc, argv, "hw:s:d:i:o:f:")) != EOF) {
     switch (dopt) {
       case 'h':
-        usage();
+        spectrogram_usage();
         return EXIT_SUCCESS;
       case 'w':
         width = atoi(optarg);
@@ -91,18 +91,18 @@ int main(int argc, char **argv) {
 
   if (input_file == NULL) {
     fprintf(stderr, "-i (input file) parameter is missing\n");
-    usage();
+    spectrogram_usage();
     return EXIT_FAILURE;
   }
   if (output_file == NULL) {
     fprintf(stderr, "-o (output file) parameter is missing\n");
-    usage();
+    spectrogram_usage();
     return EXIT_FAILURE;
   }
 
   int code = iq_file_create(input_file, width, data_format, &file);
   if (code != 0) {
-    shutdown();
+    spectrogram_shutdown();
     return EXIT_FAILURE;
   }
 
@@ -119,30 +119,30 @@ int main(int argc, char **argv) {
   FILE *png_fp = fopen(output_file, "wb");
   if (png_fp == NULL) {
     fprintf(stderr, "unable to write to output: %s\n", output_file);
-    shutdown();
+    spectrogram_shutdown();
     return EXIT_FAILURE;
   }
 
   code = png_util_init(width, height, png_fp, &png);
   if (code != 0) {
-    shutdown();
+    spectrogram_shutdown();
     return EXIT_FAILURE;
   }
 
   float *temp = malloc(sizeof(float) * width);
   if (temp == NULL) {
-    shutdown();
+    spectrogram_shutdown();
     return EXIT_FAILURE;
   }
   float normalization_factor = 1.0f / width;
 
-  signal(SIGINT, sighandler);
-  signal(SIGHUP, sighandler);
-  signal(SIGTERM, sighandler);
+  signal(SIGINT, spectrogram_sighandler);
+  signal(SIGHUP, spectrogram_sighandler);
+  signal(SIGTERM, spectrogram_sighandler);
 
   fftwf_complex *in = fftwf_malloc(sizeof(fftwf_complex) * width);
   fftwf_complex *out = fftwf_malloc(sizeof(fftwf_complex) * width);
-  fftwf_plan p = fftwf_plan_dft_1d(width, in, out, FFTW_FORWARD, convert_flags(fftw_flags));
+  fftwf_plan p = fftwf_plan_dft_1d(width, in, out, FFTW_FORWARD, spectrogram_convert_flags(fftw_flags));
   uint32_t current_row = 0;
   while (!do_exit && current_row < height) {
     for (int j = 0; j < width; j++) {
@@ -183,7 +183,7 @@ int main(int argc, char **argv) {
 
   png_util_write_image(png);
 
-  shutdown();
+  spectrogram_shutdown();
 
   fftwf_destroy_plan(p);
   fftwf_free(in);

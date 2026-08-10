@@ -41,7 +41,7 @@ static void spectrogram_shutdown() {
   }
 }
 
-static unsigned int spectrogram_convert_flags(char *fftw_flags) {
+static unsigned int spectrogram_convert_flags(const char *fftw_flags) {
   if (strcmp(fftw_flags, "FFTW_MEASURE") == 0) {
     return FFTW_MEASURE;
   }

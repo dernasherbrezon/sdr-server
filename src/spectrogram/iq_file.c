@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-int iq_file_create(char *filename, uint32_t samples, char *data_format, iq_file **file) {
+int iq_file_create(const char *filename, uint32_t samples, const char *data_format, iq_file **file) {
   iq_file *result = malloc(sizeof(iq_file));
   if (result == NULL) {
     return 1;

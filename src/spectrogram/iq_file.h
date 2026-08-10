@@ -20,7 +20,7 @@ typedef struct {
   uint32_t width;
 } iq_file;
 
-int iq_file_create(char *filename, uint32_t samples, char *data_format, iq_file **result);
+int iq_file_create(const char *filename, uint32_t samples, const char *data_format, iq_file **result);
 
 void iq_file_skip(uint32_t samples_to_skip, iq_file *file);
 

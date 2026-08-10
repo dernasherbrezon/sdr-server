@@ -73,6 +73,10 @@ int iq_file_create(const char *filename, uint32_t samples, const char *data_form
       iq_file_destroy(result);
       return -1;
     }
+    int code = setvbuf(result->fp, NULL, _IOFBF, 128 * 1024);
+    if (code != 0) {
+      fprintf(stderr, "unable to increase buffer. continue with default 8Kb\n");
+    }
   }
 
   *file = result;
@@ -157,6 +161,7 @@ int iq_file_read(fftwf_complex *in, iq_file *file) {
       return -1;
     }
     for (size_t i = 0; i < file->width; i++) {
+      // convert from little endian to the host
       int16_t v1 = (int16_t) ((file->temp[4 * i + 1] << 8) | file->temp[4 * i]);
       int16_t v2 = (int16_t) ((file->temp[4 * i + 3] << 8) | file->temp[4 * i + 2]);
       float real = ((float) v1) / 32768.0F;

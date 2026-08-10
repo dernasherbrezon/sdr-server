@@ -100,6 +100,19 @@ int main(int argc, char **argv) {
     return EXIT_FAILURE;
   }
 
+  if (width <= 0) {
+    fprintf(stderr, "-w (width) should be positive. got: %d\n", width);
+    return EXIT_FAILURE;
+  }
+  if (sampling_rate <= 0) {
+    fprintf(stderr, "-s (sampling_rate) should be positive. got: %d\n", sampling_rate);
+    return EXIT_FAILURE;
+  }
+  if (width > sampling_rate) {
+    fprintf(stderr, "-w (%d) is too wide for sampling rate %d\n", width, sampling_rate);
+    return EXIT_FAILURE;
+  }
+
   int code = iq_file_create(input_file, width, data_format, &file);
   if (code != 0) {
     spectrogram_shutdown();

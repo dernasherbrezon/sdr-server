@@ -57,7 +57,14 @@ int png_util_init(uint32_t width, uint32_t height, FILE *fp, png_util **png) {
 
 void png_util_set_data(const float *data, png_util *png) {
   for (int i = 0; i < png->width; i++) {
-    png->row[i] = ((int) (data[i] + 255) & 0xFF);
+    int pixel = (int) (data[i] + 255);
+    if (pixel > 255) {
+      pixel = 255;
+    }
+    if (pixel < 0) {
+      pixel = 0;
+    }
+    png->row[i] = pixel;
   }
   png_write_row(png->png_ptr, png->row);
 }

@@ -86,6 +86,7 @@ add_executable(sdr_server_client
 
 add_executable(sdr_spectrogram
 		${CMAKE_CURRENT_SOURCE_DIR}/src/spectrogram/spectrogram_main.c
+		${CMAKE_CURRENT_SOURCE_DIR}/src/spectrogram/spectrogram.c
 		${CMAKE_CURRENT_SOURCE_DIR}/src/spectrogram/png_util.c
 		${CMAKE_CURRENT_SOURCE_DIR}/src/spectrogram/iq_file.c
 )

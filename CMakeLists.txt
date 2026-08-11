@@ -84,8 +84,7 @@ add_executable(sdr_server_client
 		${CMAKE_CURRENT_SOURCE_DIR}/src/client/tcp_client_main.c
 )
 
-add_executable(sdr_spectrogram
-		${CMAKE_CURRENT_SOURCE_DIR}/src/spectrogram/spectrogram_main.c
+add_library(sdr_spectrogramLib
 		${CMAKE_CURRENT_SOURCE_DIR}/src/spectrogram/spectrogram.c
 		${CMAKE_CURRENT_SOURCE_DIR}/src/spectrogram/png_util.c
 		${CMAKE_CURRENT_SOURCE_DIR}/src/spectrogram/iq_file.c
@@ -94,13 +93,17 @@ add_executable(sdr_spectrogram
 pkg_check_modules(PC_FFTW REQUIRED fftw3f)
 include_directories(${PC_FFTW_INCLUDE_DIRS})
 link_directories(${PC_FFTW_LIBRARY_DIRS})
-target_link_libraries(sdr_spectrogram m ${PC_FFTW_LIBRARIES})
+target_link_libraries(sdr_spectrogramLib m ${PC_FFTW_LIBRARIES})
 
 find_package(PNG REQUIRED)
 include_directories(${PNG_INCLUDE_DIR})
-target_link_libraries(sdr_spectrogram ${PNG_LIBRARY})
+target_link_libraries(sdr_spectrogramLib ${PNG_LIBRARY})
+target_link_libraries(sdr_spectrogramLib ${PC_ZLIB_LIBRARIES})
 
-target_link_libraries(sdr_spectrogram ${PC_ZLIB_LIBRARIES})
+add_executable(sdr_spectrogram
+		${CMAKE_CURRENT_SOURCE_DIR}/src/spectrogram/spectrogram_main.c
+)
+target_link_libraries(sdr_spectrogram sdr_spectrogramLib)
 
 install(TARGETS sdr_server DESTINATION /usr/bin/)
 install(TARGETS sdr_server_client DESTINATION /usr/bin/)
@@ -115,6 +118,7 @@ file(COPY ${TEST_RESOURCES} DESTINATION "${CMAKE_BINARY_DIR}")
 file(GLOB PERF_SOURCES test/perf_*.c)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/test/unity-2.5.2/src/)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/spectrogram/)
 
 # speed up test compilation.
 add_library(sdr_serverTestLib
@@ -125,17 +129,33 @@ add_library(sdr_serverTestLib
 		${CMAKE_CURRENT_SOURCE_DIR}/test/utils.c
 		${CMAKE_CURRENT_SOURCE_DIR}/test/unity-2.5.2/src/unity.c
 )
-file(GLOB TEST_SOURCES test/test_*.c)
-foreach(curTest ${TEST_SOURCES})
-	get_filename_component(curTestName ${curTest} NAME_WE)
-	add_test(NAME ${curTestName} COMMAND ${curTestName} ${curTest})
-	add_executable(${curTestName} ${curTest})
-	target_link_libraries(${curTestName} sdr_serverLib sdr_serverTestLib)
-endforeach()
+target_link_libraries(sdr_serverTestLib ${PNG_LIBRARY})
 
-add_executable(perf_xlating
-		${CMAKE_CURRENT_SOURCE_DIR}/test/perf_xlating.c
-)
+add_test(NAME test_config COMMAND test_config)
+add_executable(test_config ${CMAKE_CURRENT_SOURCE_DIR}/test/test_config.c)
+target_link_libraries(test_config sdr_serverLib sdr_serverTestLib)
+
+add_test(NAME test_lpf COMMAND test_lpf)
+add_executable(test_lpf ${CMAKE_CURRENT_SOURCE_DIR}/test/test_lpf.c)
+target_link_libraries(test_lpf sdr_serverLib sdr_serverTestLib)
+
+add_test(NAME test_queue COMMAND test_queue)
+add_executable(test_queue ${CMAKE_CURRENT_SOURCE_DIR}/test/test_queue.c)
+target_link_libraries(test_queue sdr_serverLib sdr_serverTestLib)
+
+add_test(NAME test_tcp_server COMMAND test_tcp_server)
+add_executable(test_tcp_server ${CMAKE_CURRENT_SOURCE_DIR}/test/test_tcp_server.c)
+target_link_libraries(test_tcp_server sdr_serverLib sdr_serverTestLib)
+
+add_test(NAME test_xlating COMMAND test_xlating)
+add_executable(test_xlating ${CMAKE_CURRENT_SOURCE_DIR}/test/test_xlating.c)
+target_link_libraries(test_xlating sdr_serverLib sdr_serverTestLib)
+
+add_test(NAME test_spectrogram COMMAND test_spectrogram)
+add_executable(test_spectrogram ${CMAKE_CURRENT_SOURCE_DIR}/test/test_spectrogram.c)
+target_link_libraries(test_spectrogram sdr_spectrogramLib sdr_serverTestLib)
+
+add_executable(perf_xlating ${CMAKE_CURRENT_SOURCE_DIR}/test/perf_xlating.c)
 target_link_libraries(perf_xlating sdr_serverLib)
 
 if(CMAKE_BUILD_TYPE MATCHES Debug)

@@ -5,7 +5,6 @@
 #include "utils.h"
 #include <spectrogram.h>
 
-char tmp_template[] = "/tmp/sdr_spectrogram_test_XXXXXX";
 char *test_dir = NULL;
 char input_file[1024];
 char output_file[1024];
@@ -103,6 +102,7 @@ void tearDown() {
 void setUp() {
   memset(input_file, 0, sizeof(input_file));
   memset(output_file, 0, sizeof(output_file));
+  char tmp_template[] = "/tmp/sdr_spectrogram_test_XXXXXX";
   test_dir = mkdtemp(tmp_template);
   strcat(input_file, test_dir);
   strcat(input_file, "/input.raw");

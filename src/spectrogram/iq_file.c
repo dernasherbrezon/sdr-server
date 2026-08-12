@@ -27,7 +27,7 @@ int iq_file_create(const char *filename, uint32_t samples, const char *data_form
       return -ENOMEM;
     }
   } else {
-    fprintf(stderr, "unsupported data format %s\n", data_format);
+    fprintf(stderr, "unsupported data format: %s\n", data_format);
     iq_file_destroy(result);
     return -1;
   }

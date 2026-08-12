@@ -17,21 +17,27 @@ void spectrogram_sighandler(int signum) {
 static void spectrogram_shutdown(spectrogram *spec) {
   if (spec->file != NULL) {
     iq_file_destroy(spec->file);
+    spec->file = NULL;
   }
   if (spec->png != NULL) {
     png_util_destroy(spec->png);
+    spec->png = NULL;
   }
   if (spec->temp != NULL) {
     free(spec->temp);
+    spec->temp = NULL;
   }
   if (spec->p != NULL) {
     fftwf_destroy_plan(spec->p);
+    spec->p = NULL;
   }
   if (spec->in != NULL) {
     fftwf_free(spec->in);
+    spec->in = NULL;
   }
   if (spec->out != NULL) {
     fftwf_free(spec->out);
+    spec->out = NULL;
   }
 }
 
@@ -42,7 +48,7 @@ static unsigned int spectrogram_convert_flags(const char *fftw_flags) {
   if (strcmp(fftw_flags, "FFTW_ESTIMATE") == 0) {
     return FFTW_ESTIMATE;
   }
-  fprintf(stderr, "unsupported fftw flag: %s fallback to FFTW_ESTIMATE\n", fftw_flags);
+  fprintf(stderr, "unsupported fftw flag: %s. Fallback to FFTW_ESTIMATE\n", fftw_flags);
   return FFTW_ESTIMATE;
 }
 
@@ -79,10 +85,10 @@ int spectrogram_main(spectrogram *req) {
   uint32_t skip_per_row = req->sampling_rate % req->width;
   int half_width = req->width / 2;
   int odd_width = req->width % 2;
+  float normalization_factor = 1.0f / req->width;
 
   uint32_t samples = 0;
   iq_file_get_samples(&samples, req->file);
-
   uint32_t height = samples / req->sampling_rate;
 
   FILE *png_fp = fopen(req->output_file, "wb");
@@ -104,14 +110,11 @@ int spectrogram_main(spectrogram *req) {
     spectrogram_shutdown(req);
     return code;
   }
-
   req->temp = malloc(sizeof(float) * req->width);
   if (req->temp == NULL) {
     spectrogram_shutdown(req);
     return -ENOMEM;
   }
-  float normalization_factor = 1.0f / req->width;
-
   req->in = fftwf_malloc(sizeof(fftwf_complex) * req->width);
   if (req->in == NULL) {
     spectrogram_shutdown(req);

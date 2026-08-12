@@ -6,6 +6,9 @@
 #include <stdlib.h>
 #include <unity.h>
 #include <zlib.h>
+#include <iq_file.h>
+#include <math.h>
+#include <zlib.h>
 
 typedef struct {
   uint32_t width;
@@ -83,19 +86,52 @@ void assert_png(const char *expected, const char *actual) {
   free_png_image_data(&actual_data);
 }
 
-void setup_file_cu8(const char *filename, size_t len) {
+void setup_file(const char *filename, size_t len, int format) {
   FILE *fp = fopen(filename, "wb");
   TEST_ASSERT(fp != NULL);
-  uint8_t *buffer = malloc(sizeof(uint8_t) * len);
-  TEST_ASSERT(buffer != NULL);
-  for (size_t i = 0; i < len; i++) {
-    // don't care about the loss of data
-    buffer[i] = (uint8_t) i;
+  void *buffer = NULL;
+  size_t written = 0;
+  if (format == CU8_FORMAT) {
+    setup_input_cu8((uint8_t **) &buffer, 0, 2 * len);
+    written = fwrite(buffer, sizeof(uint8_t), 2 * len, fp);
+  } else if (format == CS16_FORMAT) {
+    setup_input_cs16((int16_t **) &buffer, 0, 2 * len);
+    written = fwrite(buffer, sizeof(int16_t), 2 * len, fp);
+  } else if (format == CF32_FORMAT) {
+    setup_input_cf32((float **) &buffer, 0, 2 * len);
+    written = fwrite(buffer, sizeof(float), 2 * len, fp);
+  } else {
+    TEST_ABORT();
   }
-  size_t written = fwrite(buffer, sizeof(uint8_t), len, fp);
-  TEST_ASSERT(written == len);
   free(buffer);
+  TEST_ASSERT(written == 2 * len);
   fclose(fp);
+}
+
+void setup_gzfile(const char *filename, size_t len, int format) {
+  gzFile fp = gzopen(filename, "wb");
+  TEST_ASSERT(fp != NULL);
+  void *buffer = NULL;
+  size_t bytes_to_write = 0;
+  size_t written = 0;
+  if (format == CU8_FORMAT) {
+    setup_input_cu8((uint8_t **) &buffer, 0, 2 * len);
+    bytes_to_write = sizeof(uint8_t) * 2 * len;
+    written = gzwrite(fp, buffer, bytes_to_write);
+  } else if (format == CS16_FORMAT) {
+    setup_input_cs16((int16_t **) &buffer, 0, 2 * len);
+    bytes_to_write = sizeof(int16_t) * 2 * len;
+    written = gzwrite(fp, buffer, bytes_to_write);
+  } else if (format == CF32_FORMAT) {
+    setup_input_cf32((float **) &buffer, 0, 2 * len);
+    bytes_to_write = sizeof(float) * 2 * len;
+    written = gzwrite(fp, buffer, bytes_to_write);
+  } else {
+    TEST_ABORT();
+  }
+  free(buffer);
+  TEST_ASSERT(written == bytes_to_write);
+  gzclose(fp);
 }
 
 void setup_input_cu8(uint8_t **input, size_t input_offset, size_t len) {
@@ -124,6 +160,15 @@ void setup_input_cs16(int16_t **input, size_t input_offset, size_t len) {
   for (size_t i = 0; i < len; i++) {
     // don't care about the loss of data
     result[i] = (int16_t) (input_offset + i) - (int16_t) (len / 2);
+  }
+  *input = result;
+}
+
+void setup_input_cf32(float **input, size_t input_offset, size_t len) {
+  float *result = malloc(sizeof(float) * len);
+  TEST_ASSERT(result != NULL);
+  for (size_t i = 0; i < len; i++) {
+    result[i] = sinf((float) (input_offset + i));
   }
   *input = result;
 }

@@ -11,8 +11,10 @@
 void setup_input_cu8(uint8_t **input, size_t input_offset, size_t len);
 void setup_input_cs16(int16_t **input, size_t input_offset, size_t len);
 void setup_input_cs8(int8_t **input, size_t input_offset, size_t len);
+void setup_input_cf32(float **input, size_t input_offset, size_t len);
 
-void setup_file_cu8(const char *filename, size_t len);
+void setup_file(const char *filename, size_t len, int format);
+void setup_gzfile(const char *filename, size_t len, int format);
 
 void assert_png(const char *expected, const char *actual);
 

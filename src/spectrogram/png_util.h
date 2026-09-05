@@ -9,14 +9,14 @@ typedef struct {
   png_structp png_ptr;
   png_infop info_ptr;
   FILE *fp;
-  png_bytep row;
+  png_bytep *row_pointers;
   uint32_t width;
   uint32_t height;
 } png_util;
 
 int png_util_init(uint32_t width, uint32_t height, FILE *fp, png_util **result);
 
-void png_util_set_data(const float *data, png_util *png);
+void png_util_set_data(uint32_t row, const float *data, png_util *png);
 
 void png_util_write_image(png_util *png);
 

@@ -162,7 +162,7 @@ int spectrogram_main(spectrogram *req) {
       req->temp[req->width - 1] = 10 * log10f(req->temp[req->width - 1]);
     }
 
-    png_util_set_data(req->temp, req->png);
+    png_util_set_data(current_row, req->temp, req->png);
 
     iq_file_skip(skip_per_row, req->file);
     current_row++;
